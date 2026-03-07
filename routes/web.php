@@ -97,13 +97,19 @@ Route::post('data-relations/our-company/remove-domain', [OurCompanyController::c
 Route::delete('data-relations/our-company/members/{person}', [OurCompanyController::class, 'removeMember'])->name('our-company.remove-member');
 
 // Synchronizer
-Route::prefix('synchronizer')->name('synchronizer.')->group(function () {
-    Route::get('/',                          [SynchronizerController::class, 'index'])->name('index');
-    Route::get('/connections/{id}',          [SynchronizerController::class, 'show'])->name('connections.show');
-    Route::post('/connections/{id}/run',     [SynchronizerController::class, 'run'])->name('connections.run');
-    Route::post('/connections/{id}/stop',    [SynchronizerController::class, 'stop'])->name('connections.stop');
-    Route::post('/kill-all',                 [SynchronizerController::class, 'killAll'])->name('kill-all');
-    Route::get('/runs',                      [SynchronizerController::class, 'runs'])->name('runs');
-    Route::get('/runs/{runId}/status',       [SynchronizerController::class, 'runStatus'])->name('runs.status');
-    Route::get('/runs/{runId}/logs',         [SynchronizerController::class, 'runLogs'])->name('runs.logs');
+Route::prefix('synchronization')->name('synchronizer.')->group(function () {
+    Route::get('/',                              [SynchronizerController::class, 'index'])->name('index');
+    Route::get('/connections/create',            [SynchronizerController::class, 'create'])->name('connections.create');
+    Route::post('/connections',                  [SynchronizerController::class, 'store'])->name('connections.store');
+    Route::get('/connections/{id}',              [SynchronizerController::class, 'show'])->name('connections.show');
+    Route::get('/connections/{id}/edit',         [SynchronizerController::class, 'edit'])->name('connections.edit');
+    Route::put('/connections/{id}',              [SynchronizerController::class, 'update'])->name('connections.update');
+    Route::delete('/connections/{id}',           [SynchronizerController::class, 'destroy'])->name('connections.destroy');
+    Route::post('/connections/{id}/duplicate',   [SynchronizerController::class, 'duplicate'])->name('connections.duplicate');
+    Route::post('/connections/{id}/run',         [SynchronizerController::class, 'run'])->name('connections.run');
+    Route::post('/connections/{id}/stop',        [SynchronizerController::class, 'stop'])->name('connections.stop');
+    Route::post('/kill-all',                     [SynchronizerController::class, 'killAll'])->name('kill-all');
+    Route::get('/runs',                          [SynchronizerController::class, 'runs'])->name('runs');
+    Route::get('/runs/{runId}/status',           [SynchronizerController::class, 'runStatus'])->name('runs.status');
+    Route::get('/runs/{runId}/logs',             [SynchronizerController::class, 'runLogs'])->name('runs.logs');
 });

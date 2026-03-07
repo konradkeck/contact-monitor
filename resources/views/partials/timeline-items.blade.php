@@ -45,6 +45,9 @@
             <div class="flex items-center gap-2 max-w-full group hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors min-w-0">
                 @if($chType)
                     <x-channel-badge :type="$chType" class="shrink-0" />
+                    @if($meta['system_slug'] ?? null)
+                        <span class="text-xs text-gray-400 shrink-0 font-mono">{{ $meta['system_slug'] }}</span>
+                    @endif
                 @else
                     <span class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border {{ $activity->timelineColor() }} whitespace-nowrap">
                         {{ $activity->timelineLabel() }}
@@ -105,6 +108,9 @@
             <div class="flex items-center gap-2 max-w-full group hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors min-w-0">
                 @if($chType)
                     <x-channel-badge :type="$chType" class="shrink-0" />
+                    @if($meta['system_slug'] ?? null)
+                        <span class="text-xs text-gray-400 shrink-0 font-mono">{{ $meta['system_slug'] }}</span>
+                    @endif
                 @else
                     <span class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border {{ $activity->timelineColor() }} whitespace-nowrap">
                         {{ $activity->timelineLabel() }}

@@ -3,6 +3,45 @@
 
 @section('content')
 
+{{-- Run mode popup --}}
+<div id="run-modal" class="fixed inset-0 z-50 hidden" onclick="if(event.target===this)closeRunModal()">
+    <div class="absolute inset-0 bg-black/25"></div>
+    <div class="absolute bg-white rounded-xl shadow-xl w-80"
+         style="top:50%;left:50%;transform:translate(-50%,-50%)"
+         onclick="event.stopPropagation()">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <span class="font-semibold text-gray-800 text-sm">Start sync</span>
+            <button onclick="closeRunModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 flex flex-col gap-3">
+            <button onclick="doRun('partial')"
+                    class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:border-brand-400 hover:bg-brand-50 text-left transition group">
+                <span class="mt-0.5 text-brand-600 group-hover:text-brand-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </span>
+                <div>
+                    <div class="font-semibold text-gray-800 text-sm">Partial sync</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Fetches only new data since the last run. Fast, used for regular updates.</div>
+                </div>
+            </button>
+            <button onclick="doRun('full')"
+                    class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-400 hover:bg-gray-50 text-left transition group">
+                <span class="mt-0.5 text-gray-500 group-hover:text-gray-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0l-4-4m4 4l-4 4"/>
+                    </svg>
+                </span>
+                <div>
+                    <div class="font-semibold text-gray-800 text-sm">Full sync</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Re-imports everything from scratch, resetting the cursor. Slower &mdash; use to fix gaps or after connection changes.</div>
+                </div>
+            </button>
+        </div>
+    </div>
+</div>
+
 @php
     $typeColors = [
         'whmcs'       => ['bg' => 'rgba(88,166,255,.1)',  'color' => '#388bfd', 'border' => 'rgba(88,166,255,.25)'],
@@ -12,23 +51,19 @@
         'discord'     => ['bg' => 'rgba(88,101,242,.12)', 'color' => '#5865f2', 'border' => 'rgba(88,101,242,.3)'],
         'slack'       => ['bg' => 'rgba(74,21,75,.1)',    'color' => '#e01e5a', 'border' => 'rgba(224,30,90,.3)'],
     ];
-    $statusColors = [
-        'completed' => ['color' => '#3fb950', 'bg' => 'rgba(63,185,80,.1)',  'border' => 'rgba(63,185,80,.25)'],
-        'running'   => ['color' => '#388bfd', 'bg' => 'rgba(88,166,255,.1)', 'border' => 'rgba(88,166,255,.25)'],
-        'pending'   => ['color' => '#8b949e', 'bg' => 'rgba(139,148,158,.1)','border' => 'rgba(139,148,158,.25)'],
-        'failed'    => ['color' => '#f85149', 'bg' => 'rgba(248,81,73,.1)',  'border' => 'rgba(248,81,73,.25)'],
-    ];
     $tc = $typeColors[$conn['type']] ?? $typeColors['imap'];
-    $latestRun = $runs[0] ?? null;
+    $latestRun    = $runs[0] ?? null;
     $latestStatus = $latestRun['status'] ?? null;
-    $active = in_array($latestStatus, ['pending', 'running']);
     $selectedRunId = request()->query('run_id', $latestRun['id'] ?? null);
 @endphp
 
-{{-- ─── HEADER ─── --}}
+{{-- Outer Alpine scope covers everything so header/info/buttons all react to runStatus --}}
+<div x-data="showPage({{ $conn['id'] }}, {{ $selectedRunId ?? 'null' }}, {{ json_encode($latestStatus) }})">
+
+{{-- HEADER --}}
 <div class="page-header">
     <div class="flex items-center gap-3">
-        <a href="{{ route('synchronizer.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">← Connections</a>
+        <a href="{{ route('synchronizer.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">&larr; Connections</a>
         <span class="text-gray-300">/</span>
         <span class="page-title">{{ $conn['name'] }}</span>
         <span class="badge" style="background:{{ $tc['bg'] }}; color:{{ $tc['color'] }}; border-color:{{ $tc['border'] }}">
@@ -36,16 +71,26 @@
         </span>
     </div>
     <div class="flex items-center gap-2">
-        @if($active)
-            <button onclick="stopRun({{ $conn['id'] }}, this)" class="btn btn-danger btn-sm">Stop</button>
-        @else
-            <button onclick="triggerRun({{ $conn['id'] }}, 'partial', this)" class="btn btn-secondary btn-sm">Run</button>
-            <button onclick="triggerRun({{ $conn['id'] }}, 'full', this)" class="btn btn-muted btn-sm">Full sync</button>
-        @endif
+        <template x-if="runStatus === 'running' || runStatus === 'pending'">
+            <button onclick="stopRun({{ $conn['id'] }}, this)" class="btn btn-danger btn-sm">
+                <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-linejoin="round"/></svg>
+                Stop
+            </button>
+        </template>
+        <template x-if="runStatus !== 'running' && runStatus !== 'pending'">
+            <button onclick="openRunModal({{ $conn['id'] }})" class="btn btn-secondary btn-sm">
+                <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3l14 9-14 9V3z"/></svg>
+                Run
+            </button>
+        </template>
+        <a href="{{ route('synchronizer.connections.edit', $conn['id']) }}" class="btn btn-muted btn-sm">
+            <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            Edit
+        </a>
     </div>
 </div>
 
-{{-- ─── CONNECTION INFO ─── --}}
+{{-- CONNECTION INFO --}}
 <div class="card p-4 mb-4 flex items-start gap-6 flex-wrap text-sm">
     <div>
         <div class="text-xs text-gray-400 mb-0.5">System slug</div>
@@ -66,30 +111,49 @@
                 <div class="text-xs text-gray-400">{{ $latestRun['duration_seconds'] }}s</div>
             @endif
         </div>
-        <div>
-            <div class="text-xs text-gray-400 mb-0.5">Status</div>
-            @php $sc = $statusColors[$latestStatus] ?? $statusColors['pending']; @endphp
-            <span class="badge" style="background:{{ $sc['bg'] }}; color:{{ $sc['color'] }}; border-color:{{ $sc['border'] }}">
-                @if($latestStatus === 'running')
-                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse" style="background:{{ $sc['color'] }}"></span>
-                @endif
-                {{ $latestStatus }}
-            </span>
-        </div>
     @endif
+    <div>
+        <div class="text-xs text-gray-400 mb-0.5">Status</div>
+        <div class="flex items-center gap-2">
+            <span class="badge"
+                  :style="`background:${statusBg(runStatus)}; color:${statusColor(runStatus)}; border-color:${statusBorder(runStatus)}`">
+                <span x-show="runStatus === 'running' || runStatus === 'pending'"
+                      class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse"
+                      :style="`background:${statusColor(runStatus)}`"></span>
+                <span x-text="runStatus ?? '—'"></span>
+            </span>
+            <template x-if="runStatus === 'running' || runStatus === 'pending'">
+                <span class="flex items-center gap-1 text-blue-500 text-xs font-medium">
+                    <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"/>
+                        <path class="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    <span x-text="runStatus === 'pending' ? 'queued…' : 'syncing…'"></span>
+                </span>
+            </template>
+        </div>
+    </div>
 </div>
 
-{{-- ─── LAYOUT: runs table + log viewer side by side ─── --}}
-<div class="flex gap-4 items-start" x-data="showPage({{ $conn['id'] }}, {{ $selectedRunId ?? 'null' }})">
+{{-- LAYOUT: run history + log viewer --}}
+<div class="flex gap-4 items-start">
 
-    {{-- ─── RUN HISTORY ─── --}}
+    {{-- RUN HISTORY --}}
     <div class="card overflow-hidden flex-shrink-0" style="width:320px">
         <div class="px-4 py-2.5 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Run history
         </div>
         <div class="overflow-y-auto" style="max-height:560px">
             @forelse($runs as $run)
-                @php $sc = $statusColors[$run['status']] ?? $statusColors['pending']; @endphp
+                @php
+                    $sc = match($run['status']) {
+                        'completed' => ['color' => '#3fb950', 'bg' => 'rgba(63,185,80,.1)',   'border' => 'rgba(63,185,80,.25)'],
+                        'running'   => ['color' => '#388bfd', 'bg' => 'rgba(88,166,255,.1)',  'border' => 'rgba(88,166,255,.25)'],
+                        'pending'   => ['color' => '#8b949e', 'bg' => 'rgba(139,148,158,.1)', 'border' => 'rgba(139,148,158,.25)'],
+                        'failed'    => ['color' => '#f85149', 'bg' => 'rgba(248,81,73,.1)',   'border' => 'rgba(248,81,73,.25)'],
+                        default     => ['color' => '#8b949e', 'bg' => 'rgba(139,148,158,.1)', 'border' => 'rgba(139,148,158,.25)'],
+                    };
+                @endphp
                 <button
                     onclick="window.history.pushState({}, '', '?run_id={{ $run['id'] }}')"
                     @click="selectRun({{ $run['id'] }})"
@@ -104,7 +168,7 @@
                     <div class="text-xs text-gray-500 mt-0.5">
                         {{ \Carbon\Carbon::parse($run['created_at'])->format('d M Y, H:i') }}
                         @if($run['duration_seconds'])
-                            <span class="text-gray-400"> · {{ $run['duration_seconds'] }}s</span>
+                            <span class="text-gray-400"> &middot; {{ $run['duration_seconds'] }}s</span>
                         @endif
                     </div>
                     @if($run['triggered_by'] ?? null)
@@ -117,9 +181,8 @@
         </div>
     </div>
 
-    {{-- ─── LOG VIEWER ─── --}}
+    {{-- LOG VIEWER --}}
     <div class="card flex flex-col flex-1 overflow-hidden" style="min-height:400px">
-        {{-- Log header --}}
         <div class="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
             <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Logs
@@ -139,12 +202,11 @@
             </div>
         </div>
 
-        {{-- Log output --}}
         <div x-ref="logEl"
              class="flex-1 overflow-y-auto font-mono text-xs p-4 space-y-0.5"
              style="background:#f9fafb; min-height:360px">
             <template x-if="loading">
-                <div class="text-gray-400">Loading…</div>
+                <div class="text-gray-400">Loading...</div>
             </template>
             <template x-if="!loading && logs.length === 0">
                 <div class="text-gray-400">
@@ -159,9 +221,9 @@
             <template x-for="(line, i) in logs" :key="i">
                 <div class="leading-5"
                      :class="{
-                         'text-red-600':    line.level === 'error',
-                         'text-amber-600':  line.level === 'warning',
-                         'text-gray-600':   !line.level || line.level === 'info',
+                         'text-red-600':   line.level === 'error',
+                         'text-amber-600': line.level === 'warning',
+                         'text-gray-600':  !line.level || line.level === 'info',
                      }">
                     <span class="text-gray-300 select-none mr-2"
                           x-text="new Date(line.t).toTimeString().slice(0,8)"></span>
@@ -170,22 +232,30 @@
             </template>
         </div>
     </div>
-</div>
+
+</div>{{-- /flex layout --}}
+</div>{{-- /x-data --}}
 
 @push('scripts')
 <script>
-function showPage(connId, initialRunId) {
+function showPage(connId, initialRunId, initialStatus) {
     return {
-        connId:    connId,
+        connId:      connId,
         activeRunId: initialRunId,
-        logs:      [],
-        runStatus: null,
-        loading:   false,
-        _interval: null,
+        logs:        [],
+        runStatus:   initialStatus,
+        loading:     false,
+        _polling:    false,
+        _timer:      null,
+        _seenCount:  0,
 
         init() {
             if (this.activeRunId) {
-                this.loadLogs(this.activeRunId);
+                this.loadLogs(this.activeRunId, true).then(status => {
+                    if (['pending', 'running'].includes(status)) {
+                        this.startPolling(this.activeRunId);
+                    }
+                });
             }
         },
 
@@ -193,48 +263,55 @@ function showPage(connId, initialRunId) {
             if (this.activeRunId === runId) return;
             this.stopPolling();
             this.activeRunId = runId;
-            this.logs = [];
-            this.runStatus = null;
-            this.loadLogs(runId);
-        },
-
-        async loadLogs(runId) {
-            this.loading = true;
-            try {
-                const r = await fetch(`/synchronizer/runs/${runId}/logs`);
-                const d = await r.json();
-                this.logs      = d.log_lines ?? [];
-                this.runStatus = d.status;
-                this.scrollBottom();
-                if (['pending', 'running'].includes(d.status)) {
+            this.logs        = [];
+            this._seenCount  = 0;
+            this.runStatus   = null;
+            this.loadLogs(runId, true).then(status => {
+                if (['pending', 'running'].includes(status)) {
                     this.startPolling(runId);
                 }
+            });
+        },
+
+        async loadLogs(runId, initial = false) {
+            if (initial) this.loading = true;
+            try {
+                const r = await fetch(`/synchronization/runs/${runId}/logs`);
+                const d = await r.json();
+                const lines = d.log_lines ?? [];
+                if (lines.length > this._seenCount) {
+                    this.logs.push(...lines.slice(this._seenCount));
+                    this._seenCount = lines.length;
+                    this.scrollBottom();
+                }
+                this.runStatus = d.status;
+                return d.status;
             } catch(e) {
-                this.logs = [{ t: Date.now(), level: 'error', msg: 'Failed to load logs: ' + e.message }];
+                if (initial) this.logs = [{ t: Date.now(), level: 'error', msg: 'Failed to load logs: ' + e.message }];
+                return null;
             } finally {
-                this.loading = false;
+                if (initial) this.loading = false;
             }
         },
 
         startPolling(runId) {
-            this.stopPolling();
-            this._interval = setInterval(async () => {
-                if (this.activeRunId !== runId) { this.stopPolling(); return; }
-                try {
-                    const r = await fetch(`/synchronizer/runs/${runId}/logs`);
-                    const d = await r.json();
-                    this.logs      = d.log_lines ?? [];
-                    this.runStatus = d.status;
-                    this.scrollBottom();
-                    if (['completed', 'failed'].includes(d.status)) {
-                        this.stopPolling();
-                    }
-                } catch(_) {}
-            }, 2000);
+            if (this._polling) return;
+            this._polling = true;
+            const tick = async () => {
+                if (!this._polling || this.activeRunId !== runId) return;
+                const status = await this.loadLogs(runId);
+                if (this._polling && ['pending', 'running'].includes(status)) {
+                    this._timer = setTimeout(tick, 400);
+                } else {
+                    this._polling = false;
+                }
+            };
+            this._timer = setTimeout(tick, 400);
         },
 
         stopPolling() {
-            if (this._interval) { clearInterval(this._interval); this._interval = null; }
+            this._polling = false;
+            if (this._timer) { clearTimeout(this._timer); this._timer = null; }
         },
 
         scrollBottom() {
@@ -242,35 +319,57 @@ function showPage(connId, initialRunId) {
                 const el = this.$refs.logEl;
                 if (el) el.scrollTop = el.scrollHeight;
             });
-        }
+        },
+
+        // Status badge helpers (replaces PHP $statusColors for Alpine-driven badge)
+        statusColor(s) {
+            return { completed: '#3fb950', running: '#388bfd', pending: '#8b949e', failed: '#f85149' }[s] ?? '#8b949e';
+        },
+        statusBg(s) {
+            return { completed: 'rgba(63,185,80,.1)', running: 'rgba(88,166,255,.1)', pending: 'rgba(139,148,158,.1)', failed: 'rgba(248,81,73,.1)' }[s] ?? 'rgba(139,148,158,.1)';
+        },
+        statusBorder(s) {
+            return { completed: 'rgba(63,185,80,.25)', running: 'rgba(88,166,255,.25)', pending: 'rgba(139,148,158,.25)', failed: 'rgba(248,81,73,.25)' }[s] ?? 'rgba(139,148,158,.25)';
+        },
     };
 }
 
-async function triggerRun(id, mode, btn) {
-    btn.disabled = true;
-    btn.textContent = '…';
+let _runModalConnId = null;
+
+function openRunModal(connId) {
+    _runModalConnId = connId;
+    document.getElementById('run-modal').classList.remove('hidden');
+}
+
+function closeRunModal() {
+    document.getElementById('run-modal').classList.add('hidden');
+    _runModalConnId = null;
+}
+
+async function doRun(mode) {
+    const connId = _runModalConnId;
+    closeRunModal();
+    if (!connId) return;
     try {
-        const res = await fetch(`/synchronizer/connections/${id}/run`, {
+        const res = await fetch(`/synchronization/connections/${connId}/run`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRF-TOKEN': '{{ csrf_token() }}'},
             body: JSON.stringify({mode})
         });
         const data = await res.json();
         if (data.run_id) {
-            window.location = `/synchronizer/connections/${id}?run_id=${data.run_id}`;
+            window.location = `/synchronization/connections/${connId}?run_id=${data.run_id}`;
         }
     } catch(e) {
-        btn.disabled = false;
-        btn.textContent = mode === 'full' ? 'Full sync' : 'Run';
         alert('Error: ' + e.message);
     }
 }
 
 async function stopRun(id, btn) {
     btn.disabled = true;
-    btn.textContent = '…';
+    btn.textContent = '...';
     try {
-        await fetch(`/synchronizer/connections/${id}/stop`, {
+        await fetch(`/synchronization/connections/${id}/stop`, {
             method: 'POST',
             headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
         });

@@ -75,6 +75,9 @@ class AutoResolver
         // 8. Backfill activity.person_id for email activities (sender/recipient resolution)
         $personsFilled      = $this->fillActivityPersons();
 
+        // 9. Backfill activity.person_id for MetricsCube activities via customer name
+        $mcPersonsFilled    = $this->fillMcActivityPersons();
+
         // 9. Remove people that lost all their identities (orphans created by UI deletions)
         $orphansRemoved     = $this->cleanOrphanPeople();
 
@@ -87,6 +90,7 @@ class AutoResolver
             'activities_filled'    => $activitiesFilled,
             'tickets_linked'       => $ticketsLinked,
             'persons_filled'       => $personsFilled,
+            'mc_persons_filled'    => $mcPersonsFilled,
             'orphans_removed'      => $orphansRemoved,
         ];
     }
@@ -510,7 +514,7 @@ class AutoResolver
         $filled = 0;
 
         // Process all activities that have a conversation_external_id in meta.
-        // Update company_id to match the linked conversation (handles both null and stale values).
+        // Update company_id AND target_url to match the linked conversation.
         \App\Models\Activity::whereRaw("meta_json->>'conversation_external_id' IS NOT NULL")
             ->cursor()
             ->each(function (\App\Models\Activity $activity) use (&$filled) {
@@ -527,9 +531,22 @@ class AutoResolver
                 if ($systemType)  $query->where('system_type', $systemType);
                 if ($systemSlug)  $query->where('system_slug', $systemSlug);
 
-                $conv = $query->whereNotNull('company_id')->first();
-                if ($conv && $conv->company_id !== $activity->company_id) {
-                    $activity->update(['company_id' => $conv->company_id]);
+                $conv = $query->first();
+                if (!$conv) return;
+
+                $changes = [];
+
+                if ($conv->company_id && $conv->company_id !== $activity->company_id) {
+                    $changes['company_id'] = $conv->company_id;
+                }
+
+                $expectedUrl = '/conversations/' . $conv->id;
+                if ($activity->target_url !== $expectedUrl) {
+                    $changes['target_url'] = $expectedUrl;
+                }
+
+                if (!empty($changes)) {
+                    $activity->update($changes);
                     $filled++;
                 }
             });
@@ -704,6 +721,55 @@ class AutoResolver
                     $activity->update(['person_id' => $personId]);
                     $filled++;
                     $this->log[] = "Filled activity #{$activity->id} person_id={$personId} via email conversation {$convExtId}";
+                }
+            });
+
+        return $filled;
+    }
+
+    // -------------------------------------------------------------------------
+    // MetricsCube activities → person_id (by customer display name)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Match MetricsCube activities to people by parsing the customer field.
+     * Customer format: "#<clientId> - <Firstname Lastname>" or just "<Firstname Lastname>".
+     */
+    public function fillMcActivityPersons(): int
+    {
+        $filled = 0;
+
+        \App\Models\Activity::whereRaw("meta_json->>'system_type' = 'metricscube'")
+            ->whereNull('person_id')
+            ->cursor()
+            ->each(function (\App\Models\Activity $activity) use (&$filled) {
+                $customer = trim($activity->meta_json['customer'] ?? '');
+                if (!$customer) return;
+
+                // Strip leading "#N - " prefix if present
+                $name = preg_replace('/^#\d+\s*-\s*/', '', $customer);
+                $name = trim($name);
+                if (!$name) return;
+
+                $parts = explode(' ', $name, 2);
+                $firstName = trim($parts[0]);
+                $lastName  = isset($parts[1]) ? trim($parts[1]) : '';
+
+                $person = Person::where('first_name', $firstName)
+                    ->where('last_name', $lastName !== '' ? $lastName : null)
+                    ->first();
+
+                if (!$person && $lastName !== '') {
+                    // Try with last_name IS NULL for single-word names
+                    $person = Person::where('first_name', $firstName)
+                        ->whereNull('last_name')
+                        ->first();
+                }
+
+                if ($person) {
+                    $activity->update(['person_id' => $person->id]);
+                    $filled++;
+                    $this->log[] = "MC activity #{$activity->id}: linked person #{$person->id} via customer '{$customer}'";
                 }
             });
 

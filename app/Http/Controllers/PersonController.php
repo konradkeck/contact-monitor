@@ -250,14 +250,17 @@ class PersonController extends Controller
 
         $identityIds = $person->identities->pluck('id')->toArray();
 
+        $query = \App\Models\Activity::with('company')->distinct();
+
         if (empty($identityIds)) {
-            return \App\Models\Activity::with('company')->whereRaw('false');
+            // No identities — only show activities linked directly to this person
+            return $query->where('person_id', $person->id)->orderByDesc('occurred_at');
         }
 
         $idCsv = implode(',', array_map('intval', $identityIds));
 
-        return \App\Models\Activity::with('company')
-            ->where(function ($q) use ($idCsv) {
+        return $query
+            ->where(function ($q) use ($idCsv, $person) {
                 // 1. Activities tied to conversations (email, discord, slack)
                 //    where any of person's identities sent messages
                 //    (outgoing team emails where only team sent are intentionally excluded)
@@ -273,7 +276,7 @@ class PersonController extends Controller
                     )
                 ");
 
-                // 3. WHMCS ticket activities (MetricsCube): match by ticket ID
+                // 2. WHMCS ticket activities (MetricsCube): match by ticket ID
                 //    Only for type='conversation' to avoid false matches with invoice/service IDs
                 //    Ticket conversations: external_thread_id = 'ticket_{id}'
                 //    MC activities: relation_id = '{id}' (raw number, no prefix)
@@ -289,6 +292,9 @@ class PersonController extends Controller
                           AND c.external_thread_id = 'ticket_' || (activities.meta_json->>'relation_id')
                     )
                 ");
+
+                // 3. Activities directly linked to this person (e.g. MetricsCube financial events)
+                $q->orWhere('person_id', $person->id);
             })
             ->orderByDesc('occurred_at');
     }

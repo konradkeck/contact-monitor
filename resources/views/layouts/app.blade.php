@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Contact Monitor') — Contact Monitor</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💪</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="/logo.svg">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -33,6 +33,8 @@
         }
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <style>
         [x-cloak] { display: none !important; }
 
@@ -89,28 +91,29 @@
 
 {{-- ─── TOP BAR ─── --}}
 <header class="flex-shrink-0 z-20 sticky top-0" style="background:#24292f; border-bottom:1px solid #1b1f24">
-    <div class="flex items-center h-12 px-5 gap-6">
-        <a href="{{ route('dashboard') }}" class="font-bold text-sm tracking-tight text-white flex-shrink-0">
-            Contact Monitor
+    <div class="flex items-center h-16 px-5 gap-6">
+        <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 flex-shrink-0">
+            <img src="/logo.svg" alt="logo" class="w-6 h-6">
+            <span class="font-bold text-base tracking-tight text-white">Contact Monitor</span>
         </a>
 
         @php
             $topSections = [
                 'Contact Monitor'        => ['route' => 'dashboard',          'pattern' => ['dashboard', 'companies.*', 'people.*', 'conversations.*', 'campaigns.*', 'activities.*']],
-                'Synchronizer' => ['route' => 'synchronizer.index', 'pattern' => ['synchronizer.*']],
+                'Synchronization' => ['route' => 'synchronizer.index', 'pattern' => ['synchronizer.*']],
                 'Data Relations' => ['route' => 'data-relations.index','pattern' => ['data-relations.*', 'our-company.*', 'filtering.*']],
                 'Configuration'  => ['route' => 'brand-products.index','pattern' => ['brand-products.*']],
             ];
         @endphp
 
-        <nav class="flex items-center gap-0.5">
+        <nav class="flex items-center gap-0.5 ml-8">
             @foreach($topSections as $label => $section)
                 @php
                     $isActive = !empty($section['pattern']) && request()->routeIs($section['pattern']);
                     $href     = $section['route'] ? route($section['route']) : '#';
                 @endphp
                 <a href="{{ $href }}"
-                   class="px-3 py-1.5 rounded text-xs font-medium transition
+                   class="px-4 py-2 rounded text-sm font-medium transition
                           {{ $isActive
                               ? 'bg-white/10 text-white'
                               : 'text-gray-400 hover:text-white hover:bg-white/8' }}
@@ -126,7 +129,7 @@
 <div class="flex flex-1">
 
     {{-- Left sidebar --}}
-    <aside class="w-52 flex-shrink-0 flex flex-col overflow-y-auto sticky top-12 self-start h-[calc(100vh-3rem)]"
+    <aside class="w-52 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 left-0 h-[calc(100vh-4rem)]"
            style="background:#fff; border-right:1px solid #d0d7de">
         <nav class="flex-1 px-2 py-3 space-y-0.5">
 
@@ -247,7 +250,7 @@
     </aside>
 
     {{-- Main content --}}
-    <main class="flex-1 min-w-0">
+    <main class="flex-1 min-w-0 ml-52">
 
         {{-- Flash messages --}}
         @if(session('success'))
