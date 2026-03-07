@@ -1,13 +1,13 @@
 @extends('layouts.app')
-@section('title', 'Mielonka')
+@section('title', 'Synchronizer')
 
 @section('content')
 
 <div class="page-header">
-    <span class="page-title">Mielonka — Connections</span>
+    <span class="page-title">Synchronizer — Connections</span>
     <div class="flex items-center gap-2">
         <button onclick="killAll()" class="btn btn-danger btn-sm" id="kill-btn">Kill all runs</button>
-        <a href="{{ route('mielonka.index') }}" class="btn btn-secondary btn-sm">Refresh</a>
+        <a href="{{ route('synchronizer.index') }}" class="btn btn-secondary btn-sm">Refresh</a>
     </div>
 </div>
 
@@ -58,7 +58,7 @@
                 @endphp
                 <tr class="tbl-row" id="conn-row-{{ $conn['id'] }}">
                     <td class="px-4 py-3">
-                        <a href="{{ route('mielonka.connections.show', $conn['id']) }}"
+                        <a href="{{ route('synchronizer.connections.show', $conn['id']) }}"
                            class="font-medium text-gray-900 hover:text-brand-700 transition">
                             {{ $conn['name'] }}
                         </a>
@@ -110,7 +110,7 @@
                                 <button onclick="triggerRun({{ $conn['id'] }}, 'full', this)"
                                         class="btn btn-muted btn-sm">Full</button>
                             @endif
-                            <a href="{{ route('mielonka.connections.show', $conn['id']) }}"
+                            <a href="{{ route('synchronizer.connections.show', $conn['id']) }}"
                                class="btn btn-muted btn-sm">Logs</a>
                         </div>
                     </td>
@@ -132,14 +132,14 @@ async function triggerRun(id, mode, btn) {
     btn.disabled = true;
     btn.textContent = '…';
     try {
-        const res = await fetch(`/mielonka/connections/${id}/run`, {
+        const res = await fetch(`/synchronizer/connections/${id}/run`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRF-TOKEN': '{{ csrf_token() }}'},
             body: JSON.stringify({mode})
         });
         const data = await res.json();
         if (data.run_id) {
-            window.location = `/mielonka/connections/${id}?run_id=${data.run_id}`;
+            window.location = `/synchronizer/connections/${id}?run_id=${data.run_id}`;
         }
     } catch(e) {
         btn.disabled = false;
@@ -152,7 +152,7 @@ async function stopRun(id, btn) {
     btn.disabled = true;
     btn.textContent = '…';
     try {
-        await fetch(`/mielonka/connections/${id}/stop`, {
+        await fetch(`/synchronizer/connections/${id}/stop`, {
             method: 'POST',
             headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
         });
@@ -169,7 +169,7 @@ async function killAll() {
     btn.disabled = true;
     btn.textContent = '…';
     try {
-        await fetch('/mielonka/kill-all', {
+        await fetch('/synchronizer/kill-all', {
             method: 'POST',
             headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
         });

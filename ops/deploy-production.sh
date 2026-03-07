@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_DIR="/srv/salesos"
+REPO_DIR="/srv/contact-monitor"
 SSH_HOST="production"
 
 echo "[1/6] Local: commit check"

@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: salesos_app
+    container_name: contact-monitor_app
     working_dir: /app
     volumes:
       - ./:/app
@@ -15,15 +15,15 @@ services:
 
   db:
     image: postgres:16
-    container_name: salesos_db
+    container_name: contact-monitor_db
     environment:
-      POSTGRES_DB: salesos
-      POSTGRES_USER: salesos
-      POSTGRES_PASSWORD: salesos
+      POSTGRES_DB: contact-monitor
+      POSTGRES_USER: contact-monitor
+      POSTGRES_PASSWORD: contact-monitor
     volumes:
-      - salesos_pgdata:/var/lib/postgresql/data
+      - contact-monitor_pgdata:/var/lib/postgresql/data
     ports:
       - "5434:5432"
 
 volumes:
-  salesos_pgdata:
+  contact-monitor_pgdata:

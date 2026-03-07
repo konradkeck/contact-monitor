@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
-use App\Http\Controllers\MielonkaController;
+use App\Http\Controllers\SynchronizerController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BrandProductController;
 use App\Http\Controllers\CampaignController;
@@ -96,14 +96,14 @@ Route::post('data-relations/our-company/domains', [OurCompanyController::class, 
 Route::post('data-relations/our-company/remove-domain', [OurCompanyController::class, 'removeTeamDomain'])->name('our-company.remove-domain');
 Route::delete('data-relations/our-company/members/{person}', [OurCompanyController::class, 'removeMember'])->name('our-company.remove-member');
 
-// Mielonka
-Route::prefix('mielonka')->name('mielonka.')->group(function () {
-    Route::get('/',                          [MielonkaController::class, 'index'])->name('index');
-    Route::get('/connections/{id}',          [MielonkaController::class, 'show'])->name('connections.show');
-    Route::post('/connections/{id}/run',     [MielonkaController::class, 'run'])->name('connections.run');
-    Route::post('/connections/{id}/stop',    [MielonkaController::class, 'stop'])->name('connections.stop');
-    Route::post('/kill-all',                 [MielonkaController::class, 'killAll'])->name('kill-all');
-    Route::get('/runs',                      [MielonkaController::class, 'runs'])->name('runs');
-    Route::get('/runs/{runId}/status',       [MielonkaController::class, 'runStatus'])->name('runs.status');
-    Route::get('/runs/{runId}/logs',         [MielonkaController::class, 'runLogs'])->name('runs.logs');
+// Synchronizer
+Route::prefix('synchronizer')->name('synchronizer.')->group(function () {
+    Route::get('/',                          [SynchronizerController::class, 'index'])->name('index');
+    Route::get('/connections/{id}',          [SynchronizerController::class, 'show'])->name('connections.show');
+    Route::post('/connections/{id}/run',     [SynchronizerController::class, 'run'])->name('connections.run');
+    Route::post('/connections/{id}/stop',    [SynchronizerController::class, 'stop'])->name('connections.stop');
+    Route::post('/kill-all',                 [SynchronizerController::class, 'killAll'])->name('kill-all');
+    Route::get('/runs',                      [SynchronizerController::class, 'runs'])->name('runs');
+    Route::get('/runs/{runId}/status',       [SynchronizerController::class, 'runStatus'])->name('runs.status');
+    Route::get('/runs/{runId}/logs',         [SynchronizerController::class, 'runLogs'])->name('runs.logs');
 });

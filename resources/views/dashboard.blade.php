@@ -5,7 +5,7 @@
 
 {{-- Header --}}
 <div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-900">Welcome to SalesOS</h1>
+    <h1 class="text-2xl font-bold text-gray-900">Welcome to Contact Monitor</h1>
     <p class="text-gray-500 mt-1 text-sm">Your CRM and data interpretation layer. Work in progress.</p>
 </div>
 

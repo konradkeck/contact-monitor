@@ -99,7 +99,7 @@
                 <tr>
                     <th class="px-4 py-2 text-left font-medium">External ID</th>
                     @if($systemType === 'whmcs')<th class="px-4 py-2 text-left font-medium">Company name (WHMCS)</th>@endif
-                    <th class="px-4 py-2 text-left font-medium">Company in SalesOS</th>
+                    <th class="px-4 py-2 text-left font-medium">Company in Contact Monitor</th>
                     <th class="px-4 py-2"></th>
                 </tr>
             </thead>
@@ -213,7 +213,7 @@
                     <th class="px-4 py-2 text-left font-medium">Identity value</th>
                     <th class="px-4 py-2 text-left font-medium">Display name</th>
                     @if($systemType === 'slack')<th class="px-4 py-2 text-left font-medium">Email</th>@endif
-                    <th class="px-4 py-2 text-left font-medium">Person in SalesOS</th>
+                    <th class="px-4 py-2 text-left font-medium">Person in Contact Monitor</th>
                     <th class="px-4 py-2 text-center font-medium">Team</th>
                     <th class="px-4 py-2"></th>
                 </tr>
@@ -287,7 +287,7 @@
         <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
             <tr>
                 <th class="px-4 py-2 text-left font-medium">Channel</th>
-                <th class="px-4 py-2 text-left font-medium">Company in SalesOS</th>
+                <th class="px-4 py-2 text-left font-medium">Company in Contact Monitor</th>
                 <th class="px-4 py-2 text-left font-medium w-72">Link / Change</th>
                 <th class="px-4 py-2"></th>
             </tr>

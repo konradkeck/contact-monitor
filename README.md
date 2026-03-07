@@ -1,4 +1,4 @@
-# SalesOS — CRM
+# contact-monitor — CRM
 
 Internal CRM for managing companies, contacts, conversations and sales pipeline. Tracks brand product stages, conversation history across Slack/email/tickets, activities timeline, and campaign management.
 
@@ -65,14 +65,14 @@ docker compose version
 
 ```bash
 # Create the directory where the app will live
-sudo mkdir -p /srv/salesos
-sudo chown $USER:$USER /srv/salesos
+sudo mkdir -p /srv/contact-monitor
+sudo chown $USER:$USER /srv/contact-monitor
 
 # Clone
-git clone git@github.com:your-org/salesos.git /srv/salesos
+git clone git@github.com:your-org/contact-monitor.git /srv/contact-monitor
 
 # Go into the directory — all following commands run from here
-cd /srv/salesos
+cd /srv/contact-monitor
 ```
 
 ### 3. Configure environment
@@ -133,7 +133,7 @@ Check that both containers are running:
 docker compose ps
 ```
 
-You should see `salesos_app` and `salesos_db` both with status `Up`.
+You should see `contact-monitor_app` and `contact-monitor_db` both with status `Up`.
 
 ### 5. Run migrations
 
@@ -168,7 +168,7 @@ Updates are deployed from your local machine with a single command. It pushes yo
 
 **Prerequisites:**
 - You can SSH into the server with `ssh production` (host configured in `~/.ssh/config`)
-- The app is already set up on the server at `/srv/salesos`
+- The app is already set up on the server at `/srv/contact-monitor`
 
 **Run from your local machine:**
 
@@ -188,9 +188,9 @@ The script does the following steps automatically:
 9. Clears and rebuilds config/route/view caches
 
 **If deploy fails mid-way** — the most common causes:
-- `.env` not present on server → copy it: `ssh production "cp /srv/salesos/.env.example /srv/salesos/.env"` then edit it
+- `.env` not present on server → copy it: `ssh production "cp /srv/contact-monitor/.env.example /srv/contact-monitor/.env"` then edit it
 - Port 8090 already in use → check `ssh production "ss -tlnp | grep 8090"`
-- DB not ready → run `ssh production "cd /srv/salesos && sleep 5 && docker compose exec app php artisan migrate --force"`
+- DB not ready → run `ssh production "cd /srv/contact-monitor && sleep 5 && docker compose exec app php artisan migrate --force"`
 
 ---
 
@@ -198,8 +198,8 @@ The script does the following steps automatically:
 
 ```
 Browser
-  └─ :8090 → salesos_app (php artisan serve inside Docker)
-               └─ PostgreSQL (salesos_db container, :5434 on host)
+  └─ :8090 → contact-monitor_app (php artisan serve inside Docker)
+               └─ PostgreSQL (contact-monitor_db container, :5434 on host)
 ```
 
 **No queue worker, no scheduler.** All operations are synchronous — there are no background jobs. If you add features that require queued jobs in the future, add a `worker` service to `docker-compose.yml` (see Mielonka for reference).
@@ -259,7 +259,7 @@ No Docker needed for local dev — the app talks directly to your local PostgreS
 - PostgreSQL running locally
 
 ```bash
-cd /path/to/salesos
+cd /path/to/contact-monitor
 
 # Install dependencies
 composer install
@@ -278,16 +278,16 @@ APP_URL=http://localhost:8000
 
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_DATABASE=salesos
-DB_USERNAME=salesos       # or your local postgres user
-DB_PASSWORD=salesos
+DB_DATABASE=contact-monitor
+DB_USERNAME=contact-monitor       # or your local postgres user
+DB_PASSWORD=contact-monitor
 ```
 
 Create the database and user if they don't exist:
 
 ```bash
-sudo -u postgres psql -c "CREATE USER salesos WITH PASSWORD 'salesos';"
-sudo -u postgres psql -c "CREATE DATABASE salesos OWNER salesos;"
+sudo -u postgres psql -c "CREATE USER contact-monitor WITH PASSWORD 'contact-monitor';"
+sudo -u postgres psql -c "CREATE DATABASE contact-monitor OWNER contact-monitor;"
 ```
 
 Run setup:
@@ -316,7 +316,7 @@ php artisan migrate:fresh --seed
 
 ```bash
 # Connect to local PostgreSQL
-psql -U salesos -d salesos
+psql -U contact-monitor -d contact-monitor
 
 # Useful queries
 \dt                                  -- list all tables

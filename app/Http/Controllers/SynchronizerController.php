@@ -6,12 +6,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
-class MielonkaController extends Controller
+class SynchronizerController extends Controller
 {
     private function api(): \Illuminate\Http\Client\PendingRequest
     {
-        return Http::withToken(env('MIELONKA_API_TOKEN'))
-            ->baseUrl(rtrim(env('MIELONKA_URL', 'http://127.0.0.1:8001'), '/') . '/api')
+        return Http::withToken(env('SYNCHRONIZER_API_TOKEN'))
+            ->baseUrl(rtrim(env('SYNCHRONIZER_URL', 'http://127.0.0.1:8011'), '/') . '/api')
             ->timeout(10)
             ->acceptJson();
     }
@@ -21,13 +21,13 @@ class MielonkaController extends Controller
         try {
             $response    = $this->api()->get('/connections');
             $connections = $response->json('connections', []);
-            $error       = $response->failed() ? 'Could not reach Mielonka.' : null;
+            $error       = $response->failed() ? 'Could not reach Synchronizer.' : null;
         } catch (\Exception $e) {
             $connections = [];
-            $error       = 'Could not connect to Mielonka: ' . $e->getMessage();
+            $error       = 'Could not connect to Synchronizer: ' . $e->getMessage();
         }
 
-        return view('mielonka.index', compact('connections', 'error'));
+        return view('synchronizer.index', compact('connections', 'error'));
     }
 
     public function show(int $id)
@@ -36,12 +36,12 @@ class MielonkaController extends Controller
             $conn = $this->api()->get("/connections/{$id}")->json('connection');
             $runs = $this->api()->get("/connections/{$id}/runs")->json('runs', []);
         } catch (\Exception $e) {
-            abort(503, 'Could not connect to Mielonka: ' . $e->getMessage());
+            abort(503, 'Could not connect to Synchronizer: ' . $e->getMessage());
         }
 
         if (!$conn) abort(404);
 
-        return view('mielonka.show', compact('conn', 'runs'));
+        return view('synchronizer.show', compact('conn', 'runs'));
     }
 
     public function run(Request $request, int $id): JsonResponse

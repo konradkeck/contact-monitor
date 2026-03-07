@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'SalesOS') — SalesOS</title>
+    <title>@yield('title', 'Contact Monitor') — Contact Monitor</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💪</text></svg>">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -91,13 +91,13 @@
 <header class="flex-shrink-0 z-20 sticky top-0" style="background:#24292f; border-bottom:1px solid #1b1f24">
     <div class="flex items-center h-12 px-5 gap-6">
         <a href="{{ route('dashboard') }}" class="font-bold text-sm tracking-tight text-white flex-shrink-0">
-            SalesOS
+            Contact Monitor
         </a>
 
         @php
             $topSections = [
-                'SalesOS'        => ['route' => 'dashboard',          'pattern' => ['dashboard', 'companies.*', 'people.*', 'conversations.*', 'campaigns.*', 'activities.*']],
-                'Mielonka'       => ['route' => 'mielonka.index',       'pattern' => ['mielonka.*']],
+                'Contact Monitor'        => ['route' => 'dashboard',          'pattern' => ['dashboard', 'companies.*', 'people.*', 'conversations.*', 'campaigns.*', 'activities.*']],
+                'Synchronizer' => ['route' => 'synchronizer.index', 'pattern' => ['synchronizer.*']],
                 'Data Relations' => ['route' => 'data-relations.index','pattern' => ['data-relations.*', 'our-company.*', 'filtering.*']],
                 'Configuration'  => ['route' => 'brand-products.index','pattern' => ['brand-products.*']],
             ];
@@ -196,7 +196,7 @@
             @endif
 
         @else
-            {{-- ── Main SalesOS sidebar ── --}}
+            {{-- ── Main Contact Monitor sidebar ── --}}
             @php
                 $sidebarItems = [
                     ['label' => 'Dashboard',     'route' => 'dashboard',          'match' => ['dashboard'],         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>'],

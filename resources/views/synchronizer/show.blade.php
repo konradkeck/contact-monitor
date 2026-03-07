@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', $conn['name'] . ' — Mielonka')
+@section('title', $conn['name'] . ' — Synchronizer')
 
 @section('content')
 
@@ -28,7 +28,7 @@
 {{-- ─── HEADER ─── --}}
 <div class="page-header">
     <div class="flex items-center gap-3">
-        <a href="{{ route('mielonka.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">← Connections</a>
+        <a href="{{ route('synchronizer.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">← Connections</a>
         <span class="text-gray-300">/</span>
         <span class="page-title">{{ $conn['name'] }}</span>
         <span class="badge" style="background:{{ $tc['bg'] }}; color:{{ $tc['color'] }}; border-color:{{ $tc['border'] }}">
@@ -201,7 +201,7 @@ function showPage(connId, initialRunId) {
         async loadLogs(runId) {
             this.loading = true;
             try {
-                const r = await fetch(`/mielonka/runs/${runId}/logs`);
+                const r = await fetch(`/synchronizer/runs/${runId}/logs`);
                 const d = await r.json();
                 this.logs      = d.log_lines ?? [];
                 this.runStatus = d.status;
@@ -221,7 +221,7 @@ function showPage(connId, initialRunId) {
             this._interval = setInterval(async () => {
                 if (this.activeRunId !== runId) { this.stopPolling(); return; }
                 try {
-                    const r = await fetch(`/mielonka/runs/${runId}/logs`);
+                    const r = await fetch(`/synchronizer/runs/${runId}/logs`);
                     const d = await r.json();
                     this.logs      = d.log_lines ?? [];
                     this.runStatus = d.status;
@@ -250,14 +250,14 @@ async function triggerRun(id, mode, btn) {
     btn.disabled = true;
     btn.textContent = '…';
     try {
-        const res = await fetch(`/mielonka/connections/${id}/run`, {
+        const res = await fetch(`/synchronizer/connections/${id}/run`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRF-TOKEN': '{{ csrf_token() }}'},
             body: JSON.stringify({mode})
         });
         const data = await res.json();
         if (data.run_id) {
-            window.location = `/mielonka/connections/${id}?run_id=${data.run_id}`;
+            window.location = `/synchronizer/connections/${id}?run_id=${data.run_id}`;
         }
     } catch(e) {
         btn.disabled = false;
@@ -270,7 +270,7 @@ async function stopRun(id, btn) {
     btn.disabled = true;
     btn.textContent = '…';
     try {
-        await fetch(`/mielonka/connections/${id}/stop`, {
+        await fetch(`/synchronizer/connections/${id}/stop`, {
             method: 'POST',
             headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
         });
