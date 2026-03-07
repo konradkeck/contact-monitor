@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    container_name: salesos_app
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+    ports:
+      - "8090:8000"
+    environment:
+      PHP_CLI_SERVER_WORKERS: 8
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    container_name: salesos_db
+    environment:
+      POSTGRES_DB: salesos
+      POSTGRES_USER: salesos
+      POSTGRES_PASSWORD: salesos
+    volumes:
+      - salesos_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+
+volumes:
+  salesos_pgdata:

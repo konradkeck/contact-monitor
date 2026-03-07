@@ -1,0 +1,56 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AuditLog;
+use App\Models\Company;
+use App\Models\Note;
+use App\Models\NoteLink;
+use App\Models\Person;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+
+class NoteController extends Controller
+{
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'content' => 'required|string',
+            'linkable_type' => 'required|in:company,person,conversation',
+            'linkable_id' => 'required|integer',
+            'source' => 'nullable|in:manual,email_ingest,ai',
+        ]);
+
+        $typeMap = [
+            'company' => Company::class,
+            'person' => Person::class,
+            'conversation' => \App\Models\Conversation::class,
+        ];
+
+        $note = Note::create([
+            'content' => $data['content'],
+            'source' => $data['source'] ?? 'manual',
+        ]);
+
+        NoteLink::create([
+            'note_id' => $note->id,
+            'linkable_type' => $typeMap[$data['linkable_type']],
+            'linkable_id' => $data['linkable_id'],
+        ]);
+
+        // Record audit log based on entity type
+        $entity = ($typeMap[$data['linkable_type']])::find($data['linkable_id']);
+        if ($entity) {
+            AuditLog::record('added_note', $entity, "Added note to " . class_basename($entity) . " #{$entity->id}");
+        }
+
+        // Redirect back to the entity that was noted
+        $redirect = match ($data['linkable_type']) {
+            'company' => route('companies.show', $data['linkable_id']),
+            'person' => route('people.show', $data['linkable_id']),
+            'conversation' => route('conversations.show', $data['linkable_id']),
+        };
+
+        return redirect($redirect)->with('success', 'Note added.');
+    }
+}
