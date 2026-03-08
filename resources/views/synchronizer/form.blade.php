@@ -50,15 +50,17 @@
         <div class="card p-5 space-y-4">
             <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Basic</div>
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-4" x-data="{ slugEdited: {{ $isEdit ? 'true' : 'false' }} }">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Name</label>
-                    <input type="text" name="name" value="{{ $v('name') }}" required class="input">
+                    <input type="text" name="name" value="{{ $v('name') }}" required class="input"
+                           @input="if (!slugEdited) $refs.slug.value = $event.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50)">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">System slug</label>
                     <input type="text" name="system_slug" value="{{ $v('system_slug') }}" required
-                           pattern="[a-z][a-z0-9_-]*" class="input font-mono">
+                           pattern="[a-z][a-z0-9_-]*" class="input font-mono" x-ref="slug"
+                           @input="slugEdited = true">
                     <p class="text-xs text-gray-400 mt-0.5">Lowercase letters, numbers, - _</p>
                 </div>
             </div>
