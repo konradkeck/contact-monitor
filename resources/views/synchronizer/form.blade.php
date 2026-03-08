@@ -334,7 +334,7 @@
                         @click="
                             testStatus = 'testing'; testMsg = '';
                             const fd = new FormData($el.closest('form'));
-                            fd.append('_token', document.querySelector('[name=_token]').value);
+                            fd.delete('_method');
                             const params = new URLSearchParams(window.location.search);
                             const server = params.get('server') || '';
                             fetch('{{ route('synchronizer.connections.test') }}' + (server ? '?server=' + server : ''), {
