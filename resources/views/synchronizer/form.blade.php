@@ -331,12 +331,5 @@
 
     </div>
 </form>
-@if($isEdit)
-    <form method="POST" action="{{ route('synchronizer.connections.destroy', $conn['id']) }}" class="mt-3"
-          onsubmit="return confirm('Delete this connection permanently?')">
-        @csrf @method('DELETE')
-        <button type="submit" class="btn btn-danger">Delete connection</button>
-    </form>
-@endif
 
 @endsection
