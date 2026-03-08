@@ -74,10 +74,22 @@ class Company extends Model
             ->where('company_id', $this->id)
             ->pluck('person_id');
 
-        return Activity::where(function ($q) use ($personIds) {
+        // conversation external IDs for conversations linked to this company
+        $convExtIds = DB::table('conversations')
+            ->where('company_id', $this->id)
+            ->whereNotNull('external_thread_id')
+            ->pluck('external_thread_id');
+
+        return Activity::where(function ($q) use ($personIds, $convExtIds) {
             $q->where('company_id', $this->id);
             if ($personIds->isNotEmpty()) {
                 $q->orWhereIn('person_id', $personIds);
+            }
+            if ($convExtIds->isNotEmpty()) {
+                $q->orWhereIn(
+                    DB::raw("meta_json->>'conversation_external_id'"),
+                    $convExtIds
+                );
             }
         });
     }
