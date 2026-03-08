@@ -22,6 +22,12 @@ fi
 
 cd "$INSTALL_DIR"
 
+# Tear down any existing containers + volumes so DB is re-initialized with fresh credentials
+if docker compose ps -q 2>/dev/null | grep -q .; then
+  echo "==> Removing existing containers and volumes..."
+  docker compose down -v
+fi
+
 rand32() { openssl rand -hex 32 2>/dev/null || php -r "echo bin2hex(random_bytes(32));"; }
 APP_KEY="base64:$(openssl rand -base64 32 2>/dev/null || php -r "echo base64_encode(random_bytes(32));")"
 DB_PASS="$(rand32)"
