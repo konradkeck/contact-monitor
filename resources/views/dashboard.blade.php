@@ -16,7 +16,7 @@
             ['label' => 'Companies',     'value' => $stats['companies'],     'url' => route('companies.index'),     'color' => 'blue'],
             ['label' => 'People',        'value' => $stats['people'],        'url' => route('people.index'),        'color' => 'purple'],
             ['label' => 'Conversations', 'value' => $stats['conversations'], 'url' => route('conversations.index'), 'color' => 'green'],
-            ['label' => 'Activities',    'value' => $stats['activities'],    'url' => route('activities.index'),    'color' => 'yellow'],
+            ['label' => 'Activities',    'value' => $stats['activities'],    'url' => route('activity.index'),    'color' => 'yellow'],
         ];
         $colorMap = [
             'blue'   => 'bg-blue-50 border-blue-100 text-blue-700',
@@ -42,7 +42,7 @@
     <div class="bg-white rounded-lg border border-gray-200">
         <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <h3 class="font-semibold text-gray-800 text-sm">Recent Activity</h3>
-            <a href="{{ route('activities.index') }}" class="text-xs text-brand-600 hover:underline">View all</a>
+            <a href="{{ route('activity.index') }}" class="text-xs text-brand-600 hover:underline">View all</a>
         </div>
         @if($recentActivities->isEmpty())
             <p class="px-4 py-6 text-sm text-gray-400 italic text-center">No activity yet.</p>

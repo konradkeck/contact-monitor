@@ -21,7 +21,8 @@ Route::middleware('require.setup')->group(function () {
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 // Companies
-Route::get('companies/search', [CompanyController::class, 'search'])->name('companies.search');
+Route::get('companies/search',       [CompanyController::class, 'search'])->name('companies.search');
+Route::get('companies/filter-modal', [FilteringController::class, 'companyFilterModal'])->name('companies.filter-modal');
 Route::resource('companies', CompanyController::class);
 Route::post('companies/{company}/domains', [CompanyController::class, 'storeDomain'])->name('companies.domains.store');
 Route::delete('companies/{company}/domains/{domain}', [CompanyController::class, 'destroyDomain'])->name('companies.domains.destroy');
@@ -31,13 +32,20 @@ Route::patch('companies/{company}/aliases/{alias}/primary', [CompanyController::
 Route::delete('companies/{company}/aliases/{alias}', [CompanyController::class, 'destroyAlias'])->name('companies.aliases.destroy');
 Route::post('companies/{company}/brand-statuses', [CompanyController::class, 'storeBrandStatus'])->name('companies.brand-statuses.store');
 Route::patch('companies/{company}/brand-statuses/{status}', [CompanyController::class, 'updateBrandStatus'])->name('companies.brand-statuses.update');
+Route::delete('companies/{company}/brand-statuses/{status}', [CompanyController::class, 'destroyBrandStatus'])->name('companies.brand-statuses.destroy');
 Route::get('companies/{company}/timeline', [CompanyController::class, 'timeline'])->name('companies.timeline');
 Route::post('companies/{company}/accounts', [CompanyController::class, 'storeAccount'])->name('companies.accounts.store');
 Route::delete('companies/{company}/accounts/{account}', [CompanyController::class, 'destroyAccount'])->name('companies.accounts.destroy');
 
 // People
-Route::get('people/search', [PersonController::class, 'search'])->name('people.search');
+Route::get('people/search',                [PersonController::class, 'search'])->name('people.search');
+Route::get('people/filter-modal',          [FilteringController::class, 'personFilterModal'])->name('people.filter-modal');
+Route::get('people/assign-company-modal',  [PersonController::class, 'assignCompanyModal'])->name('people.assign-company-modal');
+Route::post('people/bulk-mark-our-org',    [PersonController::class, 'bulkMarkOurOrg'])->name('people.bulk-mark-our-org');
+Route::post('people/bulk-assign-company',  [PersonController::class, 'bulkAssignCompany'])->name('people.bulk-assign-company');
 Route::resource('people', PersonController::class);
+Route::post('people/{person}/mark-our-org',    [PersonController::class, 'markOurOrg'])->name('people.mark-our-org');
+Route::post('people/{person}/assign-company',  [PersonController::class, 'assignCompany'])->name('people.assign-company');
 Route::post('people/{person}/identities', [PersonController::class, 'storeIdentity'])->name('people.identities.store');
 Route::delete('people/{person}/identities/{identity}', [PersonController::class, 'destroyIdentity'])->name('people.identities.destroy');
 Route::post('people/{person}/companies', [PersonController::class, 'linkCompany'])->name('people.companies.link');
@@ -63,7 +71,9 @@ Route::delete('conversations/{conversation}/participants/{participant}', [Conver
 Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
 
 // Activities
-Route::get('activities', [ActivityController::class, 'index'])->name('activities.index');
+Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
+Route::get('activity/timeline', [ActivityController::class, 'timeline'])->name('activity.timeline');
+Route::get('activity/stats', [ActivityController::class, 'stats'])->name('activity.stats');
 
 // Data Relations
 Route::get('data-relations', [DataRelationsController::class, 'index'])->name('data-relations.index');
@@ -78,6 +88,8 @@ Route::delete('data-relations/conversations/{conversation}/unlink', [DataRelatio
 Route::post('data-relations/identities/{identity}/toggle-team-member', [DataRelationsController::class, 'toggleTeamMember'])->name('data-relations.identities.toggle-team-member');
 
 // Filtering
+Route::post('filtering/apply-rule',         [FilteringController::class, 'applyRule'])->name('filtering.apply-rule');
+Route::get('filtering/identity-filter-modal', [FilteringController::class, 'identityFilterModal'])->name('filtering.identity-filter-modal');
 Route::get('data-relations/filtering', [FilteringController::class, 'index'])->name('filtering.index');
 Route::post('data-relations/filtering/domains', [FilteringController::class, 'saveDomains'])->name('filtering.domains.save');
 Route::post('data-relations/filtering/domains/remove', [FilteringController::class, 'removeDomain'])->name('filtering.domains.remove');

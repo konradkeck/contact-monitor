@@ -47,6 +47,12 @@
     <a href="{{ route('companies.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">{{ ($backLink ?? null) ? 'Companies' : '← Companies' }}</a>
     <span class="text-gray-300">/</span>
     <h1 class="text-xl font-bold text-gray-900">{{ $company->name }}</h1>
+    <div class="flex-1"></div>
+    <button type="button" onclick="showCompanyFilterModal()"
+            title="Add to filter list"
+            class="btn btn-secondary btn-sm">
+        🚫 Filter
+    </button>
 </div>
 
 {{-- MAIN GRID --}}
@@ -94,43 +100,11 @@
                 </div>
             </div>
 
-            {{-- Meta pill --}}
-            <div class="-mt-4 mx-4 bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-2.5 flex items-center gap-2 text-sm">
-                <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Added</span>
-                <span class="text-gray-700">{{ $company->created_at->format('d M Y') }}</span>
+            {{-- Analysis placeholder --}}
+            <div class="-mt-4 mx-4 bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Company Analysis</p>
+                <p class="text-xs text-gray-300 italic">AI summary coming soon…</p>
             </div>
-
-            {{-- Last Conversations — grouped by channel_type + system_slug --}}
-            @if($convGroups->isNotEmpty())
-                <div class="mt-3 border-t border-gray-100">
-                    <div class="flex items-center justify-between px-5 pt-3 pb-1">
-                        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Conversations</p>
-                        <a href="{{ route('conversations.index', ['company_id' => $company->id]) }}"
-                           class="text-xs text-brand-600 hover:underline">all ({{ $conversationCount }})</a>
-                    </div>
-                    <div class="divide-y divide-gray-50 pb-1">
-                        @foreach($convGroups as $group)
-                            <a href="{{ route('conversations.index', ['company_id' => $company->id, 'channel_type' => $group->channel_type, 'system_slug' => $group->system_slug]) }}"
-                               class="px-5 py-2.5 flex items-center gap-2.5 hover:bg-gray-50 transition">
-                                <x-channel-badge :type="$group->channel_type" />
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm text-gray-700 truncate leading-snug"
-                                       title="{{ $group->last_subject }}">
-                                        {{ \Illuminate\Support\Str::limit($group->last_subject ?? '(no subject)', 42) }}
-                                    </p>
-                                    <p class="text-xs text-gray-400 mt-0.5">
-                                        <span class="font-mono">{{ $group->system_slug }}</span>
-                                        · {{ $group->conv_count }} conv
-                                    </p>
-                                </div>
-                                <p class="text-xs text-gray-400 shrink-0 whitespace-nowrap">
-                                    {{ $group->last_message_at ? \Carbon\Carbon::parse($group->last_message_at)->diffForHumans() : '—' }}
-                                </p>
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
 
         </div>{{-- /Company Card --}}
 
@@ -268,8 +242,8 @@
                         <div class="{{ $cardBg }} {{ $cardBorder }} rounded-xl border p-4">
                             <div class="flex items-start justify-between mb-3">
                                 <div>
-                                    <p class="font-semibold text-gray-900 text-sm">{{ $status->brandProduct->name }}</p>
-                                    @if($status->brandProduct->variant)
+                                    <p class="font-semibold text-gray-900 text-sm">{{ $status->brandProduct?->name ?? '(deleted)' }}</p>
+                                    @if($status->brandProduct?->variant)
                                         <p class="text-xs text-gray-400">{{ $status->brandProduct->variant }}</p>
                                     @endif
                                 </div>
@@ -311,8 +285,18 @@
                                     @if($status->last_evaluated_at)
                                         <p>{{ $status->last_evaluated_at->format('d M Y') }}</p>
                                     @endif
-                                    <button onclick="document.getElementById('edit-bs-{{ $status->id }}').classList.toggle('hidden')"
-                                            class="text-brand-600 hover:underline mt-1">Edit</button>
+                                    <div class="flex items-center gap-3">
+                                        @if($status->brandProduct)
+                                        <button onclick="document.getElementById('edit-bs-{{ $status->id }}').classList.toggle('hidden')"
+                                                class="text-brand-600 hover:underline mt-1">Edit</button>
+                                        @endif
+                                        <form action="{{ route('companies.brand-statuses.destroy', [$company, $status]) }}" method="POST" class="inline">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="text-red-400 hover:text-red-600 text-xs mt-1">
+                                                {{ $status->brandProduct ? 'Remove' : 'Remove (deleted product)' }}
+                                            </button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                             @if($status->evaluation_notes)
@@ -373,92 +357,30 @@
 
         @if(!empty($serviceSystems))
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            {{-- Header + tabs --}}
-            <div class="flex items-center justify-between border-b border-gray-100 px-5 pt-3">
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider pb-3">Services</p>
-                @if(count($serviceSystems) > 1)
-                <div class="flex gap-1" id="svc-tabs">
-                    @foreach($serviceSystems as $slug => $sys)
-                        <button onclick="showSvcTab('{{ $slug }}')"
-                                id="svc-tab-{{ $slug }}"
-                                class="px-3 py-1.5 text-xs font-semibold rounded-t-lg border-b-2 transition mb-[-1px]
-                                       {{ $loop->first ? 'border-brand-500 text-brand-700' : 'border-transparent text-gray-400 hover:text-gray-600' }}">
-                            {{ $slug }}
-                        </button>
-                    @endforeach
-                </div>
-                @else
-                    @php $onlySlug = array_key_first($serviceSystems); @endphp
-                    <span class="text-xs text-gray-400 font-mono pb-3">{{ $onlySlug }}</span>
-                @endif
+            {{-- Tab bar (left-aligned, same style as activity widget) --}}
+            <div class="flex items-center border-b border-gray-100 px-4 pt-1">
+                @foreach($serviceSystems as $slug => $sys)
+                    <button onclick="showSvcTab('{{ $slug }}')"
+                            id="svc-tab-{{ $slug }}"
+                            class="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap mr-1
+                                   {{ $loop->first ? 'border-brand-500 text-brand-700' : 'border-transparent text-gray-400 hover:text-gray-700' }}">
+                        <x-channel-badge :type="$sys['system_type'] ?? 'generic'" :label="false" />
+                        {{ $slug }}
+                    </button>
+                @endforeach
             </div>
 
             @foreach($serviceSystems as $slug => $sys)
-            <div id="svc-panel-{{ $slug }}" class="{{ $loop->first ? '' : 'hidden' }}">
-
-                {{-- KPI row --}}
-                <div class="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
-                    <div class="px-5 py-4">
-                        <p class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Revenue</p>
-                        <p class="text-2xl font-bold text-gray-900 tabular-nums">
-                            ${{ number_format($sys['revenue'], 0) }}
-                        </p>
-                        <p class="text-xs text-gray-400 mt-0.5">lifetime</p>
-                    </div>
-                    <div class="px-5 py-4">
-                        <p class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Active</p>
-                        <p class="text-2xl font-bold text-green-600 tabular-nums">{{ $sys['active'] }}</p>
-                        <p class="text-xs text-gray-400 mt-0.5">services</p>
-                    </div>
-                    <div class="px-5 py-4">
-                        <p class="text-xs text-gray-400 uppercase tracking-wide font-semibold mb-1">Total</p>
-                        <p class="text-2xl font-bold text-gray-900 tabular-nums">{{ $sys['total'] }}</p>
-                        <p class="text-xs text-gray-400 mt-0.5">all services</p>
-                    </div>
+                @php
+                    $svcIntegration  = \App\Integrations\IntegrationRegistry::get($sys['system_type'] ?? '');
+                    $svcWidgetView   = $svcIntegration->servicesWidgetView();
+                    $svcWidgetData   = $svcIntegration->prepareWidgetData($sys, $slug);
+                @endphp
+                <div id="svc-panel-{{ $slug }}" class="{{ $loop->first ? '' : 'hidden' }}">
+                    @if($svcWidgetView)
+                        @include($svcWidgetView, $svcWidgetData)
+                    @endif
                 </div>
-
-                {{-- Services table --}}
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th class="px-5 py-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Product</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wide">Since</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Renewals</th>
-                            <th class="px-5 py-2 text-right text-xs font-semibold text-gray-400 uppercase tracking-wide">Revenue</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        @foreach($sys['services'] as $svc)
-                            @php
-                                $st = strtolower($svc['status'] ?? '');
-                                [$stBadge, $stDot] = match($st) {
-                                    'active'    => ['bg-green-100 text-green-700',  'bg-green-400'],
-                                    'pending'   => ['bg-yellow-100 text-yellow-700','bg-yellow-400'],
-                                    'suspended' => ['bg-red-100 text-red-600',      'bg-red-400'],
-                                    default     => ['bg-gray-100 text-gray-500',    'bg-gray-300'],
-                                };
-                                $startDate = $svc['start_date'] ? \Carbon\Carbon::parse($svc['start_date'])->format('M Y') : '—';
-                            @endphp
-                            <tr class="hover:bg-gray-50/60">
-                                <td class="px-5 py-2.5 font-medium text-gray-800">{{ $svc['product_name'] ?? '—' }}</td>
-                                <td class="px-3 py-2.5">
-                                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium {{ $stBadge }}">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $stDot }}"></span>
-                                        {{ ucfirst($svc['status'] ?? '—') }}
-                                    </span>
-                                </td>
-                                <td class="px-3 py-2.5 text-xs text-gray-500">{{ $startDate }}</td>
-                                <td class="px-3 py-2.5 text-xs text-gray-500 text-right tabular-nums">{{ $svc['renewal_count'] ?? 0 }}×</td>
-                                <td class="px-5 py-2.5 text-right font-semibold text-gray-800 tabular-nums">
-                                    ${{ number_format((float)($svc['total_revenue'] ?? 0), 2) }}
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-
-            </div>
             @endforeach
         </div>
         <script>
@@ -466,11 +388,14 @@
             document.querySelectorAll('[id^="svc-panel-"]').forEach(p => p.classList.add('hidden'));
             document.querySelectorAll('[id^="svc-tab-"]').forEach(b => {
                 b.classList.remove('border-brand-500', 'text-brand-700');
-                b.classList.add('border-transparent', 'text-gray-400');
+                b.classList.add('border-transparent', 'text-gray-400', 'hover:text-gray-700');
             });
             document.getElementById('svc-panel-' + key)?.classList.remove('hidden');
             const btn = document.getElementById('svc-tab-' + key);
-            if (btn) { btn.classList.add('border-brand-500', 'text-brand-700'); btn.classList.remove('border-transparent', 'text-gray-400'); }
+            if (btn) {
+                btn.classList.add('border-brand-500', 'text-brand-700');
+                btn.classList.remove('border-transparent', 'text-gray-400', 'hover:text-gray-700');
+            }
         }
         </script>
         @endif
@@ -478,40 +403,94 @@
         {{-- Timeline (boxed) --}}
         <div id="timeline-box" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
+            {{-- Tab bar --}}
+            <div class="flex items-center border-b border-gray-100 px-4 pt-1">
+                @foreach(['conversations' => 'Conversations', 'activity' => 'Activity', 'all' => 'All'] as $tabKey => $tabLabel)
+                    <button id="tl-tab-{{ $tabKey }}" onclick="setTab('{{ $tabKey }}')"
+                            class="px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap mr-1
+                                   {{ $tabKey === 'conversations' ? 'border-brand-500 text-brand-700' : 'border-transparent text-gray-400 hover:text-gray-700' }}">
+                        {{ $tabLabel }}
+                    </button>
+                @endforeach
+                <div class="flex-1"></div>
+                <button id="tl-tab-filtered" onclick="setTab('filtered')"
+                        class="px-3 py-2.5 text-xs font-medium border-b-2 border-transparent text-gray-300 hover:text-red-500 transition whitespace-nowrap">
+                    Filtered
+                </button>
+            </div>
+
             {{-- Filter bar --}}
-            <div class="px-5 pt-4 pb-3 border-b border-gray-100">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity</p>
+            <div class="px-5 pt-3 pb-3 border-b border-gray-100">
             <div class="flex items-center gap-3">
 
-                {{-- Type multiselect dropdown --}}
-                <div class="relative" id="tl-type-wrapper">
-                    <button id="tl-type-btn" onclick="toggleTypeDropdown(event)"
+                {{-- Conversations filter dropdown --}}
+                <div class="relative hidden" id="tl-conv-wrapper">
+                    <button onclick="tlToggleDropdown('conv', event)"
                             class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white
                                    text-xs text-gray-600 hover:border-gray-300 transition min-w-[130px]">
                         <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M7 8h10M11 12h2"/>
                         </svg>
-                        <span id="tl-type-label" class="flex-1 text-left">All types</span>
+                        <span id="tl-conv-label" class="flex-1 text-left">All</span>
                         <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
+                    <div id="tl-conv-menu" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1.5 w-64">
+                        <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                            <input type="checkbox" id="tl-conv-all" class="rounded border-gray-300" checked onchange="tlConvAll(this)">
+                            <span class="text-sm text-gray-700 font-medium">All</span>
+                        </label>
+                        @if($filteredConvCount > 0)
+                        <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                            <input type="checkbox" class="tl-conv-item rounded border-gray-300" value="__filtered__" onchange="tlConvItem(this)">
+                            <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+                            <span class="text-sm text-gray-700">Filtered ({{ $filteredConvCount }})</span>
+                        </label>
+                        @endif
+                        @if($convSystems->isNotEmpty())
+                            <div class="border-t border-gray-100 my-1"></div>
+                            @foreach($convSystems as $sys)
+                                <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                                    <input type="checkbox" class="tl-conv-item rounded border-gray-300"
+                                           value="{{ $sys->channel_type }}|{{ $sys->system_slug }}" onchange="tlConvItem(this)">
+                                    <x-channel-badge :type="$sys->channel_type" :label="false" />
+                                    <span class="text-xs text-gray-700 truncate">{{ $sys->system_slug }}</span>
+                                </label>
+                            @endforeach
+                        @endif
+                    </div>
+                </div>
 
-                    <div id="tl-type-menu"
-                         class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200
-                                rounded-xl shadow-lg z-20 py-1.5 w-52">
-                        @foreach($allTypes as $t)
-                            @php
-                                $dotCls = $typeColors[$t] ?? 'bg-slate-300';
-                                $lbl    = ucfirst(str_replace('_', ' ', $t));
-                            @endphp
-                            <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
-                                <input type="checkbox" class="tl-type-check rounded border-gray-300"
-                                       value="{{ $t }}" onchange="handleTypeChecks()">
-                                <span class="w-2 h-2 rounded-full {{ $dotCls }} shrink-0"></span>
-                                <span class="text-sm text-gray-700">{{ $lbl }}</span>
-                            </label>
-                        @endforeach
+                {{-- Activity filter dropdown --}}
+                <div class="relative hidden" id="tl-act-wrapper">
+                    <button onclick="tlToggleDropdown('act', event)"
+                            class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white
+                                   text-xs text-gray-600 hover:border-gray-300 transition min-w-[130px]">
+                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M7 8h10M11 12h2"/>
+                        </svg>
+                        <span id="tl-act-label" class="flex-1 text-left">All</span>
+                        <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="tl-act-menu" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1.5 w-52">
+                        <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                            <input type="checkbox" id="tl-act-all" class="rounded border-gray-300" checked onchange="tlActAll(this)">
+                            <span class="text-sm text-gray-700 font-medium">All</span>
+                        </label>
+                        @if($activityTypes->isNotEmpty())
+                            <div class="border-t border-gray-100 my-1"></div>
+                            @foreach($activityTypes as $t)
+                                <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                                    <input type="checkbox" class="tl-act-item rounded border-gray-300"
+                                           value="{{ $t }}" onchange="tlActItem(this)">
+                                    <span class="w-2 h-2 rounded-full {{ $typeColors[$t] ?? 'bg-slate-300' }} shrink-0"></span>
+                                    <span class="text-sm text-gray-700">{{ ucfirst(str_replace('_', ' ', $t)) }}</span>
+                                </label>
+                            @endforeach
+                        @endif
                     </div>
                 </div>
 
@@ -541,8 +520,9 @@
                 <div class="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-gray-200 pointer-events-none z-0"></div>
                 <div id="timeline-container" class="grid grid-cols-[1fr_2rem_1fr] relative z-10">
                     @include('companies.partials.timeline-items', [
-                        'activities' => $timelinePage->items(),
-                        'nextCursor' => $timelinePage->nextCursor()?->encode(),
+                        'activities'     => $timelinePage->items(),
+                        'nextCursor'     => $timelinePage->nextCursor()?->encode(),
+                        'convSubjectMap' => $convSubjectMap,
                     ])
                 </div>
                 <div id="timeline-loading" class="hidden py-5 text-center">
@@ -731,6 +711,12 @@
 
 {{-- ═══════════════════ SCRIPTS ═══════════════════ --}}
 <script>
+// ── Company filter modal ──
+function showCompanyFilterModal() {
+    const src = '{{ route('companies.filter-modal') }}?ids[]={{ $company->id }}';
+    openActivityModal({ dataset: { modalSrc: src } });
+}
+
 // ── Popup helpers ──
 function openPopup(id) {
     closeAllPopups();
@@ -752,18 +738,149 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPopu
     const dateClear = document.getElementById('tl-date-clear');
     const companyId = {{ $company->id }};
 
-    let fetching    = false;
-    let reqId       = 0;
-    let activeTypes = [];
-    let dateFrom    = '';
-    let dateTo      = '';
-    let fp          = null;
+    let fetching        = false;
+    let reqId           = 0;
+    let activeTab       = 'conversations';
+    let activeSystems   = [];   // for conversations tab: ['ticket|dev6', ...]
+    let showFilteredOnly = false; // "Filtered (X)" checked in conv dropdown
+    let activeActTypes  = [];   // for activity tab
+    let dateFrom        = '';
+    let dateTo          = '';
+    let fp              = null;
 
     function localDateStr(d) {
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     }
 
+    // ── Tabs ──
+    window.setTab = function (tab) {
+        activeTab = tab;
+        activeSystems = [];
+        showFilteredOnly = false;
+        activeActTypes = [];
+
+        ['conversations','activity','all','filtered'].forEach(k => {
+            const btn = document.getElementById('tl-tab-' + k);
+            if (!btn) return;
+            if (k === tab) {
+                if (k === 'filtered') {
+                    btn.classList.add('border-red-400', 'text-red-600');
+                    btn.classList.remove('border-transparent', 'text-gray-300', 'hover:text-red-500');
+                } else {
+                    btn.classList.add('border-brand-500', 'text-brand-700');
+                    btn.classList.remove('border-transparent', 'text-gray-400', 'hover:text-gray-700');
+                }
+            } else {
+                if (k === 'filtered') {
+                    btn.classList.remove('border-red-400', 'text-red-600');
+                    btn.classList.add('border-transparent', 'text-gray-300', 'hover:text-red-500');
+                } else {
+                    btn.classList.remove('border-brand-500', 'text-brand-700');
+                    btn.classList.add('border-transparent', 'text-gray-400', 'hover:text-gray-700');
+                }
+            }
+        });
+
+        // Show/hide appropriate dropdown
+        document.getElementById('tl-conv-wrapper')?.classList.toggle('hidden', tab !== 'conversations');
+        document.getElementById('tl-act-wrapper')?.classList.toggle('hidden', tab !== 'activity');
+
+        // Reset dropdown UI
+        const convAll = document.getElementById('tl-conv-all');
+        if (convAll) convAll.checked = true;
+        document.querySelectorAll('.tl-conv-item').forEach(c => c.checked = false);
+        const actAll = document.getElementById('tl-act-all');
+        if (actAll) actAll.checked = true;
+        document.querySelectorAll('.tl-act-item').forEach(c => c.checked = false);
+        updateConvLabel();
+        updateActLabel();
+
+        resetTimeline();
+    };
+
+    // ── Conversations dropdown ──
+    window.tlConvAll = function (cb) {
+        if (cb.checked) {
+            activeSystems = [];
+            showFilteredOnly = false;
+            document.querySelectorAll('.tl-conv-item').forEach(c => c.checked = false);
+        } else {
+            cb.checked = true; // keep checked if nothing else selected
+        }
+        updateConvLabel();
+        resetTimeline();
+    };
+
+    window.tlConvItem = function (cb) {
+        const allCb = document.getElementById('tl-conv-all');
+        if (allCb) allCb.checked = false;
+        const checked = Array.from(document.querySelectorAll('.tl-conv-item:checked')).map(c => c.value);
+        activeSystems   = checked.filter(v => v !== '__filtered__');
+        showFilteredOnly = checked.includes('__filtered__');
+        if (checked.length === 0) {
+            // nothing selected → revert to All
+            activeSystems = [];
+            showFilteredOnly = false;
+            document.querySelectorAll('.tl-conv-item').forEach(c => c.checked = false);
+            if (allCb) allCb.checked = true;
+        }
+        updateConvLabel();
+        resetTimeline();
+    };
+
+    function updateConvLabel() {
+        const label = document.getElementById('tl-conv-label');
+        if (!label) return;
+        const total = activeSystems.length + (showFilteredOnly ? 1 : 0);
+        label.textContent = total === 0 ? 'All' : (total === 1
+            ? (showFilteredOnly && !activeSystems.length ? 'Filtered' : activeSystems[0].split('|')[1])
+            : total + ' filters');
+    }
+
+    // ── Activity dropdown ──
+    window.tlActAll = function (cb) {
+        if (cb.checked) {
+            activeActTypes = [];
+            document.querySelectorAll('.tl-act-item').forEach(c => c.checked = false);
+        } else {
+            cb.checked = true;
+        }
+        updateActLabel();
+        resetTimeline();
+    };
+
+    window.tlActItem = function (cb) {
+        const allCb = document.getElementById('tl-act-all');
+        if (allCb) allCb.checked = false;
+        activeActTypes = Array.from(document.querySelectorAll('.tl-act-item:checked')).map(c => c.value);
+        if (!activeActTypes.length) {
+            if (allCb) allCb.checked = true;
+        }
+        updateActLabel();
+        resetTimeline();
+    };
+
+    function updateActLabel() {
+        const label = document.getElementById('tl-act-label');
+        if (!label) return;
+        label.textContent = !activeActTypes.length ? 'All'
+            : (activeActTypes.length === 1 ? activeActTypes[0].replace(/_/g, ' ')
+            : activeActTypes.length + ' types');
+    }
+
+    // ── Dropdown toggle ──
+    window.tlToggleDropdown = function (which, e) {
+        e.stopPropagation();
+        const menuId = which === 'conv' ? 'tl-conv-menu' : 'tl-act-menu';
+        document.getElementById(menuId)?.classList.toggle('hidden');
+    };
+    document.addEventListener('click', () => {
+        document.getElementById('tl-conv-menu')?.classList.add('hidden');
+        document.getElementById('tl-act-menu')?.classList.add('hidden');
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
+        setTab('conversations');
         fp = flatpickr('#tl-date-range', {
             mode: 'range',
             dateFormat: 'Y-m-d',
@@ -789,22 +906,28 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPopu
 
     function buildUrl(cursor) {
         const p = new URLSearchParams();
-        if (cursor)   p.set('cursor', cursor);
-        activeTypes.forEach(t => p.append('types[]', t));
+        if (cursor) p.set('cursor', cursor);
         if (dateFrom) p.set('from', dateFrom);
         if (dateTo)   p.set('to',   dateTo);
+
+        if (activeTab === 'conversations') {
+            p.append('types[]', 'conversation');
+            activeSystems.forEach(s => p.append('systems[]', s));
+            if (showFilteredOnly) p.set('is_filtered', '1');
+        } else if (activeTab === 'activity') {
+            activeActTypes.forEach(t => p.append('types[]', t));
+        } else if (activeTab === 'filtered') {
+            p.set('is_filtered', '1');
+        }
+        // 'all' tab: no types[] = show everything
+
         return `/companies/${companyId}/timeline?${p}`;
     }
 
-    function hasFilters() { return activeTypes.length > 0 || dateFrom || dateTo; }
-    function updateClearBtn() { clearBtn.classList.toggle('hidden', !hasFilters()); }
-
-    function updateTypeLabel() {
-        const label = document.getElementById('tl-type-label');
-        if (!activeTypes.length)           label.textContent = 'All types';
-        else if (activeTypes.length === 1) label.textContent = activeTypes[0].replace(/_/g, ' ');
-        else                               label.textContent = `${activeTypes.length} types`;
+    function hasFilters() {
+        return activeSystems.length > 0 || showFilteredOnly || activeActTypes.length > 0 || dateFrom || dateTo;
     }
+    function updateClearBtn() { clearBtn.classList.toggle('hidden', !hasFilters()); }
 
     function loadMore(cursor) {
         if (fetching) return;
@@ -831,48 +954,23 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPopu
     }
 
     function resetTimeline() {
+        const savedY = window.scrollY;
+        const savedH = container.offsetHeight;
+        container.style.minHeight = savedH + 'px';
         observer.disconnect();
         reqId++;
         container.innerHTML = '';
         fetching = false;
         updateClearBtn();
         loadMore(null);
+        window.scrollTo({ top: savedY, behavior: 'instant' });
+        setTimeout(() => { container.style.minHeight = ''; }, 600);
     }
 
-    // ── Type dropdown ──
-    window.toggleTypeDropdown = function (e) {
-        e.stopPropagation();
-        document.getElementById('tl-type-menu')?.classList.toggle('hidden');
-    };
-    document.addEventListener('click', e => {
-        if (!document.getElementById('tl-type-wrapper')?.contains(e.target)) {
-            document.getElementById('tl-type-menu')?.classList.add('hidden');
-        }
-    });
-
-    window.handleTypeChecks = function () {
-        activeTypes = Array.from(document.querySelectorAll('.tl-type-check:checked')).map(c => c.value);
-        updateTypeLabel();
-        resetTimeline();
-    };
-
-    // Called from conversation row click
-    window.setTypeFilter = function (type) {
-        activeTypes = [type];
-        document.querySelectorAll('.tl-type-check').forEach(cb => { cb.checked = cb.value === type; });
-        updateTypeLabel();
-        resetTimeline();
-        document.getElementById('timeline-box')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-
-    window.clearDateFilter = function () {
-        fp?.clear();
-    };
+    window.clearDateFilter = function () { fp?.clear(); };
 
     window.resetTimelineFilters = function () {
-        activeTypes = [];
-        document.querySelectorAll('.tl-type-check').forEach(cb => { cb.checked = false; });
-        updateTypeLabel();
+        setTab('all');
         fp?.clear();
     };
 

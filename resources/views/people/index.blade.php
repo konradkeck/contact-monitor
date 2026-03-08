@@ -69,7 +69,27 @@
 
 <div class="page-header">
     <span class="page-title">People</span>
-    <a href="{{ route('people.create') }}" class="btn btn-primary">+ New Person</a>
+    <div class="flex items-center gap-2">
+        @if($showFiltered)
+            <a href="{{ request()->fullUrlWithQuery(['show_filtered' => null]) }}"
+               class="btn btn-danger btn-sm">
+                ← All People
+            </a>
+        @else
+            <a href="{{ request()->fullUrlWithQuery(['show_filtered' => 1]) }}"
+               class="btn btn-secondary btn-sm">
+                Filtered
+                @if($filteredCount > 0)
+                    <span class="ml-1 inline-flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 leading-none">
+                        {{ $filteredCount }}
+                    </span>
+                @else
+                    <span class="ml-1 text-xs text-gray-400">(0)</span>
+                @endif
+            </a>
+        @endif
+        <a href="{{ route('people.create') }}" class="btn btn-primary">+ New Person</a>
+    </div>
 </div>
 
 <form method="GET" class="mb-4">
@@ -90,7 +110,9 @@
     {{-- Bulk action bar --}}
     <div id="people-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b" style="background:#fff8e1; border-color:#fde68a">
         <span id="people-bulk-count" class="text-sm font-medium" style="color:#92400e"></span>
-        <button type="submit" class="btn btn-danger btn-sm">Add to filter list</button>
+        <button type="button" onclick="peopleOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
+        <button type="button" onclick="peopleOpenAssignCompanyModal()" class="btn btn-secondary btn-sm">Assign Company…</button>
+        <button type="button" onclick="peopleBulkMarkOurOrg()" class="btn btn-secondary btn-sm">Mark as our company</button>
         <button type="button" onclick="peopleClearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
     </div>
     <table class="w-full text-sm">
@@ -143,6 +165,12 @@
                             <a href="{{ route('people.show', $person) }}" class="font-medium text-brand-700 hover:underline truncate">
                                 {{ $person->full_name }}
                             </a>
+                            @if($showFiltered && isset($filteredReasons[$person->id]))
+                                <span title="{{ $filteredReasons[$person->id] }}"
+                                      class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-100 text-red-600 text-[10px] font-bold shrink-0 cursor-default leading-none">
+                                    i
+                                </span>
+                            @endif
                             <x-notes-popup :notes="$person->notes" linkable-type="person" :linkable-id="$person->id" :entity-name="$person->full_name" />
                         </div>
                     </td>
@@ -184,25 +212,39 @@
 
                     {{-- Companies (clickable) --}}
                     <td class="px-4 py-3 text-xs">
-                        @if($person->companies->isEmpty())
-                            <span class="text-gray-400">—</span>
-                        @else
-                            <div class="flex flex-wrap gap-x-2 gap-y-0.5">
-                                @foreach($person->companies as $company)
-                                    <a href="{{ route('companies.show', $company) }}"
-                                       class="text-brand-700 hover:underline whitespace-nowrap">{{ $company->name }}</a>
-                                @endforeach
-                            </div>
-                        @endif
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            @foreach($person->companies as $company)
+                                <a href="{{ route('companies.show', $company) }}"
+                                   class="text-brand-700 hover:underline whitespace-nowrap">{{ $company->name }}</a>
+                            @endforeach
+                            @if($person->companies->isEmpty())
+                                <span class="text-gray-300">—</span>
+                            @endif
+                            <button type="button"
+                                    onclick="peopleOpenAssignCompanyModal([{{ $person->id }}])"
+                                    class="text-[10px] text-gray-400 hover:text-brand-600 transition border border-gray-200 hover:border-brand-300 rounded px-1 py-0 leading-4">
+                                Assign
+                            </button>
+                        </div>
                     </td>
 
                     {{-- Last Contact: latest conversation message involving this person --}}
                     <td class="px-4 py-3">
                         @if($lastConv)
-                            <button type="button"
-                                    onclick="openActivityModal(this)"
-                                    data-modal-src="{{ route('conversations.modal', ['conversation' => $lastConv->last_conv_id]) }}"
-                                    class="flex items-center gap-1.5 text-left hover:opacity-75 transition w-full">
+                            @if($lastConv->last_conv_id)
+                                @php
+                                    $modalSrc = route('conversations.modal', ['conversation' => $lastConv->last_conv_id]);
+                                    if (!empty($lastConv->activity_date)) {
+                                        $modalSrc .= '?date=' . $lastConv->activity_date;
+                                    }
+                                @endphp
+                                <button type="button"
+                                        onclick="openActivityModal(this)"
+                                        data-modal-src="{{ $modalSrc }}"
+                                        class="flex items-center gap-1.5 text-left hover:opacity-75 transition w-full">
+                            @else
+                                <div class="flex items-center gap-1.5">
+                            @endif
                                 <span class="inline-flex px-1.5 py-0.5 rounded text-xs font-medium {{ $lastConvBadge }} shrink-0">
                                     {{ ucfirst($lastConv->channel_type) }}
                                 </span>
@@ -212,7 +254,11 @@
                                       title="{{ \Carbon\Carbon::parse($lastConv->occurred_at)->format('D, j M Y H:i') }}">
                                     {{ \Carbon\Carbon::parse($lastConv->occurred_at)->diffForHumans() }}
                                 </span>
-                            </button>
+                            @if($lastConv->last_conv_id)
+                                </button>
+                            @else
+                                </div>
+                            @endif
                         @else
                             <span class="text-xs text-gray-300">No contact</span>
                         @endif
@@ -220,13 +266,14 @@
 
                     <td class="px-4 py-3 text-right">
                         <div class="flex items-center justify-end gap-3">
-                            <form action="{{ route('filtering.contacts.add') }}" method="POST" class="inline">
-                                @csrf
-                                <input type="hidden" name="person_id" value="{{ $person->id }}">
-                                <button type="submit"
-                                        class="text-xs text-gray-300 hover:text-red-400 transition"
-                                        title="Add to filter contacts">🚫</button>
-                            </form>
+                            <button type="button"
+                                    onclick="peopleOpenFilterModal([{{ $person->id }}])"
+                                    class="text-xs text-gray-300 hover:text-red-400 transition"
+                                    title="Filtered">🚫</button>
+                            <button type="button"
+                                    onclick="peopleMarkOurOrg({{ $person->id }}, this)"
+                                    class="text-xs text-gray-300 hover:text-blue-500 transition"
+                                    title="Mark as our company">🏢</button>
                             <a href="{{ route('people.edit', $person) }}" class="text-xs text-gray-400 hover:text-gray-700">Edit</a>
                         </div>
                     </td>
@@ -272,6 +319,37 @@ function peopleToggleAll(cb) {
 function peopleClearSelection() {
     document.querySelectorAll('.people-row-check, #people-select-all').forEach(c => c.checked = false);
     peopleUpdateBulkBar();
+}
+function peopleOpenFilterModal(ids) {
+    if (!ids) ids = [...document.querySelectorAll('.people-row-check:checked')].map(c => c.value);
+    if (!ids.length) return;
+    const qs = ids.map(id => 'ids[]=' + id).join('&');
+    openActivityModal({ dataset: { modalSrc: '{{ route('people.filter-modal') }}?' + qs } });
+}
+function peopleOpenAssignCompanyModal(ids) {
+    if (!ids) ids = [...document.querySelectorAll('.people-row-check:checked')].map(c => c.value);
+    if (!ids.length) return;
+    const qs = ids.map(id => 'ids[]=' + id).join('&');
+    openActivityModal({ dataset: { modalSrc: '{{ route('people.assign-company-modal') }}?' + qs } });
+}
+function peopleBulkMarkOurOrg() {
+    const ids = [...document.querySelectorAll('.people-row-check:checked')].map(c => c.value);
+    if (!ids.length) return;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    fetch('{{ route('people.bulk-mark-our-org') }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ ids }),
+    }).then(r => r.json()).then(d => { if (d.ok) { peopleClearSelection(); } });
+}
+function peopleMarkOurOrg(id, btn) {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    btn.disabled = true;
+    fetch(`/people/${id}/mark-our-org`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({}),
+    }).then(r => r.json()).then(d => { if (d.ok) btn.style.color = '#3b82f6'; else btn.disabled = false; });
 }
 </script>
 @endsection

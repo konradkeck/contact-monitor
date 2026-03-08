@@ -59,7 +59,27 @@
 
 <div class="page-header">
     <span class="page-title">Companies</span>
-    <a href="{{ route('companies.create') }}" class="btn btn-primary">+ New Company</a>
+    <div class="flex items-center gap-2">
+        @if($showFiltered)
+            <a href="{{ request()->fullUrlWithQuery(['show_filtered' => null]) }}"
+               class="btn btn-danger btn-sm">
+                ← All Companies
+            </a>
+        @else
+            <a href="{{ request()->fullUrlWithQuery(['show_filtered' => 1]) }}"
+               class="btn btn-secondary btn-sm">
+                Filtered
+                @if($filteredCount > 0)
+                    <span class="ml-1 inline-flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 leading-none">
+                        {{ $filteredCount }}
+                    </span>
+                @else
+                    <span class="ml-1 text-xs text-gray-400">(0)</span>
+                @endif
+            </a>
+        @endif
+        <a href="{{ route('companies.create') }}" class="btn btn-primary">+ New Company</a>
+    </div>
 </div>
 
 <form method="GET" id="filter-form">
@@ -173,8 +193,15 @@
 
     {{-- Table — overflow-visible so tooltips escape the container --}}
     <div class="card overflow-visible relative">
+        {{-- Bulk action bar --}}
+        <div id="companies-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b" style="background:#fff8e1; border-color:#fde68a">
+            <span id="companies-bulk-count" class="text-sm font-medium" style="color:#92400e"></span>
+            <button type="button" onclick="companiesOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
+            <button type="button" onclick="companiesClearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
+        </div>
         <table class="w-full text-sm table-fixed">
             <colgroup>
+                <col style="width:32px">{{-- checkbox --}}
                 <col>{{-- Company: takes remaining space --}}
                 <col style="width:190px">
                 <col style="width:185px">
@@ -186,6 +213,10 @@
             </colgroup>
             <thead class="tbl-header">
                 <tr>
+                    <th class="px-3 py-2.5 w-8">
+                        <input type="checkbox" id="companies-select-all" class="rounded border-gray-300 cursor-pointer"
+                               onchange="companiesToggleAll(this)">
+                    </th>
                     <th class="px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('name') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Company</span><span class="shrink-0 opacity-60">{{ $sortIcon('name') }}</span>
@@ -235,7 +266,12 @@
                         $convChannels  = $company->conversations->unique('channel_type')->values();
                     @endphp
 
-                    <tr class="tbl-row">
+                    <tr class="tbl-row group/row">
+                        <td class="px-3 py-3">
+                            <input type="checkbox" value="{{ $company->id }}"
+                                   class="companies-row-check rounded border-gray-300 cursor-pointer"
+                                   onchange="companiesUpdateBulkBar()">
+                        </td>
 
                         {{-- Company name + alias count + note icon --}}
                         <td class="px-4 py-3 min-w-0">
@@ -260,7 +296,19 @@
                                         </div>
                                     </div>
                                 @endif
+                                @if($showFiltered && isset($filteredReasons[$company->id]))
+                                    <span title="{{ $filteredReasons[$company->id] }}"
+                                          class="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-100 text-red-600 text-[10px] font-bold shrink-0 cursor-default leading-none">
+                                        i
+                                    </span>
+                                @endif
                                 <div class="flex-1"></div>
+                                <button type="button"
+                                        onclick="companiesOpenFilterModal([{{ $company->id }}])"
+                                        title="Filtered"
+                                        class="shrink-0 text-xs text-gray-300 hover:text-red-500 transition leading-none opacity-0 group-hover/row:opacity-100 focus:opacity-100">
+                                    🚫
+                                </button>
                                 <x-notes-popup :notes="$company->notes" linkable-type="company" :linkable-id="$company->id" :entity-name="$company->name" />
                             </div>
                         </td>
@@ -399,7 +447,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ 5 + $brandProducts->count() }}"
+                        <td colspan="{{ 6 + $brandProducts->count() }}"
                             class="px-4 py-10 text-center text-gray-400 italic">
                             No companies found.
                         </td>
@@ -554,6 +602,38 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPopu
 
 function toggleFilterPanel() {
     document.getElementById('filter-panel').classList.toggle('hidden');
+}
+
+function companiesUpdateBulkBar() {
+    const checked = document.querySelectorAll('.companies-row-check:checked');
+    const bar   = document.getElementById('companies-bulk-bar');
+    const count = document.getElementById('companies-bulk-count');
+    if (checked.length > 0) {
+        bar.classList.remove('hidden');
+        bar.classList.add('flex');
+        count.textContent = checked.length + ' selected';
+    } else {
+        bar.classList.add('hidden');
+        bar.classList.remove('flex');
+    }
+    const all = document.querySelectorAll('.companies-row-check');
+    document.getElementById('companies-select-all').indeterminate = checked.length > 0 && checked.length < all.length;
+    document.getElementById('companies-select-all').checked = checked.length === all.length && all.length > 0;
+}
+function companiesToggleAll(cb) {
+    document.querySelectorAll('.companies-row-check').forEach(c => c.checked = cb.checked);
+    companiesUpdateBulkBar();
+}
+function companiesClearSelection() {
+    document.querySelectorAll('.companies-row-check, #companies-select-all').forEach(c => c.checked = false);
+    companiesUpdateBulkBar();
+}
+function companiesOpenFilterModal(ids) {
+    if (!ids) ids = [...document.querySelectorAll('.companies-row-check:checked')].map(c => c.value);
+    if (!ids.length) return;
+    const qs = ids.map(id => 'ids[]=' + id).join('&');
+    const src = '{{ route('companies.filter-modal') }}?' + qs;
+    openActivityModal({ dataset: { modalSrc: src } });
 }
 </script>
 

@@ -101,7 +101,7 @@
             $hasServers = \App\Models\SynchronizerServer::exists();
             $disabledMsg = 'Configure a synchronizer server first';
             $topSections = [
-                'Browse Data'    => ['route' => 'dashboard',             'pattern' => ['dashboard', 'companies.*', 'people.*', 'conversations.*', 'activities.*'], 'disabled' => !$hasServers],
+                'Browse Data'    => ['route' => 'dashboard',             'pattern' => ['dashboard', 'companies.*', 'people.*', 'conversations.*', 'activity.*'], 'disabled' => !$hasServers],
                 'Synchronization'=> ['route' => $hasServers ? 'synchronizer.index' : 'synchronizer.servers.index', 'pattern' => ['synchronizer.*'], 'disabled' => false],
                 'Data Relations' => ['route' => 'data-relations.index',  'pattern' => ['data-relations.*', 'our-company.*', 'filtering.*'], 'disabled' => !$hasServers],
                 'Configuration'  => ['route' => 'brand-products.index',  'pattern' => ['brand-products.*'], 'disabled' => !$hasServers],
@@ -146,8 +146,17 @@
                 $_accountSystems = \App\Models\Account::select('system_type', 'system_slug')
                     ->whereNotNull('system_type')->whereNotNull('system_slug')
                     ->distinct()->orderBy('system_type')->orderBy('system_slug')->get();
+                $_whmcsSlugs = \App\Models\Account::whereIn('system_type', ['whmcs', 'metricscube'])
+                    ->distinct()->pluck('system_slug')->toArray();
                 $_identSystems = \App\Models\Identity::select('system_slug', 'type')
                     ->whereNotNull('system_slug')
+                    ->where(function ($q) use ($_whmcsSlugs) {
+                        $q->where('type', '!=', 'email')
+                          ->orWhere(function ($q2) use ($_whmcsSlugs) {
+                              $q2->whereNotIn('system_slug', $_whmcsSlugs)
+                                 ->whereRaw("COALESCE(meta_json->>'system_type', '') NOT IN ('whmcs', 'metricscube')");
+                          });
+                    })
                     ->distinct()->orderBy('type')->orderBy('system_slug')->get()
                     ->map(fn($r) => (object)[
                         'system_type' => $identityToSystem[$r->type] ?? $r->type,
@@ -261,13 +270,14 @@
 
         @else
             {{-- ── Browse Data sidebar ── --}}
+            <p class="px-2 pt-1 pb-1 text-xs font-semibold uppercase tracking-wider" style="color:#57606a">Browse Data</p>
             @php
                 $sidebarItems = [
                     ['label' => 'Dashboard',     'route' => 'dashboard',          'match' => ['dashboard'],         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>'],
                     ['label' => 'Companies',     'route' => 'companies.index',    'match' => ['companies.*'],       'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>'],
                     ['label' => 'People',        'route' => 'people.index',       'match' => ['people.*'],          'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>'],
                     ['label' => 'Conversations', 'route' => 'conversations.index','match' => ['conversations.*'],   'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>'],
-['label' => 'Activities',    'route' => 'activities.index',   'match' => ['activities.*'],      'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 10V3L4 14h7v7l9-11h-7z"/>'],
+['label' => 'Activity',      'route' => 'activity.index',     'match' => ['activity.*'],        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 10V3L4 14h7v7l9-11h-7z"/>'],
                 ];
             @endphp
 

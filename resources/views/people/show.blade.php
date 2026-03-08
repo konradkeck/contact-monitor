@@ -148,13 +148,20 @@
         <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ $person->full_name }}</h1>
     </div>
     <div class="flex items-center gap-2">
-        <form action="{{ route('filtering.contacts.add') }}" method="POST">
-            @csrf
-            <input type="hidden" name="person_id" value="{{ $person->id }}">
-            <button type="submit"
-                    class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-red-500 transition"
-                    title="Add to filter contacts">🚫 Filter</button>
-        </form>
+        <button type="button"
+                onclick="showPersonFilterModal()"
+                class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-red-500 transition"
+                title="Filtered">🚫 Filter</button>
+        @if(!$person->is_our_org)
+        <button type="button" id="mark-our-org-btn"
+                onclick="markPersonOurOrg()"
+                class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-blue-600 transition">
+            🏢 Our company</button>
+        @endif
+        <button type="button"
+                onclick="showPersonAssignCompany()"
+                class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-brand-600 transition">
+            Assign company</button>
         <a href="{{ route('people.edit', $person) }}" class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50">Edit</a>
     </div>
 </div>
@@ -207,18 +214,21 @@
                 @endif
             </div>
 
-            {{-- Add company button --}}
-            @if($allCompanies->isNotEmpty())
-                <div class="px-4 py-3 text-center">
+            {{-- Company actions --}}
+            <div class="px-4 py-3 flex items-center justify-center gap-2">
+                @if($allCompanies->isNotEmpty())
                     <button onclick="document.getElementById('popup-link-company').classList.remove('hidden')"
                             class="text-xs font-medium text-brand-600 hover:text-brand-700 border border-brand-200
-                                   hover:border-brand-400 px-4 py-1.5 rounded-full transition">
-                        + Add company
+                                   hover:border-brand-400 px-3 py-1.5 rounded-full transition">
+                        + Link existing
                     </button>
-                </div>
-            @else
-                <div class="pb-3"></div>
-            @endif
+                @endif
+                <button onclick="showPersonAssignCompany()"
+                        class="text-xs font-medium text-gray-500 hover:text-brand-600 border border-gray-200
+                               hover:border-brand-300 px-3 py-1.5 rounded-full transition">
+                    + Create &amp; assign
+                </button>
+            </div>
 
         </div>
 
@@ -390,40 +400,94 @@
     <div class="col-span-2">
         <div id="timeline-box" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
+            {{-- Tab bar --}}
+            <div class="flex items-center border-b border-gray-100 px-4 pt-1">
+                @foreach(['conversations' => 'Conversations', 'activity' => 'Activity', 'all' => 'All'] as $tabKey => $tabLabel)
+                    <button id="tl-tab-{{ $tabKey }}" onclick="setTab('{{ $tabKey }}')"
+                            class="px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap mr-1
+                                   {{ $tabKey === 'conversations' ? 'border-brand-500 text-brand-700' : 'border-transparent text-gray-400 hover:text-gray-700' }}">
+                        {{ $tabLabel }}
+                    </button>
+                @endforeach
+                <div class="flex-1"></div>
+                <button id="tl-tab-filtered" onclick="setTab('filtered')"
+                        class="px-3 py-2.5 text-xs font-medium border-b-2 border-transparent text-gray-300 hover:text-red-500 transition whitespace-nowrap">
+                    Filtered
+                </button>
+            </div>
+
             {{-- Filter bar --}}
-            <div class="px-5 pt-4 pb-3 border-b border-gray-100">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Activity</p>
+            <div class="px-5 pt-3 pb-3 border-b border-gray-100">
             <div class="flex items-center gap-3">
 
-                {{-- Type multiselect dropdown --}}
-                <div class="relative" id="tl-type-wrapper">
-                    <button id="tl-type-btn" onclick="toggleTypeDropdown(event)"
+                {{-- Conversations filter dropdown --}}
+                <div class="relative hidden" id="tl-conv-wrapper">
+                    <button onclick="tlToggleDropdown('conv', event)"
                             class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white
                                    text-xs text-gray-600 hover:border-gray-300 transition min-w-[130px]">
                         <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M7 8h10M11 12h2"/>
                         </svg>
-                        <span id="tl-type-label" class="flex-1 text-left">All types</span>
+                        <span id="tl-conv-label" class="flex-1 text-left">All</span>
                         <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </button>
+                    <div id="tl-conv-menu" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1.5 w-64">
+                        <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                            <input type="checkbox" id="tl-conv-all" class="rounded border-gray-300" checked onchange="tlConvAll(this)">
+                            <span class="text-sm text-gray-700 font-medium">All</span>
+                        </label>
+                        @if($filteredConvCount > 0)
+                        <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                            <input type="checkbox" class="tl-conv-item rounded border-gray-300" value="__filtered__" onchange="tlConvItem(this)">
+                            <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+                            <span class="text-sm text-gray-700">Filtered ({{ $filteredConvCount }})</span>
+                        </label>
+                        @endif
+                        @if($convSystems->isNotEmpty())
+                            <div class="border-t border-gray-100 my-1"></div>
+                            @foreach($convSystems as $sys)
+                                <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                                    <input type="checkbox" class="tl-conv-item rounded border-gray-300"
+                                           value="{{ $sys->channel_type }}|{{ $sys->system_slug }}" onchange="tlConvItem(this)">
+                                    <x-channel-badge :type="$sys->channel_type" :label="false" />
+                                    <span class="text-xs text-gray-700 truncate">{{ $sys->system_slug }}</span>
+                                </label>
+                            @endforeach
+                        @endif
+                    </div>
+                </div>
 
-                    <div id="tl-type-menu"
-                         class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200
-                                rounded-xl shadow-lg z-20 py-1.5 w-52">
-                        @foreach($allTypes as $t)
-                            @php
-                                $dotCls = $typeColors[$t] ?? 'bg-slate-300';
-                                $lbl    = ucfirst(str_replace('_', ' ', $t));
-                            @endphp
-                            <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
-                                <input type="checkbox" class="tl-type-check rounded border-gray-300"
-                                       value="{{ $t }}" onchange="handleTypeChecks()">
-                                <span class="w-2 h-2 rounded-full {{ $dotCls }} shrink-0"></span>
-                                <span class="text-sm text-gray-700">{{ $lbl }}</span>
-                            </label>
-                        @endforeach
+                {{-- Activity filter dropdown --}}
+                <div class="relative hidden" id="tl-act-wrapper">
+                    <button onclick="tlToggleDropdown('act', event)"
+                            class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white
+                                   text-xs text-gray-600 hover:border-gray-300 transition min-w-[130px]">
+                        <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M7 8h10M11 12h2"/>
+                        </svg>
+                        <span id="tl-act-label" class="flex-1 text-left">All</span>
+                        <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div id="tl-act-menu" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1.5 w-52">
+                        <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                            <input type="checkbox" id="tl-act-all" class="rounded border-gray-300" checked onchange="tlActAll(this)">
+                            <span class="text-sm text-gray-700 font-medium">All</span>
+                        </label>
+                        @if($activityTypes->isNotEmpty())
+                            <div class="border-t border-gray-100 my-1"></div>
+                            @foreach($activityTypes as $t)
+                                <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                                    <input type="checkbox" class="tl-act-item rounded border-gray-300"
+                                           value="{{ $t }}" onchange="tlActItem(this)">
+                                    <span class="w-2 h-2 rounded-full {{ $typeColors[$t] ?? 'bg-slate-300' }} shrink-0"></span>
+                                    <span class="text-sm text-gray-700">{{ ucfirst(str_replace('_', ' ', $t)) }}</span>
+                                </label>
+                            @endforeach
+                        @endif
                     </div>
                 </div>
 
@@ -455,8 +519,9 @@
                      class="grid grid-cols-[1fr_2rem_1fr] relative z-10"
                      data-url="{{ route('people.timeline', $person) }}">
                     @include('people.partials.timeline-items', [
-                        'activities' => $timelinePage->items(),
-                        'nextCursor' => $timelinePage->nextCursor()?->encode(),
+                        'activities'     => $timelinePage->items(),
+                        'nextCursor'     => $timelinePage->nextCursor()?->encode(),
+                        'convSubjectMap' => $convSubjectMap,
                     ])
                 </div>
                 <div id="timeline-loading" class="hidden py-5 text-center">
@@ -478,14 +543,141 @@
     const dateClear = document.getElementById('tl-date-clear');
     const baseUrl   = container.dataset.url;
 
-    let fetching    = false;
-    let reqId       = 0;
-    let activeTypes = [];
-    let dateFrom    = '';
-    let dateTo      = '';
-    let fp          = null;
+    let fetching         = false;
+    let reqId            = 0;
+    let activeTab        = 'conversations';
+    let activeSystems    = [];
+    let showFilteredOnly = false;
+    let activeActTypes   = [];
+    let dateFrom         = '';
+    let dateTo           = '';
+    let fp               = null;
+
+    function localDateStr(d) {
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+
+    window.setTab = function (tab) {
+        activeTab = tab;
+        activeSystems = [];
+        showFilteredOnly = false;
+        activeActTypes = [];
+
+        ['conversations','activity','all','filtered'].forEach(k => {
+            const btn = document.getElementById('tl-tab-' + k);
+            if (!btn) return;
+            if (k === tab) {
+                if (k === 'filtered') {
+                    btn.classList.add('border-red-400', 'text-red-600');
+                    btn.classList.remove('border-transparent', 'text-gray-300', 'hover:text-red-500');
+                } else {
+                    btn.classList.add('border-brand-500', 'text-brand-700');
+                    btn.classList.remove('border-transparent', 'text-gray-400', 'hover:text-gray-700');
+                }
+            } else {
+                if (k === 'filtered') {
+                    btn.classList.remove('border-red-400', 'text-red-600');
+                    btn.classList.add('border-transparent', 'text-gray-300', 'hover:text-red-500');
+                } else {
+                    btn.classList.remove('border-brand-500', 'text-brand-700');
+                    btn.classList.add('border-transparent', 'text-gray-400', 'hover:text-gray-700');
+                }
+            }
+        });
+
+        document.getElementById('tl-conv-wrapper')?.classList.toggle('hidden', tab !== 'conversations');
+        document.getElementById('tl-act-wrapper')?.classList.toggle('hidden', tab !== 'activity');
+
+        const convAll = document.getElementById('tl-conv-all');
+        if (convAll) convAll.checked = true;
+        document.querySelectorAll('.tl-conv-item').forEach(c => c.checked = false);
+        const actAll = document.getElementById('tl-act-all');
+        if (actAll) actAll.checked = true;
+        document.querySelectorAll('.tl-act-item').forEach(c => c.checked = false);
+        updateConvLabel();
+        updateActLabel();
+        resetTimeline();
+    };
+
+    window.tlConvAll = function (cb) {
+        if (cb.checked) {
+            activeSystems = [];
+            showFilteredOnly = false;
+            document.querySelectorAll('.tl-conv-item').forEach(c => c.checked = false);
+        } else {
+            cb.checked = true;
+        }
+        updateConvLabel();
+        resetTimeline();
+    };
+
+    window.tlConvItem = function (cb) {
+        const allCb = document.getElementById('tl-conv-all');
+        if (allCb) allCb.checked = false;
+        const checked = Array.from(document.querySelectorAll('.tl-conv-item:checked')).map(c => c.value);
+        activeSystems    = checked.filter(v => v !== '__filtered__');
+        showFilteredOnly = checked.includes('__filtered__');
+        if (!checked.length) {
+            activeSystems = [];
+            showFilteredOnly = false;
+            document.querySelectorAll('.tl-conv-item').forEach(c => c.checked = false);
+            if (allCb) allCb.checked = true;
+        }
+        updateConvLabel();
+        resetTimeline();
+    };
+
+    function updateConvLabel() {
+        const label = document.getElementById('tl-conv-label');
+        if (!label) return;
+        const total = activeSystems.length + (showFilteredOnly ? 1 : 0);
+        label.textContent = total === 0 ? 'All' : (total === 1
+            ? (showFilteredOnly && !activeSystems.length ? 'Filtered' : activeSystems[0].split('|')[1])
+            : total + ' filters');
+    }
+
+    window.tlActAll = function (cb) {
+        if (cb.checked) {
+            activeActTypes = [];
+            document.querySelectorAll('.tl-act-item').forEach(c => c.checked = false);
+        } else {
+            cb.checked = true;
+        }
+        updateActLabel();
+        resetTimeline();
+    };
+
+    window.tlActItem = function (cb) {
+        const allCb = document.getElementById('tl-act-all');
+        if (allCb) allCb.checked = false;
+        activeActTypes = Array.from(document.querySelectorAll('.tl-act-item:checked')).map(c => c.value);
+        if (!activeActTypes.length) {
+            if (allCb) allCb.checked = true;
+        }
+        updateActLabel();
+        resetTimeline();
+    };
+
+    function updateActLabel() {
+        const label = document.getElementById('tl-act-label');
+        if (!label) return;
+        label.textContent = !activeActTypes.length ? 'All'
+            : (activeActTypes.length === 1 ? activeActTypes[0].replace(/_/g, ' ')
+            : activeActTypes.length + ' types');
+    }
+
+    window.tlToggleDropdown = function (which, e) {
+        e.stopPropagation();
+        const menuId = which === 'conv' ? 'tl-conv-menu' : 'tl-act-menu';
+        document.getElementById(menuId)?.classList.toggle('hidden');
+    };
+    document.addEventListener('click', () => {
+        document.getElementById('tl-conv-menu')?.classList.add('hidden');
+        document.getElementById('tl-act-menu')?.classList.add('hidden');
+    });
 
     document.addEventListener('DOMContentLoaded', () => {
+        setTab('conversations');
         fp = flatpickr('#tl-date-range', {
             mode: 'range',
             dateFormat: 'Y-m-d',
@@ -507,30 +699,31 @@
         });
     });
 
-    function localDateStr(d) {
-        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-    }
-
     function sentinel() { return document.getElementById('timeline-sentinel'); }
 
     function buildUrl(cursor) {
         const p = new URLSearchParams();
         if (cursor)   p.set('cursor', cursor);
-        activeTypes.forEach(t => p.append('types[]', t));
-        if (dateFrom) p.set('from', dateFrom);
-        if (dateTo)   p.set('to',   dateTo);
+        if (dateFrom) p.set('from',   dateFrom);
+        if (dateTo)   p.set('to',     dateTo);
+
+        if (activeTab === 'conversations') {
+            p.append('types[]', 'conversation');
+            activeSystems.forEach(s => p.append('systems[]', s));
+            if (showFilteredOnly) p.set('is_filtered', '1');
+        } else if (activeTab === 'activity') {
+            activeActTypes.forEach(t => p.append('types[]', t));
+        } else if (activeTab === 'filtered') {
+            p.set('is_filtered', '1');
+        }
+
         return baseUrl + '?' + p;
     }
 
-    function hasFilters() { return activeTypes.length > 0 || dateFrom || dateTo; }
-    function updateClearBtn() { clearBtn.classList.toggle('hidden', !hasFilters()); }
-
-    function updateTypeLabel() {
-        const label = document.getElementById('tl-type-label');
-        if (!activeTypes.length)           label.textContent = 'All types';
-        else if (activeTypes.length === 1) label.textContent = activeTypes[0].replace(/_/g, ' ');
-        else                               label.textContent = `${activeTypes.length} types`;
+    function hasFilters() {
+        return activeSystems.length > 0 || showFilteredOnly || activeActTypes.length > 0 || dateFrom || dateTo;
     }
+    function updateClearBtn() { clearBtn.classList.toggle('hidden', !hasFilters()); }
 
     function loadMore(cursor) {
         if (fetching) return;
@@ -557,43 +750,22 @@
     }
 
     function resetTimeline() {
+        const savedY = window.scrollY;
+        const savedH = container.offsetHeight;
+        container.style.minHeight = savedH + 'px';
         observer.disconnect();
         reqId++;
         container.innerHTML = '';
         fetching = false;
         updateClearBtn();
         loadMore(null);
+        window.scrollTo({ top: savedY, behavior: 'instant' });
+        setTimeout(() => { container.style.minHeight = ''; }, 600);
     }
 
-    // ── Type dropdown ──
-    window.toggleTypeDropdown = function (e) {
-        e.stopPropagation();
-        document.getElementById('tl-type-menu')?.classList.toggle('hidden');
-    };
-    document.addEventListener('click', e => {
-        if (!document.getElementById('tl-type-wrapper')?.contains(e.target)) {
-            document.getElementById('tl-type-menu')?.classList.add('hidden');
-        }
-    });
+    window.clearDateFilter  = function () { fp?.clear(); };
+    window.resetTimelineFilters = function () { setTab('all'); fp?.clear(); };
 
-    window.handleTypeChecks = function () {
-        activeTypes = Array.from(document.querySelectorAll('.tl-type-check:checked')).map(c => c.value);
-        updateTypeLabel();
-        resetTimeline();
-    };
-
-    window.clearDateFilter = function () {
-        fp?.clear();
-    };
-
-    window.resetTimelineFilters = function () {
-        activeTypes = [];
-        document.querySelectorAll('.tl-type-check').forEach(cb => { cb.checked = false; });
-        updateTypeLabel();
-        fp?.clear();
-    };
-
-    // ── IntersectionObserver ──
     const observer = new IntersectionObserver(entries => {
         entries.forEach(e => {
             if (e.isIntersecting && e.target.dataset.nextCursor) {
@@ -606,5 +778,25 @@
     const s = sentinel();
     if (s) observer.observe(s);
 })();
+</script>
+<script>
+const _personId  = {{ $person->id }};
+const _csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+function showPersonFilterModal() {
+    openActivityModal({ dataset: { modalSrc: '{{ route('people.filter-modal') }}?ids[]=' + _personId } });
+}
+function showPersonAssignCompany() {
+    openActivityModal({ dataset: { modalSrc: '{{ route('people.assign-company-modal') }}?ids[]=' + _personId } });
+}
+function markPersonOurOrg() {
+    const btn = document.getElementById('mark-our-org-btn');
+    if (btn) btn.disabled = true;
+    fetch(`/people/${_personId}/mark-our-org`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({}),
+    }).then(r => r.json()).then(d => { if (d.ok) window.location.reload(); else if (btn) btn.disabled = false; });
+}
 </script>
 @endsection

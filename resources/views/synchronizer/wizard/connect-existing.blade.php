@@ -8,13 +8,6 @@
     <a href="{{ route('synchronizer.wizard.step1') }}" class="btn btn-secondary btn-sm">Back</a>
 </div>
 
-{{-- Step indicator --}}
-<div class="flex items-center gap-2 mb-6 text-xs text-gray-400">
-    <span id="ind-1" class="font-semibold text-brand-600">① Connection details</span>
-    <span>→</span>
-    <span id="ind-2">② Verify configuration</span>
-</div>
-
 <div class="max-w-lg">
 
     {{-- Step 1: form --}}
@@ -129,8 +122,6 @@ async function testAndInspect() {
 
         // Move to step 2
         document.getElementById('step-1').classList.add('hidden');
-        document.getElementById('ind-2').classList.add('font-semibold', 'text-brand-600');
-        document.getElementById('ind-2').classList.remove('text-gray-400');
         document.getElementById('step-2').classList.remove('hidden');
 
         if (data.points_elsewhere) {

@@ -55,7 +55,35 @@ class ConversationController extends Controller
         } elseif ($personId) {
             // person filter spans all companies — no tab restriction
         } elseif ($tab === 'filtered') {
-            $query->where('is_archived', true);
+            $filterDomains   = \App\Models\SystemSetting::get('filter_domains', []);
+            $filterEmails    = \App\Models\SystemSetting::get('filter_emails', []);
+            $filterSubjects  = \App\Models\SystemSetting::get('filter_subjects', []);
+
+            $query->where(function ($q) use ($filterDomains, $filterEmails, $filterSubjects) {
+                $q->where('is_archived', true);
+
+                if (!empty($filterDomains) || !empty($filterEmails)) {
+                    $q->orWhereExists(function ($sub) use ($filterDomains, $filterEmails) {
+                        $sub->select(DB::raw(1))
+                            ->from('conversation_messages as cm_f')
+                            ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
+                            ->whereColumn('cm_f.conversation_id', 'conversations.id')
+                            ->where('i_f.type', 'email')
+                            ->where(function ($q2) use ($filterDomains, $filterEmails) {
+                                foreach ($filterDomains as $domain) {
+                                    $q2->orWhereRaw('LOWER(i_f.value) LIKE ?', ['%@' . strtolower($domain)]);
+                                }
+                                if (!empty($filterEmails)) {
+                                    $q2->orWhereIn(DB::raw('LOWER(i_f.value)'), array_map('strtolower', $filterEmails));
+                                }
+                            });
+                    });
+                }
+
+                foreach ($filterSubjects as $subject) {
+                    $q->orWhereRaw('LOWER(subject) LIKE ?', ['%' . strtolower($subject) . '%']);
+                }
+            });
         } else {
             // unassigned / assigned tabs exclude filtered conversations
             $query->where(fn($q) => $q->where('is_archived', false)->orWhereNull('is_archived'));
@@ -63,6 +91,33 @@ class ConversationController extends Controller
                 $query->whereNotNull('company_id');
             } else {
                 $query->whereNull('company_id');
+            }
+
+            // Dynamically exclude conversations matching domain/email/subject filter rules
+            $filterDomains   = \App\Models\SystemSetting::get('filter_domains', []);
+            $filterEmails    = \App\Models\SystemSetting::get('filter_emails', []);
+            $filterSubjects  = \App\Models\SystemSetting::get('filter_subjects', []);
+
+            if (!empty($filterDomains) || !empty($filterEmails)) {
+                $query->whereNotExists(function ($sub) use ($filterDomains, $filterEmails) {
+                    $sub->select(DB::raw(1))
+                        ->from('conversation_messages as cm_f')
+                        ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
+                        ->whereColumn('cm_f.conversation_id', 'conversations.id')
+                        ->where('i_f.type', 'email')
+                        ->where(function ($q2) use ($filterDomains, $filterEmails) {
+                            foreach ($filterDomains as $domain) {
+                                $q2->orWhereRaw('LOWER(i_f.value) LIKE ?', ['%@' . strtolower($domain)]);
+                            }
+                            if (!empty($filterEmails)) {
+                                $q2->orWhereIn(DB::raw('LOWER(i_f.value)'), array_map('strtolower', $filterEmails));
+                            }
+                        });
+                });
+            }
+
+            foreach ($filterSubjects as $subject) {
+                $query->whereRaw('LOWER(subject) NOT LIKE ?', ['%' . strtolower($subject) . '%']);
             }
         }
 
@@ -77,10 +132,36 @@ class ConversationController extends Controller
         $convIds       = $conversations->pluck('id');
 
         $active = fn($q) => $q->where(fn($q) => $q->where('is_archived', false)->orWhereNull('is_archived'));
+        $filterDomains  = \App\Models\SystemSetting::get('filter_domains', []);
+        $filterEmails   = \App\Models\SystemSetting::get('filter_emails', []);
+        $filterSubjectsCount = \App\Models\SystemSetting::get('filter_subjects', []);
+        $filteredQuery = Conversation::where(function ($q) use ($filterDomains, $filterEmails, $filterSubjectsCount) {
+            $q->where('is_archived', true);
+            if (!empty($filterDomains) || !empty($filterEmails)) {
+                $q->orWhereExists(function ($sub) use ($filterDomains, $filterEmails) {
+                    $sub->select(DB::raw(1))
+                        ->from('conversation_messages as cm_f')
+                        ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
+                        ->whereColumn('cm_f.conversation_id', 'conversations.id')
+                        ->where('i_f.type', 'email')
+                        ->where(function ($q2) use ($filterDomains, $filterEmails) {
+                            foreach ($filterDomains as $domain) {
+                                $q2->orWhereRaw('LOWER(i_f.value) LIKE ?', ['%@' . strtolower($domain)]);
+                            }
+                            if (!empty($filterEmails)) {
+                                $q2->orWhereIn(DB::raw('LOWER(i_f.value)'), array_map('strtolower', $filterEmails));
+                            }
+                        });
+                });
+            }
+            foreach ($filterSubjectsCount as $subject) {
+                $q->orWhereRaw('LOWER(subject) LIKE ?', ['%' . strtolower($subject) . '%']);
+            }
+        });
         $tabCounts = [
             'unassigned' => Conversation::whereNull('company_id')->tap($active)->count(),
             'assigned'   => Conversation::whereNotNull('company_id')->tap($active)->count(),
-            'filtered'   => Conversation::where('is_archived', true)->count(),
+            'filtered'   => (clone $filteredQuery)->count(),
         ];
 
         // Single query: distinct (conversation_id, identity_id) per direction
@@ -201,22 +282,20 @@ class ConversationController extends Controller
     {
         $date = $request->get('date'); // optional YYYY-MM-DD for Discord/Slack daily aggregates
 
+        $msgQuery = $conversation->messages()
+            ->with(['identity', 'attachments'])
+            ->orderBy('occurred_at');
+
         if ($date) {
-            $messages = $conversation->messages()
-                ->with('identity')
-                ->whereDate('occurred_at', $date)
-                ->orderBy('occurred_at')
-                ->limit(10)
-                ->get();
-            $firstMsg = $messages->first();
+            $messages = $msgQuery->whereDate('occurred_at', $date)->limit(10)->get();
         } else {
-            $messages = $conversation->messages()
-                ->with('identity')
-                ->orderBy('occurred_at')
-                ->limit(5)
-                ->get();
-            $firstMsg = $messages->first();
+            $messages = $msgQuery->limit(5)->get();
         }
+
+        // Group thread replies keyed by parent message id (for Slack/Discord threading)
+        $replies = $messages
+            ->whereNotNull('thread_key')
+            ->groupBy('thread_key');
 
         $discordMentionMap = [];
         if ($conversation->channel_type === 'discord') {
@@ -230,7 +309,7 @@ class ConversationController extends Controller
                 ->all();
         }
 
-        return view('conversations.modal', compact('conversation', 'firstMsg', 'messages', 'date', 'discordMentionMap'));
+        return view('conversations.modal', compact('conversation', 'messages', 'replies', 'date', 'discordMentionMap'));
     }
 
     /**

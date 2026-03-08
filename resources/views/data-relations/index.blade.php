@@ -46,8 +46,8 @@
             <tr>
                 <th class="px-4 py-2 text-left">System</th>
                 <th class="px-4 py-2 text-left">Slug</th>
-                <th class="px-4 py-2 text-right">Unlinked</th>
-                <th class="px-4 py-2 text-right">Total</th>
+                <th class="px-4 py-2 text-right">Companies unlinked</th>
+                <th class="px-4 py-2 text-right">Contacts unlinked</th>
                 <th class="px-4 py-2 text-right">Linked %</th>
                 <th class="px-4 py-2"></th>
             </tr>
@@ -63,7 +63,9 @@
                     <td class="px-4 py-2 text-right {{ $sys->unlinked > 0 ? 'text-amber-600 font-semibold' : 'text-green-600' }}">
                         {{ number_format($sys->unlinked) }}
                     </td>
-                    <td class="px-4 py-2 text-right text-gray-500">{{ number_format($sys->total) }}</td>
+                    <td class="px-4 py-2 text-right {{ $sys->contacts_unlinked > 0 ? 'text-amber-600 font-semibold' : 'text-green-600' }}">
+                        {{ number_format($sys->contacts_unlinked) }}
+                    </td>
                     <td class="px-4 py-2 text-right text-gray-500">{{ $pct }}%</td>
                     <td class="px-4 py-2 text-right">
                         <a href="{{ route('data-relations.mapping', [$sys->system_type, $sys->system_slug]) }}"

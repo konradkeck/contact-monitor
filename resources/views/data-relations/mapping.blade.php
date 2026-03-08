@@ -2,9 +2,9 @@
 @section('title', "{$systemSlug} — Mapping")
 
 @php
-    $hasTabs   = $conversationStats !== null; // Discord / Slack
-    $activeTab = request('tab', 'people');
-    $activeView = request('view', 'unlinked'); // people sub-view
+    $hasTabs    = $conversationStats !== null; // Discord / Slack
+    $activeTab  = request('tab', 'people');
+    $activeView = request('view', 'unlinked');
     $q          = request('q', '');
 @endphp
 
@@ -27,7 +27,7 @@
     </form>
 </div>
 
-{{-- ─── TOP-LEVEL TABS (Discord / Slack only) ─── --}}
+{{-- ─── TOP-LEVEL TABS (Discord/Slack only: People / Channels) ─── --}}
 @if($hasTabs)
 <div class="flex gap-0 border-b border-gray-200 mb-6">
     @foreach(['people' => ['label' => 'People', 'count' => $stats['unlinked']], 'channels' => ['label' => 'Channels', 'count' => $conversationStats['unlinked']]] as $tabKey => $tab)
@@ -44,7 +44,7 @@
 </div>
 @endif
 
-{{-- ─── ACCOUNT-BASED (WHMCS, MetricsCube) ─── --}}
+{{-- ─── ACCOUNT-BASED (WHMCS, MetricsCube) — Companies with inline contacts ─── --}}
 @if($isAccountSystem)
 
 @include('data-relations._people-toolbar', ['linkedCount' => $stats['linked'], 'unlinkedCount' => $stats['unlinked']])
@@ -71,7 +71,13 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($unlinked as $account)
-                    @php $meta = $account->meta_json ?? []; @endphp
+                    @php
+                        $meta       = $account->meta_json ?? [];
+                        $acEmail    = strtolower(trim($meta['email'] ?? ''));
+                        $acName     = $meta['company_name'] ?? $account->external_id;
+                        $acFmUrl    = route('filtering.identity-filter-modal') . '?' . http_build_query(array_filter(['email' => $acEmail, 'domain' => $acEmail ? substr(strrchr($acEmail, '@'), 1) : '', 'name' => $acName]));
+                        $acContacts = $identitiesByExtId->get((string) $account->external_id, collect());
+                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2.5 font-mono text-xs text-gray-500">{{ $account->external_id }}</td>
                         <td class="px-4 py-2.5 text-gray-800">{{ $meta['company_name'] ?? '—' }}</td>
@@ -80,8 +86,47 @@
                             <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $meta['phone'] ?? '—' }}</td>
                             <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $meta['country'] ?? '—' }}</td>
                         @endif
-                        <td class="px-4 py-2.5">@include('data-relations._ac-company', ['action' => route('data-relations.accounts.link', $account)])</td>
+                        <td class="px-4 py-2.5 flex items-center gap-2">
+                            @include('data-relations._ac-company', ['action' => route('data-relations.accounts.link', $account)])
+                            <button type="button"
+                                    onclick="openActivityModal({ dataset: { modalSrc: '{{ $acFmUrl }}' } })"
+                                    class="text-xs text-red-400 hover:text-red-600 shrink-0 whitespace-nowrap transition">Filter…</button>
+                        </td>
                     </tr>
+                    @if($acContacts->isNotEmpty())
+                    <tr class="bg-gray-50 border-t-0">
+                        <td colspan="{{ $systemType === 'whmcs' ? 6 : 4 }}" class="px-6 pb-2 pt-0">
+                            <table class="w-full text-xs">
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($acContacts as $contact)
+                                    <tr>
+                                        <td class="py-1.5 pr-3 font-mono text-gray-500 w-48">{{ $contact->value }}</td>
+                                        <td class="py-1.5 pr-3 text-gray-500">{{ $contact->meta_json['display_name'] ?? '—' }}</td>
+                                        <td class="py-1.5 pr-3 w-64">
+                                            @if($contact->person)
+                                                <a href="{{ route('people.show', $contact->person) }}" class="text-brand-700 hover:underline font-medium">{{ $contact->person->full_name }}</a>
+                                                <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline ml-2">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
+                                                </form>
+                                            @else
+                                                @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
+                                            @endif
+                                        </td>
+                                        <td class="py-1.5 text-center">
+                                            <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" title="{{ $contact->is_team_member ? 'Team member' : 'Mark as team member' }}"
+                                                        class="text-base leading-none transition {{ $contact->is_team_member ? 'opacity-100' : 'opacity-20 hover:opacity-60' }}">🏢</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                    @endif
                 @endforeach
             </tbody>
         </table>
@@ -105,9 +150,13 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($linked as $account)
+                    @php
+                        $meta       = $account->meta_json ?? [];
+                        $acContacts = $identitiesByExtId->get((string) $account->external_id, collect());
+                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2.5 font-mono text-xs text-gray-500">{{ $account->external_id }}</td>
-                        @if($systemType === 'whmcs')<td class="px-4 py-2.5 text-gray-600 text-xs">{{ $account->meta_json['company_name'] ?? '—' }}</td>@endif
+                        @if($systemType === 'whmcs')<td class="px-4 py-2.5 text-gray-600 text-xs">{{ $meta['company_name'] ?? '—' }}</td>@endif
                         <td class="px-4 py-2.5"><a href="{{ route('companies.show', $account->company) }}" class="text-brand-700 hover:underline font-medium">{{ $account->company->name }}</a></td>
                         <td class="px-4 py-2.5 text-right">
                             <form action="{{ route('data-relations.accounts.unlink', $account) }}" method="POST" class="inline">
@@ -116,6 +165,40 @@
                             </form>
                         </td>
                     </tr>
+                    @if($acContacts->isNotEmpty())
+                    <tr class="bg-gray-50 border-t-0">
+                        <td colspan="{{ $systemType === 'whmcs' ? 4 : 3 }}" class="px-6 pb-2 pt-0">
+                            <table class="w-full text-xs">
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($acContacts as $contact)
+                                    <tr>
+                                        <td class="py-1.5 pr-3 font-mono text-gray-500 w-48">{{ $contact->value }}</td>
+                                        <td class="py-1.5 pr-3 text-gray-500">{{ $contact->meta_json['display_name'] ?? '—' }}</td>
+                                        <td class="py-1.5 pr-3 w-64">
+                                            @if($contact->person)
+                                                <a href="{{ route('people.show', $contact->person) }}" class="text-brand-700 hover:underline font-medium">{{ $contact->person->full_name }}</a>
+                                                <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline ml-2">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
+                                                </form>
+                                            @else
+                                                @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
+                                            @endif
+                                        </td>
+                                        <td class="py-1.5 text-center">
+                                            <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
+                                                @csrf
+                                                <button type="submit" title="{{ $contact->is_team_member ? 'Team member' : 'Mark as team member' }}"
+                                                        class="text-base leading-none transition {{ $contact->is_team_member ? 'opacity-100' : 'opacity-20 hover:opacity-60' }}">🏢</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                    @endif
                 @endforeach
             </tbody>
         </table>
@@ -124,7 +207,8 @@
     @else
         <div class="bg-gray-50 border border-gray-200 rounded-lg px-5 py-4 text-sm text-gray-500">No linked accounts.</div>
     @endif
-@endif
+
+@endif {{-- end activeView --}}
 
 {{-- ─── IDENTITY-BASED (IMAP, Slack, Discord) ─── --}}
 @elseif($activeTab === 'people' || !$hasTabs)
@@ -168,6 +252,10 @@
                                 $sysAvatar = $identity->meta_json['avatar'];
                             }
                         }
+                        $idFmEmail  = $gEmail ?? '';
+                        $idFmDomain = $idFmEmail ? substr(strrchr($idFmEmail, '@'), 1) : '';
+                        $idFmName   = $identity->meta_json['display_name'] ?? $identity->value;
+                        $idFmUrl    = route('filtering.identity-filter-modal') . '?' . http_build_query(array_filter(['email' => $idFmEmail, 'domain' => $idFmDomain, 'name' => $idFmName]));
                     @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2.5 font-mono text-xs text-gray-700">{{ $identity->value }}</td>
@@ -186,7 +274,14 @@
                         @if($systemType === 'slack')
                             <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $identity->meta_json['email_hint'] ?? '—' }}</td>
                         @endif
-                        <td class="px-4 py-2.5">@include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $identity)])</td>
+                        <td class="px-4 py-2.5 flex items-center gap-2">
+                            @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $identity)])
+                            @if($idFmEmail || $idFmDomain)
+                                <button type="button"
+                                        onclick="openActivityModal({ dataset: { modalSrc: '{{ $idFmUrl }}' } })"
+                                        class="text-xs text-red-400 hover:text-red-600 shrink-0 whitespace-nowrap transition">Filter…</button>
+                            @endif
+                        </td>
                         <td class="px-4 py-2.5 text-center">
                             <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
                                 @csrf

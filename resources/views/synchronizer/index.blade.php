@@ -175,7 +175,7 @@
                         <div class="flex items-center gap-1.5">
                             @include('synchronizer._type_icon', ['type' => $conn['type'], 'class' => 'w-4 h-4'])
                             <span class="badge" style="background:{{ $tc['bg'] }}; color:{{ $tc['color'] }}; border-color:{{ $tc['border'] }}">
-                                {{ $conn['type'] }}
+                                {{ ['whmcs'=>'WHMCS','gmail'=>'Gmail','imap'=>'IMAP','metricscube'=>'MetricsCube','discord'=>'Discord','slack'=>'Slack'][$conn['type']] ?? ucfirst($conn['type']) }}
                             </span>
                         </div>
                     </td>

@@ -119,6 +119,11 @@ class MessageProcessor
 
         $direction = $this->resolveDirection($payload, $identity);
 
+        // Auto-mark identity as team member when the message comes from our side
+        if ($direction === 'internal' && $identity !== null && !$identity->is_team_member) {
+            $identity->update(['is_team_member' => true]);
+        }
+
         $attrs = [
             'conversation_id'  => $conversation->id,
             'external_id'      => $item->external_id,

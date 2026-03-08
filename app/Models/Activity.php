@@ -56,6 +56,11 @@ class Activity extends Model
             return $this->meta_json['direction'];
         }
 
+        // For email activities: use is_outbound flag
+        if (isset($this->meta_json['is_outbound'])) {
+            return $this->meta_json['is_outbound'] ? 'internal' : 'customer';
+        }
+
         return in_array($this->type, ['payment', 'renewal', 'cancellation', 'ticket', 'conversation'])
             ? 'customer'
             : 'internal';
@@ -93,7 +98,7 @@ class Activity extends Model
             'cancellation'  => 'Cancellation request',
             'ticket'        => 'Support ticket',
             'conversation'  => ucfirst($this->conversationChannelType() ?? 'Conversation'),
-            'note'          => 'Note added',
+            'note'          => 'Other',
             'status_change' => 'Status changed',
             'campaign_run'  => 'Campaign run',
             'ai_summary'    => 'AI summary generated',

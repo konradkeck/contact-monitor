@@ -43,6 +43,7 @@ class DataRelationsController extends Controller
         ];
 
         // Per-system breakdown for account-based systems
+        // Also count unlinked email identities per slug (contacts imported alongside WHMCS clients)
         $accountSystems = Account::select(
                 'system_type', 'system_slug',
                 DB::raw('COUNT(*) as total'),
@@ -53,12 +54,55 @@ class DataRelationsController extends Controller
             ->orderBy('system_slug')
             ->get();
 
-        // Per-system breakdown for identity-based systems
+        // Count unlinked email contacts per account-based slug
+        $accountBasedSlugs = $accountSystems->pluck('system_slug')->unique()->toArray();
+
+        $contactCountsBySlug = [];
+        if (!empty($accountBasedSlugs)) {
+            $rows = Identity::select('system_slug',
+                        DB::raw('COUNT(*) as total'),
+                        DB::raw('COUNT(CASE WHEN person_id IS NULL THEN 1 END) as unlinked')
+                    )
+                    ->where('type', 'email')
+                    ->whereIn('system_slug', $accountBasedSlugs)
+                    ->groupBy('system_slug')
+                    ->get();
+            foreach ($rows as $row) {
+                $contactCountsBySlug[$row->system_slug] = [
+                    'total'    => $row->total,
+                    'unlinked' => $row->unlinked,
+                ];
+            }
+        }
+
+        // Attach contact counts to each account system row
+        $accountSystems->each(function ($sys) use ($contactCountsBySlug) {
+            $counts = $contactCountsBySlug[$sys->system_slug] ?? ['total' => 0, 'unlinked' => 0];
+            $sys->contacts_total    = $counts['total'];
+            $sys->contacts_unlinked = $counts['unlinked'];
+        });
+
+        // Per-system breakdown for identity-based systems.
+        // Exclude slugs used by WHMCS/MetricsCube — their email contacts are managed
+        // within the account mapping flow, not as a separate identity section.
+        $whmcsSlugs = Account::whereIn('system_type', ['whmcs', 'metricscube'])
+            ->distinct()->pluck('system_slug')->toArray();
+
         $identitySystems = Identity::select(
                 'system_slug', 'type',
                 DB::raw('COUNT(*) as total'),
                 DB::raw('COUNT(CASE WHEN person_id IS NULL THEN 1 END) as unlinked')
             )
+            // Never show email identities that belong to WHMCS/MetricsCube systems.
+            // Two guards: by slug list AND by system_type stored in meta_json — so new slugs
+            // are automatically excluded without any code changes.
+            ->where(function ($q) use ($whmcsSlugs) {
+                $q->where('type', '!=', 'email')
+                  ->orWhere(function ($q2) use ($whmcsSlugs) {
+                      $q2->whereNotIn('system_slug', $whmcsSlugs)
+                         ->whereRaw("COALESCE(meta_json->>'system_type', '') NOT IN ('whmcs', 'metricscube')");
+                  });
+            })
             ->groupBy('system_slug', 'type')
             ->orderBy('type')
             ->orderBy('system_slug')
@@ -76,6 +120,17 @@ class DataRelationsController extends Controller
     public function mapping(Request $request, string $systemType, string $systemSlug): View
     {
         $isAccountSystem = in_array($systemType, ['whmcs', 'metricscube'], true);
+
+        // Guard: if someone tries to access an identity-based mapping for a slug
+        // that belongs to an account-based system (WHMCS/MetricsCube), abort.
+        // WHMCS contacts are shown inline under account rows — not as a separate identity section.
+        if (!$isAccountSystem) {
+            $accountBasedSlugs = Account::whereIn('system_type', ['whmcs', 'metricscube'])
+                ->distinct()->pluck('system_slug')->toArray();
+            if (in_array($systemSlug, $accountBasedSlugs, true)) {
+                abort(404);
+            }
+        }
         $q    = trim($request->input('q', ''));
         $view = $request->input('view', 'unlinked'); // 'unlinked' or 'linked'
 
@@ -100,6 +155,32 @@ class DataRelationsController extends Controller
                 'linked'   => Account::whereNotNull('company_id')->where('system_type', $systemType)->where('system_slug', $systemSlug)->count(),
                 'total'    => Account::where('system_type', $systemType)->where('system_slug', $systemSlug)->count(),
             ];
+
+            // Build primary-email → external_id map from ALL accounts (not paginated)
+            // so inline contact matching works regardless of pagination state.
+            $allAccounts = Account::where('system_type', $systemType)
+                ->where('system_slug', $systemSlug)
+                ->get(['external_id', 'meta_json']);
+
+            $primaryEmailToExtId = $allAccounts
+                ->filter(fn($a) => !empty($a->meta_json['email']))
+                ->keyBy(fn($a) => strtolower(trim($a->meta_json['email'])))
+                ->map(fn($a) => (string) $a->external_id);
+
+            // Load ALL email identities for this slug and group by account external_id.
+            $allIdentities = Identity::where('system_slug', $systemSlug)
+                ->where('type', 'email')
+                ->with('person')
+                ->get();
+
+            $identitiesByExtId = $allIdentities->groupBy(function ($i) use ($primaryEmailToExtId) {
+                // 1. Explicit account_external_id stored during ingest
+                $extId = $i->meta_json['account_external_id'] ?? null;
+                if ($extId) return (string) $extId;
+                // 2. Fallback: primary email match across all accounts
+                return $primaryEmailToExtId->get($i->value_normalized, '');
+            })->reject(fn($group, $key) => $key === ''); // '' = truly unmatched
+
         } else {
             $identityType = self::SYSTEM_IDENTITY[$systemType] ?? 'email';
 
@@ -143,9 +224,15 @@ class DataRelationsController extends Controller
             ];
         }
 
+        // For non-account systems: no contact-per-account data
+        if (!$isAccountSystem) {
+            $identitiesByExtId = collect();
+        }
+
         return view('data-relations.mapping', compact(
             'systemType', 'systemSlug', 'isAccountSystem', 'stats', 'unlinked', 'linked',
-            'conversations', 'conversationStats'
+            'conversations', 'conversationStats',
+            'identitiesByExtId'
         ));
     }
 

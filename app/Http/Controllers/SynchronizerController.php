@@ -106,7 +106,7 @@ class SynchronizerController extends Controller
         }
     }
 
-    public function edit(int $id)
+    public function edit(string $id)
     {
         try {
             $conn             = $this->api()->get("/connections/{$id}")->json('connection');
@@ -121,7 +121,7 @@ class SynchronizerController extends Controller
         return view('synchronizer.form', compact('conn', 'whmcsConnections'));
     }
 
-    public function update(\Illuminate\Http\Request $request, int $id)
+    public function update(\Illuminate\Http\Request $request, string $id)
     {
         try {
             $payload = $this->buildPayload($request);
@@ -138,7 +138,7 @@ class SynchronizerController extends Controller
         }
     }
 
-    public function destroy(int $id)
+    public function destroy(string $id)
     {
         try {
             $this->api()->delete("/connections/{$id}");
@@ -149,7 +149,7 @@ class SynchronizerController extends Controller
         return redirect()->route('synchronizer.index')->with('success', 'Connection deleted.');
     }
 
-    public function duplicate(int $id)
+    public function duplicate(string $id)
     {
         try {
             $res  = $this->api()->post("/connections/{$id}/duplicate");
@@ -181,7 +181,7 @@ class SynchronizerController extends Controller
         return $data;
     }
 
-    public function show(int $id)
+    public function show(string $id)
     {
         try {
             $conn = $this->api()->get("/connections/{$id}")->json('connection');
@@ -205,7 +205,7 @@ class SynchronizerController extends Controller
         }
     }
 
-    public function run(Request $request, int $id): JsonResponse
+    public function run(Request $request, string $id): JsonResponse
     {
         try {
             $mode = in_array($request->input('mode'), ['partial', 'full']) ? $request->input('mode') : 'partial';
@@ -216,7 +216,7 @@ class SynchronizerController extends Controller
         }
     }
 
-    public function stop(int $id): JsonResponse
+    public function stop(string $id): JsonResponse
     {
         try {
             $res = $this->api()->post("/connections/{$id}/stop");

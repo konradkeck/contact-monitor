@@ -1,51 +1,89 @@
 {{--
   Conversation quick-view modal partial.
   Returned by GET /conversations/{id}/modal[?date=YYYY-MM-DD] — loaded via fetch() in timeline-items.
-  Variables: $conversation, $messages (collection), $firstMsg, $date (optional), $discordMentionMap
+  Variables: $conversation, $messages (collection), $replies, $date (optional), $discordMentionMap
 --}}
 @php
-$resolveMentions = fn(?string $text) => $conversation->channel_type === 'discord'
-    ? preg_replace_callback('/<@!?(\d+)>/', fn($m) => '@' . ($discordMentionMap[$m[1]] ?? $m[1]), $text ?? '')
-    : ($text ?? '');
+$isEmail  = $conversation->channel_type === 'email';
+$isTicket = $conversation->channel_type === 'ticket';
+
+// Email header fields from first message meta
+$emailFrom        = null;
+$emailTo          = null;
+$emailCc          = null;
+$fromGravatarHash = null;
+$firstMsg         = $messages->first();
+if ($isEmail && $firstMsg) {
+    $msgMeta   = $firstMsg->meta_json ?? [];
+    $fromEmail = $firstMsg->identity?->value ?? null;
+    $fromName  = $firstMsg->author_name;
+    $emailFrom = $fromName ? "{$fromName} <{$fromEmail}>" : $fromEmail;
+    $emailTo   = $msgMeta['to'] ?? null;
+    $emailCc   = $msgMeta['cc'] ?? null;
+    if ($fromEmail) {
+        $fromGravatarHash = md5(strtolower(trim($fromEmail)));
+    }
+}
 @endphp
-<div class="p-4">
+<div class="p-5">
 
     {{-- Header --}}
-    <div class="flex items-center gap-2 mb-3">
-        <x-channel-badge :type="$conversation->channel_type" />
-        @if($conversation->company)
-            <span class="text-sm font-semibold text-gray-800">{{ $conversation->company->name }}</span>
-        @endif
+    <div class="mb-4 pr-6">
+        <div class="flex items-center gap-2 mb-2">
+            <x-channel-badge :type="$conversation->channel_type" />
+            @if($isTicket && $conversation->external_thread_id)
+                @php preg_match('/ticket_(\d+)/', $conversation->external_thread_id, $_m); @endphp
+                <span class="text-xs font-mono text-gray-400">#{{ $_m[1] ?? '' }} {{ $conversation->system_slug }}</span>
+            @elseif(!$isEmail && $conversation->company)
+                <span class="text-sm font-semibold text-gray-800">{{ $conversation->company->name }}</span>
+            @endif
+            @if($date)
+                <span class="text-xs text-gray-400 shrink-0">{{ \Carbon\Carbon::parse($date)->format('d M Y') }}</span>
+            @endif
+        </div>
         @if($conversation->subject)
-            <span class="text-sm text-gray-500 truncate">— {{ $conversation->subject }}</span>
-        @endif
-        @if($date)
-            <span class="text-xs text-gray-400 shrink-0">{{ \Carbon\Carbon::parse($date)->format('d M Y') }}</span>
+            <h3 class="text-sm font-semibold text-gray-900 leading-snug break-words">{{ $conversation->subject }}</h3>
         @endif
     </div>
 
-    {{-- Messages --}}
-    @if($messages->isNotEmpty())
-        <div class="space-y-2 mb-4 max-h-64 overflow-y-auto">
-            @foreach($messages as $msg)
-                <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 leading-relaxed">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="font-semibold text-gray-800 text-xs">{{ $msg->author_name }}</span>
-                        <span class="text-xs text-gray-400">{{ $msg->occurred_at->format('H:i') }}</span>
+    {{-- Email headers --}}
+    @if($isEmail && ($emailFrom || $emailTo || $emailCc))
+        <div class="mb-4 bg-gray-50 rounded-lg px-3 py-2.5 text-xs space-y-1 border border-gray-100">
+            @if($emailFrom)
+                <div class="flex gap-2 items-start">
+                    <span class="text-gray-400 w-7 shrink-0 mt-0.5">From</span>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        @if($fromGravatarHash)
+                            <img src="https://www.gravatar.com/avatar/{{ $fromGravatarHash }}?d=identicon&s=32"
+                                 class="w-5 h-5 rounded-full shrink-0">
+                        @endif
+                        <span class="text-gray-700 break-all">{{ $emailFrom }}</span>
                     </div>
-                    @if($msg->body_html)
-                        <div class="prose prose-sm max-w-none text-xs">{!! $msg->body_html !!}</div>
-                    @elseif($msg->body_text)
-                        <p class="whitespace-pre-wrap text-xs">{{ Str::limit($resolveMentions($msg->body_text), 400) }}</p>
-                    @else
-                        <span class="text-gray-400 italic text-xs">No content.</span>
-                    @endif
                 </div>
-            @endforeach
+            @endif
+            @if($emailTo)
+                <div class="flex gap-2">
+                    <span class="text-gray-400 w-7 shrink-0">To</span>
+                    <span class="text-gray-700 break-all">{{ is_array($emailTo) ? implode(', ', $emailTo) : $emailTo }}</span>
+                </div>
+            @endif
+            @if($emailCc)
+                <div class="flex gap-2">
+                    <span class="text-gray-400 w-7 shrink-0">CC</span>
+                    <span class="text-gray-700 break-all">{{ is_array($emailCc) ? implode(', ', $emailCc) : $emailCc }}</span>
+                </div>
+            @endif
         </div>
-    @else
-        <p class="text-sm text-gray-400 italic mb-4">No messages{{ $date ? ' for this date' : '' }}.</p>
     @endif
+
+    {{-- Messages --}}
+    <div class="mb-4">
+        @include('conversations.partials.messages', [
+            'messages'          => $messages,
+            'replies'           => $replies,
+            'discordMentionMap' => $discordMentionMap,
+        ])
+    </div>
 
     {{-- CTA --}}
     <a href="{{ route('conversations.show', $conversation) }}"

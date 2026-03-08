@@ -42,12 +42,50 @@ class AutoResolver
     }
 
     /**
+     * Backfill: mark identities as team members when they have sent internal-direction messages.
+     * Handles cases where messages were ingested before this detection was in place.
+     */
+    public function markTeamMembersFromMessageDirection(): int
+    {
+        return Identity::whereNull('deleted_at')
+            ->where('is_team_member', false)
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                  ->from('conversation_messages')
+                  ->whereColumn('conversation_messages.identity_id', 'identities.id')
+                  ->where('conversation_messages.direction', 'internal')
+                  ->whereNull('conversation_messages.deleted_at');
+            })
+            ->update(['is_team_member' => true]);
+    }
+
+    /**
+     * Propagate: update ConversationMessage direction to 'internal' for team member identities.
+     * Handles messages that were ingested as 'customer' before the identity was marked as team member.
+     */
+    public function markMessagesFromTeamIdentities(): int
+    {
+        return \App\Models\ConversationMessage::where('direction', 'customer')
+            ->whereNotNull('identity_id')
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                  ->from('identities')
+                  ->whereColumn('identities.id', 'conversation_messages.identity_id')
+                  ->where('identities.is_team_member', true)
+                  ->whereNull('identities.deleted_at');
+            })
+            ->update(['direction' => 'internal']);
+    }
+
+    /**
      * Run all auto-resolvers and auto-creators. Returns stats array.
      */
     public function resolveAll(): array
     {
-        // 0. Mark team member identities by configured domains
+        // 0. Mark team member identities by configured domains + by message direction
         $this->markTeamMembers();
+        $teamFromMessages   = $this->markTeamMembersFromMessageDirection();
+        $mcDetected         = $this->detectMcInternalActivities();
 
         // 1. Match existing companies/people first
         $accountsLinked     = $this->resolveAccounts();
@@ -60,7 +98,8 @@ class AutoResolver
         // 3. Link people to companies via email ↔ account matching
         $this->linkPeopleToCompanies();
 
-        // 4. Mark team-member activities as internal
+        // 4. Propagate team member status → fix message directions, then mark activities
+        $this->markMessagesFromTeamIdentities();
         $this->markTeamMemberActivities();
 
         // 5. Backfill conversations now that more accounts/identities are linked
@@ -92,6 +131,8 @@ class AutoResolver
             'persons_filled'       => $personsFilled,
             'mc_persons_filled'    => $mcPersonsFilled,
             'orphans_removed'      => $orphansRemoved,
+            'team_from_messages'   => $teamFromMessages,
+            'mc_admin_detected'    => $mcDetected,
         ];
     }
 
@@ -311,6 +352,64 @@ class AutoResolver
         }
 
         return $created;
+    }
+
+    // -------------------------------------------------------------------------
+    // MetricsCube: auto-detect internal (admin) activities
+    // -------------------------------------------------------------------------
+
+    /**
+     * For MC "Ticket Replied" activities: if the replier name in the description
+     * differs from the customer name, it's an admin reply → mark as internal
+     * and flag the person as team member (is_our_org) if they exist in the system.
+     */
+    public function detectMcInternalActivities(): int
+    {
+        $detected = 0;
+
+        \App\Models\Activity::whereRaw("meta_json->>'system_type' = 'metricscube'")
+            ->whereRaw("meta_json->>'mc_type' = 'Ticket Replied'")
+            ->whereRaw("(meta_json->>'direction') IS DISTINCT FROM 'internal'")
+            ->cursor()
+            ->each(function (\App\Models\Activity $activity) use (&$detected) {
+                $meta     = $activity->meta_json;
+                $desc     = trim($meta['description'] ?? '');
+                $customer = strtolower(trim($meta['customer'] ?? ''));
+
+                // Extract "X replied to ticket to #ID …"
+                if (!preg_match('/^(.+?)\s+replied\s+to\s+ticket/iu', $desc, $m)) {
+                    return;
+                }
+
+                $replierName = trim($m[1]);
+
+                // Same as customer → client replied, not internal
+                if ($replierName === '' || strtolower($replierName) === $customer) {
+                    return;
+                }
+
+                // Replier ≠ customer → admin/internal reply
+                $meta['direction'] = 'internal';
+                $activity->update(['meta_json' => $meta]);
+                $detected++;
+                $this->log[] = "MC admin reply detected: '{$replierName}' (activity #{$activity->id})";
+
+                // Try to find an existing person and mark them as team member
+                $parts     = explode(' ', $replierName, 2);
+                $firstName = strtolower($parts[0]);
+                $lastName  = isset($parts[1]) ? strtolower($parts[1]) : null;
+
+                $person = \App\Models\Person::whereRaw('LOWER(first_name) = ?', [$firstName])
+                    ->when($lastName, fn($q) => $q->whereRaw('LOWER(last_name) = ?', [$lastName]))
+                    ->first();
+
+                if ($person && !$person->is_our_org) {
+                    $person->update(['is_our_org' => true]);
+                    $this->log[] = "Marked '{$replierName}' (person #{$person->id}) as team member via MC admin detection";
+                }
+            });
+
+        return $detected;
     }
 
     // -------------------------------------------------------------------------

@@ -65,10 +65,12 @@ class IdentityProcessor
                 'value'            => $value,
                 'value_normalized' => $valueNorm,
                 'meta_json'        => [
-                    'display_name' => $payload['display_name'] ?? null,
-                    'email_hint'   => $payload['email_hint'] ?? null,
-                    'avatar'       => $payload['avatar'] ?? null,
-                    'system_type'  => $item->system_type,
+                    'display_name'        => $payload['display_name'] ?? null,
+                    'email_hint'          => $payload['email_hint'] ?? null,
+                    'avatar'              => $payload['avatar'] ?? null,
+                    'system_type'         => $item->system_type,
+                    'account_external_id' => isset($payload['account_external_id'])
+                        ? (string) $payload['account_external_id'] : null,
                 ],
             ]);
         } else {
@@ -87,6 +89,9 @@ class IdentityProcessor
             }
             if (array_key_exists('avatar', $payload)) {
                 $newMeta['avatar'] = $payload['avatar']; // allow null to clear
+            }
+            if (isset($payload['account_external_id'])) {
+                $newMeta['account_external_id'] = (string) $payload['account_external_id'];
             }
             if ($newMeta !== $existingMeta) {
                 $identity->update(['meta_json' => $newMeta]);

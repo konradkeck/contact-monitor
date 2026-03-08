@@ -64,6 +64,7 @@ class BrandProductController extends Controller
 
     public function destroy(BrandProduct $brandProduct): RedirectResponse
     {
+        $brandProduct->companyStatuses()->delete();
         $brandProduct->delete();
 
         return redirect()->route('brand-products.index')->with('success', 'Brand product deleted.');

@@ -11,6 +11,7 @@ use App\Models\CompanyBrandStatus;
 use App\Models\CompanyDomain;
 use App\Models\Note;
 use App\Models\NoteLink;
+use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -103,10 +104,60 @@ class CompanyController extends Controller
             default => $query->orderBy($sort, $dir),
         };
 
+        // ── Filtered companies ─────────────────────────────────
+        $filterDomains  = SystemSetting::get('filter_domains', []);
+        $filterEmails   = SystemSetting::get('filter_emails', []);
+        $filterContacts = DB::table('filter_contacts')->pluck('person_id')->all();
+
+        $filteredIds     = [];
+        $filteredReasons = [];
+
+        // By domain: companies whose any domain matches a filter_domains entry
+        if (!empty($filterDomains)) {
+            $domainMatches = DB::table('company_domains')
+                ->whereIn(DB::raw('LOWER(domain)'), array_map('strtolower', $filterDomains))
+                ->select('company_id', 'domain')
+                ->get();
+            foreach ($domainMatches as $row) {
+                $filteredIds[] = $row->company_id;
+                $filteredReasons[$row->company_id] = "Domain: {$row->domain}";
+            }
+        }
+
+        // By filter_contacts: companies linked via company_person to any filtered person
+        if (!empty($filterContacts)) {
+            $contactCompanies = DB::table('company_person')
+                ->whereIn('person_id', $filterContacts)
+                ->pluck('company_id')
+                ->unique()
+                ->all();
+            foreach ($contactCompanies as $companyId) {
+                if (!isset($filteredReasons[$companyId])) {
+                    $filteredIds[]                = $companyId;
+                    $filteredReasons[$companyId] = 'Filtered contact';
+                }
+            }
+        }
+
+        $filteredIds  = array_unique($filteredIds);
+        $filteredCount = count($filteredIds);
+        $showFiltered  = (bool) $request->get('show_filtered');
+
+        if ($showFiltered) {
+            if (empty($filteredIds)) {
+                $query->whereRaw('1=0');
+            } else {
+                $query->whereIn('companies.id', $filteredIds);
+            }
+        } else {
+            $query->whereNotIn('companies.id', $filteredIds ?: [-1]);
+        }
+
         $companies = $query->paginate(20)->withQueryString();
 
         return view('companies.index', compact(
-            'companies', 'search', 'sort', 'dir', 'brandProducts', 'channelTypes'
+            'companies', 'search', 'sort', 'dir', 'brandProducts', 'channelTypes',
+            'filteredCount', 'filteredReasons', 'showFiltered'
         ));
     }
 
@@ -172,6 +223,25 @@ class CompanyController extends Controller
             ->orderByDesc('occurred_at')
             ->cursorPaginate(25);
 
+        $convSubjectMap = $this->buildConvSubjectMap($timelinePage->items());
+
+        // Conversation systems for filter dropdown
+        $convSystems = DB::table('activities')
+            ->where('company_id', $company->id)
+            ->where('type', 'conversation')
+            ->whereRaw("meta_json->>'channel_type' IS NOT NULL")
+            ->select(DB::raw("meta_json->>'channel_type' as channel_type"), DB::raw("meta_json->>'system_slug' as system_slug"))
+            ->distinct()->get()->sortBy('channel_type')->values();
+
+        $filteredConvCount = DB::table('conversations')
+            ->where('company_id', $company->id)
+            ->where('is_archived', true)->count();
+
+        $activityTypes = DB::table('activities')
+            ->where('company_id', $company->id)
+            ->where('type', '!=', 'conversation')
+            ->distinct()->pluck('type')->sort()->values();
+
         $availableBrands = BrandProduct::orderBy('name')->get()
             ->reject(fn ($bp) => $company->brandStatuses->pluck('brand_product_id')->contains($bp->id));
 
@@ -183,6 +253,10 @@ class CompanyController extends Controller
             'convGroups',
             'conversationCount',
             'timelinePage',
+            'convSubjectMap',
+            'convSystems',
+            'filteredConvCount',
+            'activityTypes',
             'availableBrands',
             'backLink',
         ));
@@ -197,18 +271,44 @@ class CompanyController extends Controller
         if ($types = $request->get('types')) {
             $query->whereIn('type', (array) $types);
         }
+        if ($systems = $request->get('systems')) {
+            $pairs = array_filter((array) $systems);
+            if (!empty($pairs)) {
+                $query->where(function ($q) use ($pairs) {
+                    foreach ($pairs as $pair) {
+                        [$ch, $slug] = array_pad(explode('|', $pair, 2), 2, '');
+                        $q->orWhere(function ($sq) use ($ch, $slug) {
+                            $sq->whereRaw("meta_json->>'channel_type' = ?", [$ch])
+                               ->whereRaw("meta_json->>'system_slug' = ?", [$slug]);
+                        });
+                    }
+                });
+            }
+        }
         if ($from = $request->get('from')) {
             $query->whereDate('occurred_at', '>=', $from);
         }
         if ($to = $request->get('to')) {
             $query->whereDate('occurred_at', '<=', $to);
         }
+        if ($request->boolean('is_filtered')) {
+            $query->whereRaw("
+                meta_json->>'conversation_external_id' IS NOT NULL
+                AND EXISTS (
+                    SELECT 1 FROM conversations c
+                    WHERE c.external_thread_id = activities.meta_json->>'conversation_external_id'
+                      AND c.system_slug        = activities.meta_json->>'system_slug'
+                      AND c.is_archived        = true
+                )
+            ");
+        }
 
         $page = $query->cursorPaginate(25, ['*'], 'cursor', $request->get('cursor'));
 
         return view('companies.partials.timeline-items', [
-            'activities'  => $page->items(),
-            'nextCursor'  => $page->nextCursor()?->encode(),
+            'activities'     => $page->items(),
+            'nextCursor'     => $page->nextCursor()?->encode(),
+            'convSubjectMap' => $this->buildConvSubjectMap($page->items()),
         ]);
     }
 
@@ -367,5 +467,45 @@ class CompanyController extends Controller
         $status->update($data + ['last_evaluated_at' => now()]);
 
         return back()->with('success', 'Brand status updated.');
+    }
+
+    public function destroyBrandStatus(Company $company, CompanyBrandStatus $status): RedirectResponse
+    {
+        $status->delete();
+        return back()->with('success', 'Brand status removed.');
+    }
+
+    private function buildConvSubjectMap(array $activities): array
+    {
+        $extIds = [];
+        foreach ($activities as $activity) {
+            $m = $activity->meta_json ?? [];
+            // Resolve effective channel type — meta_json may store channel_type directly,
+            // or only system_type (e.g. WHMCS activities store system_type='whmcs', no channel_type key)
+            $effectiveChannelType = $m['channel_type'] ?? match($m['system_type'] ?? '') {
+                'whmcs', 'metricscube' => 'ticket',
+                default => null,
+            };
+            if ($effectiveChannelType === 'ticket' && !empty($m['conversation_external_id'])) {
+                $extIds[] = $m['conversation_external_id'];
+            }
+            // MetricsCube ticket activities (relation_id = raw ticket number)
+            $mcType = $m['mc_type'] ?? '';
+            if (in_array($mcType, ['Opened Ticket', 'Closed Ticket', 'Ticket Replied'], true) && !empty($m['relation_id'])) {
+                $extIds[] = 'ticket_' . $m['relation_id'];
+            }
+        }
+        if (empty($extIds)) {
+            return [];
+        }
+        $map = [];
+        DB::table('conversations')
+            ->whereIn('external_thread_id', array_unique($extIds))
+            ->select('id', 'external_thread_id', 'subject')
+            ->get()
+            ->each(function ($c) use (&$map) {
+                $map[$c->external_thread_id] = ['id' => $c->id, 'subject' => $c->subject];
+            });
+        return $map;
     }
 }
