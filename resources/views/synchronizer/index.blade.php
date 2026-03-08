@@ -1,7 +1,46 @@
 @extends('layouts.app')
-@section('title', 'Synchronizer')
+@section('title', 'Connections')
 
 @section('content')
+
+{{-- Run All modal --}}
+<div id="run-all-modal" class="fixed inset-0 z-50 hidden" onclick="if(event.target===this)closeRunAllModal()">
+    <div class="absolute inset-0 bg-black/25"></div>
+    <div class="absolute bg-white rounded-xl shadow-xl w-80"
+         style="top:50%;left:50%;transform:translate(-50%,-50%)"
+         onclick="event.stopPropagation()">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <span class="font-semibold text-gray-800 text-sm">Run all connections</span>
+            <button onclick="closeRunAllModal()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+        <div class="p-4 flex flex-col gap-3">
+            <button onclick="doRunAll('partial')"
+                    class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:border-brand-400 hover:bg-brand-50 text-left transition group">
+                <span class="mt-0.5 text-brand-600 group-hover:text-brand-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </span>
+                <div>
+                    <div class="font-semibold text-gray-800 text-sm">Partial sync</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Fetches only new data since the last run.</div>
+                </div>
+            </button>
+            <button onclick="doRunAll('full')"
+                    class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-400 hover:bg-gray-50 text-left transition group">
+                <span class="mt-0.5 text-gray-500 group-hover:text-gray-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0l-4-4m4 4l-4 4"/>
+                    </svg>
+                </span>
+                <div>
+                    <div class="font-semibold text-gray-800 text-sm">Full sync</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Re-imports everything from scratch. Slower.</div>
+                </div>
+            </button>
+        </div>
+    </div>
+</div>
 
 {{-- Run mode popup --}}
 <div id="run-modal" class="fixed inset-0 z-50 hidden" onclick="if(event.target===this)closeRunModal()">
@@ -43,17 +82,37 @@
 </div>
 
 <div class="page-header">
-    <span class="page-title">Synchronizer &mdash; Connections</span>
+    <div class="flex items-center gap-4">
+        <span class="page-title">Connections</span>
+        @if($servers->count() > 1)
+            <form method="GET" action="{{ route('synchronizer.index') }}" id="server-form">
+                <select name="server" class="input" style="width:auto;padding:.3rem .6rem;font-size:.8rem"
+                        onchange="document.getElementById('server-form').submit()">
+                    @foreach($servers as $srv)
+                        <option value="{{ $srv->id }}" {{ $activeServer?->id === $srv->id ? 'selected' : '' }}>
+                            {{ $srv->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </form>
+        @elseif($activeServer)
+            <span class="text-xs text-gray-400">{{ $activeServer->name }}</span>
+        @endif
+    </div>
     <div class="flex items-center gap-2">
+        <button onclick="openRunAllModal()" class="btn btn-secondary btn-sm" id="run-all-btn">
+            <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3l14 9-14 9V3z"/></svg>
+            Run All
+        </button>
         <button onclick="killAll()" class="btn btn-danger btn-sm" id="kill-btn">
             <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             Kill all runs
         </button>
-        <a href="{{ route('synchronizer.index') }}" class="btn btn-secondary btn-sm">
+        <a href="{{ route('synchronizer.index', $activeServer ? ['server' => $activeServer->id] : []) }}" class="btn btn-secondary btn-sm">
             <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             Refresh
         </a>
-        <a href="{{ route('synchronizer.connections.create') }}" class="btn btn-primary btn-sm">
+        <a href="{{ route('synchronizer.connections.create', $activeServer ? ['server' => $activeServer->id] : []) }}" class="btn btn-primary btn-sm">
             <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
             New connection
         </a>
@@ -88,7 +147,7 @@
         <thead class="tbl-header">
             <tr>
                 <th class="px-4 py-2.5 text-left">Connection</th>
-                <th class="px-4 py-2.5 text-left">Type</th>
+                <th class="px-4 py-2.5 text-left">Integration</th>
                 <th class="px-4 py-2.5 text-left">Schedule</th>
                 <th class="px-4 py-2.5 text-left">Last run</th>
                 <th class="px-4 py-2.5 text-left">Status</th>
@@ -198,6 +257,34 @@
 
 @push('scripts')
 <script>
+function openRunAllModal() { document.getElementById('run-all-modal').classList.remove('hidden'); }
+function closeRunAllModal() { document.getElementById('run-all-modal').classList.add('hidden'); }
+
+async function doRunAll(mode) {
+    closeRunAllModal();
+    const btn = document.getElementById('run-all-btn');
+    btn.disabled = true;
+    btn.innerHTML = '…';
+    try {
+        const serverId = {{ $activeServer?->id ?? 'null' }};
+        const url = serverId
+            ? `/synchronization/run-all?server=${serverId}`
+            : '/synchronization/run-all';
+        const res  = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRF-TOKEN': '{{ csrf_token() }}'},
+            body: JSON.stringify({mode})
+        });
+        const data = await res.json();
+        setTimeout(() => location.reload(), 800);
+    } catch(e) {
+        alert('Error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '▶ Run All';
+    }
+}
+
 let _runModalConnId = null;
 
 function openRunModal(connId) {

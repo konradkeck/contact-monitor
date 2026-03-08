@@ -10,6 +10,8 @@ services:
       - "8090:8000"
     environment:
       PHP_CLI_SERVER_WORKERS: 8
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - db
 

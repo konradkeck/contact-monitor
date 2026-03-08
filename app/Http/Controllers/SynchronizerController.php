@@ -2,24 +2,61 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\SynchronizerServer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
 class SynchronizerController extends Controller
 {
-    private function api(): \Illuminate\Http\Client\PendingRequest
+    private function normalizeUrl(string $url): string
     {
-        return Http::withToken(env('SYNCHRONIZER_API_TOKEN'))
-            ->baseUrl(rtrim(env('SYNCHRONIZER_URL', 'http://127.0.0.1:8011'), '/') . '/api')
+        return preg_replace('#^(https?://)(?:localhost|127\.0\.0\.1)#', '$1host.docker.internal', $url);
+    }
+
+    private function resolveServer(?int $serverId = null): array
+    {
+        $servers = SynchronizerServer::orderBy('name')->get();
+
+        if ($servers->isNotEmpty()) {
+            if ($serverId) {
+                $server = $servers->firstWhere('id', $serverId) ?? $servers->first();
+            } else {
+                $server = $servers->first();
+            }
+            return [
+                'url'   => rtrim($this->normalizeUrl($server->url), '/') . '/api',
+                'token' => $server->api_token,
+                'servers'   => $servers,
+                'activeServer' => $server,
+            ];
+        }
+
+        return [
+            'url'          => rtrim($this->normalizeUrl(env('SYNCHRONIZER_URL', 'http://127.0.0.1:8011')), '/') . '/api',
+            'token'        => env('SYNCHRONIZER_API_TOKEN'),
+            'servers'      => collect(),
+            'activeServer' => null,
+        ];
+    }
+
+    private function api(?int $serverId = null): \Illuminate\Http\Client\PendingRequest
+    {
+        $id  = $serverId ?? (request()->integer('server') ?: null);
+        $cfg = $this->resolveServer($id);
+        return Http::withToken($cfg['token'])
+            ->baseUrl($cfg['url'])
             ->timeout(10)
             ->acceptJson();
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $serverId = $request->integer('server') ?: null;
+        $cfg = $this->resolveServer($serverId);
+
         try {
-            $response    = $this->api()->get('/connections');
+            $response    = $this->api($serverId)->get('/connections');
             $connections = $response->json('connections', []);
             $error       = $response->failed() ? 'Could not reach Synchronizer.' : null;
         } catch (\Exception $e) {
@@ -27,7 +64,12 @@ class SynchronizerController extends Controller
             $error       = 'Could not connect to Synchronizer: ' . $e->getMessage();
         }
 
-        return view('synchronizer.index', compact('connections', 'error'));
+        return view('synchronizer.index', [
+            'connections'  => $connections,
+            'error'        => $error,
+            'servers'      => $cfg['servers'],
+            'activeServer' => $cfg['activeServer'],
+        ]);
     }
 
     public function create()
@@ -168,6 +210,17 @@ class SynchronizerController extends Controller
     {
         try {
             $res = $this->api()->post("/connections/{$id}/stop");
+            return response()->json($res->json(), $res->status());
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 503);
+        }
+    }
+
+    public function runAll(Request $request): JsonResponse
+    {
+        try {
+            $mode = in_array($request->input('mode'), ['partial', 'full']) ? $request->input('mode') : 'partial';
+            $res  = $this->api()->post('/run-all', ['mode' => $mode]);
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);

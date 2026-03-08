@@ -2,9 +2,10 @@
 
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\SynchronizerController;
+use App\Http\Controllers\SynchronizerServerController;
+use App\Http\Controllers\SynchronizerWizardController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\BrandProductController;
-use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DataRelationsController;
@@ -14,6 +15,8 @@ use App\Http\Controllers\FilteringController;
 use App\Http\Controllers\OurCompanyController;
 use App\Http\Controllers\PersonController;
 use Illuminate\Support\Facades\Route;
+
+Route::middleware('require.setup')->group(function () {
 
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -42,14 +45,10 @@ Route::delete('people/{person}/companies/{company}', [PersonController::class, '
 Route::get('people/{person}/timeline', [PersonController::class, 'timeline'])->name('people.timeline');
 
 // Brand Products
-Route::resource('brand-products', BrandProductController::class);
+Route::resource('brand-products', BrandProductController::class)->middleware('require.setup');
 
 // Notes
 Route::post('notes', [NoteController::class, 'store'])->name('notes.store');
-
-// Campaigns
-Route::resource('campaigns', CampaignController::class);
-Route::post('campaigns/{campaign}/run', [CampaignController::class, 'run'])->name('campaigns.run');
 
 // Conversations — static routes BEFORE resource to avoid {conversation} param capture
 Route::post('conversations/bulk-archive', [ConversationController::class, 'bulkArchive'])->name('conversations.bulk-archive');
@@ -96,8 +95,26 @@ Route::post('data-relations/our-company/domains', [OurCompanyController::class, 
 Route::post('data-relations/our-company/remove-domain', [OurCompanyController::class, 'removeTeamDomain'])->name('our-company.remove-domain');
 Route::delete('data-relations/our-company/members/{person}', [OurCompanyController::class, 'removeMember'])->name('our-company.remove-member');
 
-// Synchronizer
-Route::prefix('synchronization')->name('synchronizer.')->group(function () {
+}); // end require.setup
+
+// Synchronizer Wizard
+Route::get('synchronization/servers/wizard',                              [SynchronizerWizardController::class, 'step1'])->name('synchronizer.wizard.step1');
+Route::get('synchronization/servers/wizard/configure-new',               [SynchronizerWizardController::class, 'configureNew'])->name('synchronizer.wizard.configure-new');
+Route::get('synchronization/servers/wizard/install-script/{token}',      [SynchronizerWizardController::class, 'installScript'])->name('synchronizer.wizard.install-script');
+Route::get('synchronization/servers/wizard/poll/{token}',                [SynchronizerWizardController::class, 'pollRegistration'])->name('synchronizer.wizard.poll');
+Route::get('synchronization/servers/wizard/connect-existing',            [SynchronizerWizardController::class, 'connectExisting'])->name('synchronizer.wizard.connect-existing');
+Route::post('synchronization/servers/wizard/inspect',                    [SynchronizerWizardController::class, 'inspectExisting'])->name('synchronizer.wizard.inspect');
+Route::post('synchronization/servers/wizard/connect-save',               [SynchronizerWizardController::class, 'connectSave'])->name('synchronizer.wizard.connect-save');
+
+// Synchronizer Servers
+Route::post('synchronization/servers/test', [SynchronizerServerController::class, 'test'])->name('synchronizer.servers.test');
+Route::get('synchronization/servers/{server}/ping', [SynchronizerServerController::class, 'ping'])->name('synchronizer.servers.ping');
+Route::resource('synchronization/servers', SynchronizerServerController::class)
+    ->names('synchronizer.servers')
+    ->parameters(['servers' => 'server']);
+
+// Synchronizer (Connections page requires at least one server)
+Route::prefix('synchronization')->name('synchronizer.')->middleware('require.setup')->group(function () {
     Route::get('/',                              [SynchronizerController::class, 'index'])->name('index');
     Route::get('/connections/create',            [SynchronizerController::class, 'create'])->name('connections.create');
     Route::post('/connections',                  [SynchronizerController::class, 'store'])->name('connections.store');
@@ -109,6 +126,7 @@ Route::prefix('synchronization')->name('synchronizer.')->group(function () {
     Route::post('/connections/{id}/run',         [SynchronizerController::class, 'run'])->name('connections.run');
     Route::post('/connections/{id}/stop',        [SynchronizerController::class, 'stop'])->name('connections.stop');
     Route::post('/kill-all',                     [SynchronizerController::class, 'killAll'])->name('kill-all');
+    Route::post('/run-all',                      [SynchronizerController::class, 'runAll'])->name('run-all');
     Route::get('/runs',                          [SynchronizerController::class, 'runs'])->name('runs');
     Route::get('/runs/{runId}/status',           [SynchronizerController::class, 'runStatus'])->name('runs.status');
     Route::get('/runs/{runId}/logs',             [SynchronizerController::class, 'runLogs'])->name('runs.logs');

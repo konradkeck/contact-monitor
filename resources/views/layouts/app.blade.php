@@ -98,26 +98,28 @@
         </a>
 
         @php
+            $hasServers = \App\Models\SynchronizerServer::exists();
+            $disabledMsg = 'Configure a synchronizer server first';
             $topSections = [
-                'Contact Monitor'        => ['route' => 'dashboard',          'pattern' => ['dashboard', 'companies.*', 'people.*', 'conversations.*', 'campaigns.*', 'activities.*']],
-                'Synchronization' => ['route' => 'synchronizer.index', 'pattern' => ['synchronizer.*']],
-                'Data Relations' => ['route' => 'data-relations.index','pattern' => ['data-relations.*', 'our-company.*', 'filtering.*']],
-                'Configuration'  => ['route' => 'brand-products.index','pattern' => ['brand-products.*']],
+                'Browse Data'    => ['route' => 'dashboard',             'pattern' => ['dashboard', 'companies.*', 'people.*', 'conversations.*', 'activities.*'], 'disabled' => !$hasServers],
+                'Synchronization'=> ['route' => 'synchronizer.servers.index', 'pattern' => ['synchronizer.*'], 'disabled' => false],
+                'Data Relations' => ['route' => 'data-relations.index',  'pattern' => ['data-relations.*', 'our-company.*', 'filtering.*'], 'disabled' => !$hasServers],
+                'Configuration'  => ['route' => 'brand-products.index',  'pattern' => ['brand-products.*'], 'disabled' => !$hasServers],
             ];
         @endphp
 
         <nav class="flex items-center gap-0.5 ml-8">
             @foreach($topSections as $label => $section)
                 @php
-                    $isActive = !empty($section['pattern']) && request()->routeIs($section['pattern']);
-                    $href     = $section['route'] ? route($section['route']) : '#';
+                    $isActive  = !empty($section['pattern']) && request()->routeIs($section['pattern']);
+                    $disabled  = $section['disabled'];
+                    $href      = $disabled ? '#' : route($section['route']);
                 @endphp
                 <a href="{{ $href }}"
+                   @if($disabled) title="{{ $disabledMsg }}" onclick="return false" @endif
                    class="px-4 py-2 rounded text-sm font-medium transition
-                          {{ $isActive
-                              ? 'bg-white/10 text-white'
-                              : 'text-gray-400 hover:text-white hover:bg-white/8' }}
-                          {{ $section['route'] === null ? 'opacity-40 cursor-not-allowed pointer-events-none' : '' }}">
+                          {{ $isActive ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/8' }}
+                          {{ $disabled ? 'opacity-40 cursor-not-allowed' : '' }}">
                     {{ $label }}
                 </a>
             @endforeach
@@ -198,16 +200,74 @@
                 @endforeach
             @endif
 
+        @elseif(request()->routeIs('synchronizer.*'))
+            {{-- ── Synchronization sidebar ── --}}
+            <p class="px-2 pt-1 pb-1 text-xs font-semibold uppercase tracking-wider" style="color:#57606a">Synchronization</p>
+
+            @php
+                $syncItems = [
+                    ['label' => 'Connections',           'route' => 'synchronizer.index',         'match' => ['synchronizer.index', 'synchronizer.connections.*', 'synchronizer.runs*', 'synchronizer.kill-all', 'synchronizer.run-all'],
+                     'icon' => '<circle cx="6" cy="17" r="2.75" stroke-width="1.75"/><circle cx="20" cy="4" r="2" stroke-width="1.75"/><circle cx="20" cy="15" r="2" stroke-width="1.75"/><circle cx="10" cy="5" r="2" stroke-width="1.75"/><path stroke-linecap="round" stroke-width="1.75" d="M8 15L18.5 5.5M8 16.5L18.5 14.5M7.5 14.5L9.5 7"/>'],
+                    ['label' => 'Synchronizer Servers', 'route' => 'synchronizer.servers.index', 'match' => ['synchronizer.servers.*'],
+                     'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>'],
+                ];
+            @endphp
+
+            @foreach($syncItems as $item)
+                @php
+                    $active       = request()->routeIs($item['match']);
+                    $itemDisabled = ($item['route'] === 'synchronizer.index') && !$hasServers;
+                @endphp
+                @if($itemDisabled)
+                    <span class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm cursor-not-allowed select-none"
+                          style="color:#9ca3af; opacity:.55"
+                          title="{{ $disabledMsg }}"
+                          onmouseover="this.style.background='#f6f8fa'" onmouseout="this.style.background=''">
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#9ca3af">
+                            {!! $item['icon'] !!}
+                        </svg>
+                        {{ $item['label'] }}
+                    </span>
+                @else
+                    <a href="{{ route($item['route']) }}"
+                       class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition"
+                       style="{{ $active ? 'background:#dbeafe; color:#1e40af; font-weight:600' : 'color:#24292f' }}"
+                       @if(!$active) onmouseover="this.style.background='#f6f8fa'" onmouseout="this.style.background=''" @endif>
+                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                             style="{{ $active ? 'color:#1e40af' : 'color:#57606a' }}">
+                            {!! $item['icon'] !!}
+                        </svg>
+                        {{ $item['label'] }}
+                    </a>
+                @endif
+            @endforeach
+
+        @elseif(request()->routeIs('brand-products.*'))
+            {{-- ── Configuration sidebar ── --}}
+            <p class="px-2 pt-1 pb-1 text-xs font-semibold uppercase tracking-wider" style="color:#57606a">Configuration</p>
+
+            @php $bpActive = request()->routeIs('brand-products.*'); @endphp
+            <a href="{{ route('brand-products.index') }}"
+               class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition"
+               style="{{ $bpActive ? 'background:#dbeafe; color:#1e40af; font-weight:600' : 'color:#24292f' }}"
+               @if(!$bpActive) onmouseover="this.style.background='#f6f8fa'" onmouseout="this.style.background=''" @endif>
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                     style="{{ $bpActive ? 'color:#1e40af' : 'color:#57606a' }}">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                </svg>
+                Segmentation
+            </a>
+
         @else
-            {{-- ── Main Contact Monitor sidebar ── --}}
+            {{-- ── Browse Data sidebar ── --}}
             @php
                 $sidebarItems = [
                     ['label' => 'Dashboard',     'route' => 'dashboard',          'match' => ['dashboard'],         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>'],
                     ['label' => 'Companies',     'route' => 'companies.index',    'match' => ['companies.*'],       'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>'],
                     ['label' => 'People',        'route' => 'people.index',       'match' => ['people.*'],          'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>'],
                     ['label' => 'Conversations', 'route' => 'conversations.index','match' => ['conversations.*'],   'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>'],
-                    ['label' => 'Campaigns',     'route' => 'campaigns.index',    'match' => ['campaigns.*'],       'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>'],
-                    ['label' => 'Activities',    'route' => 'activities.index',   'match' => ['activities.*'],      'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 10V3L4 14h7v7l9-11h-7z"/>'],
+['label' => 'Activities',    'route' => 'activities.index',   'match' => ['activities.*'],      'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 10V3L4 14h7v7l9-11h-7z"/>'],
                 ];
             @endphp
 
@@ -226,24 +286,6 @@
                     {{ $item['label'] }}
                 </a>
             @endforeach
-
-            <div class="pt-3 pb-1 px-2">
-                <div style="border-top:1px solid #d0d7de"></div>
-            </div>
-            <p class="px-2 pb-1 text-xs font-semibold uppercase tracking-wider" style="color:#57606a">Configuration</p>
-
-            @php $bpActive = request()->routeIs('brand-products.*'); @endphp
-            <a href="{{ route('brand-products.index') }}"
-               class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition"
-               style="{{ $bpActive ? 'background:#dbeafe; color:#1e40af; font-weight:600' : 'color:#24292f' }}"
-               @if(!$bpActive) onmouseover="this.style.background='#f6f8fa'" onmouseout="this.style.background=''" @endif>
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                     style="{{ $bpActive ? 'color:#1e40af' : 'color:#57606a' }}">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
-                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
-                </svg>
-                Segmentation
-            </a>
         @endif
 
         </nav>

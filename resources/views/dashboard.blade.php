@@ -103,10 +103,6 @@
        class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition">
         + New Person
     </a>
-    <a href="{{ route('campaigns.create') }}"
-       class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition">
-        + New Campaign
-    </a>
 </div>
 
 @endsection
