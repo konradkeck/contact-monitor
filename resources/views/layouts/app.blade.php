@@ -102,7 +102,7 @@
             $disabledMsg = 'Configure a synchronizer server first';
             $topSections = [
                 'Browse Data'    => ['route' => 'dashboard',             'pattern' => ['dashboard', 'companies.*', 'people.*', 'conversations.*', 'activities.*'], 'disabled' => !$hasServers],
-                'Synchronization'=> ['route' => 'synchronizer.servers.index', 'pattern' => ['synchronizer.*'], 'disabled' => false],
+                'Synchronization'=> ['route' => $hasServers ? 'synchronizer.index' : 'synchronizer.servers.index', 'pattern' => ['synchronizer.*'], 'disabled' => false],
                 'Data Relations' => ['route' => 'data-relations.index',  'pattern' => ['data-relations.*', 'our-company.*', 'filtering.*'], 'disabled' => !$hasServers],
                 'Configuration'  => ['route' => 'brand-products.index',  'pattern' => ['brand-products.*'], 'disabled' => !$hasServers],
             ];
