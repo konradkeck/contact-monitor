@@ -266,4 +266,24 @@ class SynchronizerController extends Controller
             return response()->json(['error' => $e->getMessage()], 503);
         }
     }
+
+    /** Lightweight status poll — returns {connection_id: {status, run_id}} for all connections */
+    public function connectionStatuses(Request $request): JsonResponse
+    {
+        try {
+            $res = $this->api($request->integer('server') ?: null)->get('/connections');
+            $connections = $res->json('connections', []);
+            $statuses = [];
+            foreach ($connections as $conn) {
+                $run = $conn['latest_run'] ?? null;
+                $statuses[$conn['id']] = [
+                    'status' => $run['status'] ?? null,
+                    'run_id' => $run['id'] ?? null,
+                ];
+            }
+            return response()->json(['statuses' => $statuses]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 503);
+        }
+    }
 }

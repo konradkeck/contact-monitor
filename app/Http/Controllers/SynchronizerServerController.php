@@ -53,7 +53,7 @@ class SynchronizerServerController extends Controller
 
             if ($res->successful()) {
                 $count = count($res->json('connections', []));
-                return response()->json(['ok' => true, 'message' => "{$count} integration(s)"]);
+                return response()->json(['ok' => true, 'connections' => $count]);
             }
 
             return response()->json(['ok' => false, 'error' => "HTTP {$res->status()}"]);

@@ -137,7 +137,7 @@
     $statusColors = [
         'completed' => ['color' => '#3fb950', 'bg' => 'rgba(63,185,80,.1)',  'border' => 'rgba(63,185,80,.25)'],
         'running'   => ['color' => '#388bfd', 'bg' => 'rgba(88,166,255,.1)', 'border' => 'rgba(88,166,255,.25)'],
-        'pending'   => ['color' => '#8b949e', 'bg' => 'rgba(139,148,158,.1)','border' => 'rgba(139,148,158,.25)'],
+        'pending'   => ['color' => '#b45309', 'bg' => 'rgba(251,191,36,.12)', 'border' => 'rgba(251,191,36,.4)'],
         'failed'    => ['color' => '#f85149', 'bg' => 'rgba(248,81,73,.1)',  'border' => 'rgba(248,81,73,.25)'],
     ];
 @endphp
@@ -194,11 +194,13 @@
                             <span class="text-gray-300">Never</span>
                         @endif
                     </td>
-                    <td class="px-4 py-3">
+                    <td class="px-4 py-3" id="status-{{ $conn['id'] }}">
                         @if($status)
                             <span class="badge" style="background:{{ $sc['bg'] }}; color:{{ $sc['color'] }}; border-color:{{ $sc['border'] }}">
                                 @if($status === 'running')
                                     <span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse" style="background:{{ $sc['color'] }}"></span>
+                                @elseif($status === 'pending')
+                                    <svg class="inline w-3 h-3 mr-0.5 -mt-px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
                                 @endif
                                 {{ $status }}
                             </span>
@@ -208,6 +210,7 @@
                     </td>
                     <td class="px-4 py-3 text-right">
                         <div class="flex items-center justify-end gap-1.5">
+                            <span id="run-btn-{{ $conn['id'] }}">
                             @if($active)
                                 <button onclick="stopRun({{ $conn['id'] }}, this)" class="btn btn-danger btn-sm">
                                     <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-linejoin="round"/></svg>
@@ -219,6 +222,7 @@
                                     Run
                                 </button>
                             @endif
+                            </span>
                             <a href="{{ route('synchronizer.connections.show', $conn['id']) }}" class="btn btn-muted btn-sm">
                                 <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                 Logs
@@ -257,26 +261,96 @@
 
 @push('scripts')
 <script>
+const CSRF   = '{{ csrf_token() }}';
+const SERVER = {{ $activeServer?->id ?? 'null' }};
+const serverParam = SERVER ? `?server=${SERVER}` : '';
+
+// ── Status badge rendering ────────────────────────────────────────────────────
+const STATUS_STYLES = {
+    completed: { color:'#3fb950', bg:'rgba(63,185,80,.1)',   border:'rgba(63,185,80,.25)' },
+    running:   { color:'#388bfd', bg:'rgba(88,166,255,.1)',  border:'rgba(88,166,255,.25)' },
+    pending:   { color:'#b45309', bg:'rgba(251,191,36,.12)', border:'rgba(251,191,36,.4)' },
+    failed:    { color:'#f85149', bg:'rgba(248,81,73,.1)',   border:'rgba(248,81,73,.25)' },
+};
+
+function renderBadge(status) {
+    if (!status) return '<span class="text-gray-300 text-xs">&mdash;</span>';
+    const s = STATUS_STYLES[status] || STATUS_STYLES.completed;
+    let icon = '';
+    if (status === 'running') {
+        icon = `<span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse" style="background:${s.color}"></span>`;
+    } else if (status === 'pending') {
+        icon = `<svg class="inline w-3 h-3 mr-0.5 -mt-px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>`;
+    }
+    return `<span class="badge" style="background:${s.bg};color:${s.color};border-color:${s.border}">${icon}${status}</span>`;
+}
+
+function renderActions(connId, status) {
+    const active = status === 'pending' || status === 'running';
+    const stopBtn = `<button onclick="stopRun(${connId},this)" class="btn btn-danger btn-sm"><svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-linejoin="round"/></svg>Stop</button>`;
+    const runBtn  = `<button onclick="openRunModal(${connId})" class="btn btn-secondary btn-sm"><svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3l14 9-14 9V3z"/></svg>Run</button>`;
+    return active ? stopBtn : runBtn;
+}
+
+// ── Live status polling ───────────────────────────────────────────────────────
+let _pollTimer = null;
+
+async function pollStatuses() {
+    try {
+        const res  = await fetch(`/synchronization/connections/statuses${serverParam}`);
+        const data = await res.json();
+        if (!data.statuses) return;
+
+        let hasActive = false;
+        for (const [connId, info] of Object.entries(data.statuses)) {
+            const statusCell = document.getElementById(`status-${connId}`);
+            const runBtn     = document.getElementById(`run-btn-${connId}`);
+            if (statusCell) statusCell.innerHTML = renderBadge(info.status);
+            if (runBtn)     runBtn.innerHTML     = renderActions(connId, info.status);
+            if (info.status === 'pending' || info.status === 'running') hasActive = true;
+        }
+
+        _pollTimer = hasActive
+            ? setTimeout(pollStatuses, 3000)
+            : null;
+    } catch(e) {
+        // silently retry later
+        _pollTimer = setTimeout(pollStatuses, 5000);
+    }
+}
+
+function startPolling() {
+    if (_pollTimer) return;
+    _pollTimer = setTimeout(pollStatuses, 1500);
+}
+
+// ── Modals ────────────────────────────────────────────────────────────────────
 function openRunAllModal() { document.getElementById('run-all-modal').classList.remove('hidden'); }
 function closeRunAllModal() { document.getElementById('run-all-modal').classList.add('hidden'); }
 
+let _runModalConnId = null;
+function openRunModal(connId) {
+    _runModalConnId = connId;
+    document.getElementById('run-modal').classList.remove('hidden');
+}
+function closeRunModal() {
+    document.getElementById('run-modal').classList.add('hidden');
+    _runModalConnId = null;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
 async function doRunAll(mode) {
     closeRunAllModal();
     const btn = document.getElementById('run-all-btn');
     btn.disabled = true;
     btn.innerHTML = '…';
     try {
-        const serverId = {{ $activeServer?->id ?? 'null' }};
-        const url = serverId
-            ? `/synchronization/run-all?server=${serverId}`
-            : '/synchronization/run-all';
-        const res  = await fetch(url, {
+        await fetch(`/synchronization/run-all${serverParam}`, {
             method: 'POST',
-            headers: {'Content-Type':'application/json','X-CSRF-TOKEN': '{{ csrf_token() }}'},
+            headers: {'Content-Type':'application/json','X-CSRF-TOKEN': CSRF},
             body: JSON.stringify({mode})
         });
-        const data = await res.json();
-        setTimeout(() => location.reload(), 800);
+        startPolling();
     } catch(e) {
         alert('Error: ' + e.message);
     } finally {
@@ -285,26 +359,14 @@ async function doRunAll(mode) {
     }
 }
 
-let _runModalConnId = null;
-
-function openRunModal(connId) {
-    _runModalConnId = connId;
-    document.getElementById('run-modal').classList.remove('hidden');
-}
-
-function closeRunModal() {
-    document.getElementById('run-modal').classList.add('hidden');
-    _runModalConnId = null;
-}
-
 async function doRun(mode) {
     const connId = _runModalConnId;
     closeRunModal();
-    if (!connId) { alert('No connection selected'); return; }
+    if (!connId) return;
     try {
-        const res = await fetch(`/synchronization/connections/${connId}/run`, {
+        const res  = await fetch(`/synchronization/connections/${connId}/run`, {
             method: 'POST',
-            headers: {'Content-Type':'application/json','X-CSRF-TOKEN': '{{ csrf_token() }}'},
+            headers: {'Content-Type':'application/json','X-CSRF-TOKEN': CSRF},
             body: JSON.stringify({mode})
         });
         const data = await res.json();
@@ -318,15 +380,15 @@ async function doRun(mode) {
     }
 }
 
-async function stopRun(id, btn) {
+async function stopRun(connId, btn) {
     btn.disabled = true;
     btn.innerHTML = '...';
     try {
-        await fetch(`/synchronization/connections/${id}/stop`, {
+        await fetch(`/synchronization/connections/${connId}/stop`, {
             method: 'POST',
-            headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
+            headers: {'X-CSRF-TOKEN': CSRF}
         });
-        setTimeout(() => location.reload(), 800);
+        startPolling();
     } catch(e) {
         btn.disabled = false;
         btn.textContent = 'Stop';
@@ -341,14 +403,24 @@ async function killAll() {
     try {
         await fetch('/synchronization/kill-all', {
             method: 'POST',
-            headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
+            headers: {'X-CSRF-TOKEN': CSRF}
         });
-        setTimeout(() => location.reload(), 800);
+        startPolling();
     } catch(e) {
         btn.disabled = false;
         btn.textContent = 'Kill all runs';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Kill all runs';
     }
 }
+
+// Start polling immediately if any active runs on page load
+document.addEventListener('DOMContentLoaded', () => {
+    const hasActive = document.querySelector('.animate-pulse') ||
+        [...document.querySelectorAll('.badge')].some(b => b.textContent.trim().startsWith('pending'));
+    if (hasActive) startPolling();
+});
 </script>
 @endpush
 

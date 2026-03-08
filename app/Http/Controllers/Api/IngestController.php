@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\DataRelations\AutoResolver;
 use App\Http\Controllers\Controller;
 use App\Ingest\BatchProcessor;
+use App\Models\SynchronizerServer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -12,9 +13,9 @@ class IngestController extends Controller
 {
     public function batch(Request $request): JsonResponse
     {
-        // Auth: shared secret
-        $secret = config('ingest.secret');
-        if (empty($secret) || $request->header('X-Ingest-Secret') !== $secret) {
+        // Auth: per-server ingest secret must match a registered (non-deleted) server
+        $secret = $request->header('X-Ingest-Secret');
+        if (empty($secret) || !SynchronizerServer::where('ingest_secret', $secret)->exists()) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 

@@ -21,17 +21,20 @@ Route::post('/synchronizer/register', function (Request $request) {
     $syncUrl   = $request->input('url', '');
     $apiToken  = $request->input('api_token', '');
 
+    $ingestSecret = bin2hex(random_bytes(32));
+
     $pending->update([
         'registered_at'  => now(),
         'registered_url' => $syncUrl,
     ]);
 
-    // Auto-create the server
+    // Auto-create the server with a unique per-server ingest secret
     \App\Models\SynchronizerServer::create([
-        'name'      => 'Synchronizer',
-        'url'       => $syncUrl,
-        'api_token' => $apiToken,
+        'name'          => 'Synchronizer',
+        'url'           => $syncUrl,
+        'api_token'     => $apiToken,
+        'ingest_secret' => $ingestSecret,
     ]);
 
-    return response()->json(['ok' => true]);
+    return response()->json(['ok' => true, 'ingest_secret' => $ingestSecret]);
 });

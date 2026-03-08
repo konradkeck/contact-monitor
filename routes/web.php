@@ -117,6 +117,7 @@ Route::resource('synchronization/servers', SynchronizerServerController::class)
 Route::prefix('synchronization')->name('synchronizer.')->middleware('require.setup')->group(function () {
     Route::get('/',                              [SynchronizerController::class, 'index'])->name('index');
     Route::get('/connections/create',            [SynchronizerController::class, 'create'])->name('connections.create');
+    Route::get('/connections/statuses',          [SynchronizerController::class, 'connectionStatuses'])->name('connections.statuses');
     Route::post('/connections',                  [SynchronizerController::class, 'store'])->name('connections.store');
     Route::get('/connections/{id}',              [SynchronizerController::class, 'show'])->name('connections.show');
     Route::get('/connections/{id}/edit',         [SynchronizerController::class, 'edit'])->name('connections.edit');
