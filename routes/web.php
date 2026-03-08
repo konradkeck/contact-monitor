@@ -124,6 +124,7 @@ Route::prefix('synchronization')->name('synchronizer.')->middleware('require.set
     Route::put('/connections/{id}',              [SynchronizerController::class, 'update'])->name('connections.update');
     Route::delete('/connections/{id}',           [SynchronizerController::class, 'destroy'])->name('connections.destroy');
     Route::post('/connections/{id}/duplicate',   [SynchronizerController::class, 'duplicate'])->name('connections.duplicate');
+    Route::post('/connections/test',             [SynchronizerController::class, 'testConnection'])->name('connections.test');
     Route::post('/connections/{id}/run',         [SynchronizerController::class, 'run'])->name('connections.run');
     Route::post('/connections/{id}/stop',        [SynchronizerController::class, 'stop'])->name('connections.stop');
     Route::post('/kill-all',                     [SynchronizerController::class, 'killAll'])->name('kill-all');

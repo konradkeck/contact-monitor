@@ -195,6 +195,16 @@ class SynchronizerController extends Controller
         return view('synchronizer.show', compact('conn', 'runs'));
     }
 
+    public function testConnection(Request $request): JsonResponse
+    {
+        try {
+            $res = $this->api()->post('/connections/test', $request->all());
+            return response()->json($res->json(), $res->status());
+        } catch (\Exception $e) {
+            return response()->json(['ok' => false, 'error' => $e->getMessage()], 503);
+        }
+    }
+
     public function run(Request $request, int $id): JsonResponse
     {
         try {

@@ -177,9 +177,18 @@
                         </span>
                     </td>
                     <td class="px-4 py-3 text-xs text-gray-500">
-                        {{ $conn['schedule_label'] }}
-                        @if($conn['next_run_at'])
-                            <div class="text-gray-400">next: {{ \Carbon\Carbon::parse($conn['next_run_at'])->diffForHumans() }}</div>
+                        @if($conn['type'] === 'metricscube')
+                            @php $whmcsId = (int)($conn['settings']['whmcs_connection_id'] ?? 0); @endphp
+                            @if($whmcsId)
+                                <span class="text-gray-400">Runs with WHMCS</span>
+                            @else
+                                <span style="color:#cf222e">⚠ Missing linked WHMCS</span>
+                            @endif
+                        @else
+                            {{ $conn['schedule_label'] }}
+                            @if($conn['next_run_at'])
+                                <div class="text-gray-400">next: {{ \Carbon\Carbon::parse($conn['next_run_at'])->diffForHumans() }}</div>
+                            @endif
                         @endif
                     </td>
                     <td class="px-4 py-3 text-xs text-gray-500">
@@ -211,7 +220,9 @@
                     <td class="px-4 py-3 text-right">
                         <div class="flex items-center justify-end gap-1.5">
                             <span id="run-btn-{{ $conn['id'] }}">
-                            @if($active)
+                            @if($conn['type'] === 'metricscube')
+                                <span class="text-xs text-gray-400">auto</span>
+                            @elseif($active)
                                 <button onclick="stopRun({{ $conn['id'] }}, this)" class="btn btn-danger btn-sm">
                                     <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-linejoin="round"/></svg>
                                     Stop

@@ -87,7 +87,7 @@
         </div>
 
         {{-- ── Schedule ── --}}
-        <div class="card p-5 space-y-3">
+        <div class="card p-5 space-y-3" x-show="type !== 'metricscube'">
             <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Schedule</div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
@@ -301,22 +301,42 @@
         </div>
 
         {{-- ── Actions ── --}}
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3" x-data="{ testStatus: null, testMsg: '' }">
             <button type="submit" class="btn btn-primary">
                 {{ $isEdit ? 'Save changes' : 'Create connection' }}
             </button>
+            <template x-if="['whmcs','imap','discord','slack'].includes(type)">
+                <button type="button" class="btn btn-secondary"
+                        @click="
+                            testStatus = 'testing'; testMsg = '';
+                            fetch('{{ route('synchronizer.connections.test') }}', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('[name=_token]').value},
+                                body: JSON.stringify(Object.fromEntries(new FormData($el.closest('form'))))
+                            })
+                            .then(r => r.json())
+                            .then(d => { testStatus = d.ok ? 'ok' : 'fail'; testMsg = d.message || d.error || ''; })
+                            .catch(e => { testStatus = 'fail'; testMsg = e.message; })
+                        ">
+                    <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Test connection
+                </button>
+            </template>
+            <span x-show="testStatus === 'testing'" class="text-xs text-gray-400">Testing…</span>
+            <span x-show="testStatus === 'ok'" class="text-xs" style="color:#1a7f37" x-text="'✓ ' + (testMsg || 'Connected')"></span>
+            <span x-show="testStatus === 'fail'" class="text-xs" style="color:#cf222e" x-text="'✗ ' + (testMsg || 'Failed')"></span>
             <a href="{{ $isEdit ? route('synchronizer.connections.show', $conn['id']) : route('synchronizer.index') }}"
                class="btn btn-muted">Cancel</a>
-            @if($isEdit)
-                <form method="POST" action="{{ route('synchronizer.connections.destroy', $conn['id']) }}" class="ml-auto"
-                      onsubmit="return confirm('Delete this connection permanently?')">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Delete connection</button>
-                </form>
-            @endif
         </div>
 
     </div>
 </form>
+@if($isEdit)
+    <form method="POST" action="{{ route('synchronizer.connections.destroy', $conn['id']) }}" class="mt-3"
+          onsubmit="return confirm('Delete this connection permanently?')">
+        @csrf @method('DELETE')
+        <button type="submit" class="btn btn-danger">Delete connection</button>
+    </form>
+@endif
 
 @endsection
