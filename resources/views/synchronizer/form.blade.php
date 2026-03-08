@@ -40,7 +40,7 @@
     </div>
 @endif
 
-<form method="POST" action="{{ $action }}" x-data="{ type: '{{ $type }}', slugEdited: {{ $isEdit ? 'true' : 'false' }} }">
+<form method="POST" action="{{ $action }}" x-data="{ type: '{{ $type }}', slugEdited: {{ $isEdit ? 'true' : 'false' }}, testStatus: null, testMsg: '' }">
     @csrf
     @if($isEdit) @method('PUT') @endif
 
@@ -325,7 +325,7 @@
         </div>
 
         {{-- ── Actions ── --}}
-        <div class="flex items-center gap-3" x-data="{ testStatus: null, testMsg: '' }">
+        <div class="flex items-center gap-3">
             <button type="submit" class="btn btn-primary">
                 {{ $isEdit ? 'Save changes' : 'Create connection' }}
             </button>
