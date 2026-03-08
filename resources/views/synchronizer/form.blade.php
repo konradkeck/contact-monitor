@@ -40,17 +40,53 @@
     </div>
 @endif
 
-<form method="POST" action="{{ $action }}" x-data="{ type: '{{ $type }}' }">
+<form method="POST" action="{{ $action }}" x-data="{ type: '{{ $type }}', slugEdited: {{ $isEdit ? 'true' : 'false' }} }">
     @csrf
     @if($isEdit) @method('PUT') @endif
 
     <div class="grid grid-cols-1 gap-4 max-w-2xl">
 
+        {{-- ── Integration type ── --}}
+        <div class="card p-5">
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Integration</div>
+            @if($isEdit)
+                <input type="hidden" name="type" value="{{ $conn['type'] }}">
+                <div class="flex items-center gap-3">
+                    @include('synchronizer._type_icon', ['type' => $conn['type'], 'class' => 'w-8 h-8'])
+                    <span class="font-medium text-gray-800">{{ strtoupper($conn['type']) }}</span>
+                    <span class="text-xs text-gray-400">Type cannot be changed after creation.</span>
+                </div>
+            @else
+                <input type="hidden" name="type" x-bind:value="type">
+                @php
+                    $integrations = [
+                        'whmcs'       => 'WHMCS',
+                        'gmail'       => 'Gmail',
+                        'imap'        => 'IMAP Email',
+                        'metricscube' => 'MetricsCube',
+                        'discord'     => 'Discord',
+                        'slack'       => 'Slack',
+                    ];
+                @endphp
+                <div class="grid grid-cols-3 gap-3">
+                    @foreach($integrations as $t => $label)
+                        <button type="button"
+                                @click="type = '{{ $t }}'"
+                                :class="type === '{{ $t }}' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-400' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
+                                class="flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition cursor-pointer">
+                            @include('synchronizer._type_icon', ['type' => $t, 'class' => 'w-8 h-8'])
+                            <span class="text-xs font-medium text-gray-700">{{ $label }}</span>
+                        </button>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
         {{-- ── Basic ── --}}
         <div class="card p-5 space-y-4">
             <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Basic</div>
 
-            <div class="grid grid-cols-2 gap-4" x-data="{ slugEdited: {{ $isEdit ? 'true' : 'false' }} }">
+            <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Name</label>
                     <input type="text" name="name" value="{{ $v('name') }}" required class="input"
@@ -63,20 +99,6 @@
                            @input="slugEdited = true">
                     <p class="text-xs text-gray-400 mt-0.5">Lowercase letters, numbers, - _</p>
                 </div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                <select name="type" x-model="type" @change="type=$event.target.value"
-                        class="input" {{ $isEdit ? 'disabled' : '' }}>
-                    @foreach(['whmcs','gmail','imap','metricscube','discord','slack'] as $t)
-                        <option value="{{ $t }}" {{ $type === $t ? 'selected' : '' }}>{{ strtoupper($t) }}</option>
-                    @endforeach
-                </select>
-                @if($isEdit)
-                    <input type="hidden" name="type" value="{{ $conn['type'] }}">
-                    <p class="text-xs text-gray-400 mt-0.5">Type cannot be changed after creation.</p>
-                @endif
             </div>
 
             <div class="flex items-center gap-4">

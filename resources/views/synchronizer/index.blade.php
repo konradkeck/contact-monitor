@@ -172,9 +172,12 @@
                         <div class="text-xs text-gray-400 mt-0.5">{{ $conn['system_slug'] }}</div>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="badge" style="background:{{ $tc['bg'] }}; color:{{ $tc['color'] }}; border-color:{{ $tc['border'] }}">
-                            {{ $conn['type'] }}
-                        </span>
+                        <div class="flex items-center gap-1.5">
+                            @include('synchronizer._type_icon', ['type' => $conn['type'], 'class' => 'w-4 h-4'])
+                            <span class="badge" style="background:{{ $tc['bg'] }}; color:{{ $tc['color'] }}; border-color:{{ $tc['border'] }}">
+                                {{ $conn['type'] }}
+                            </span>
+                        </div>
                     </td>
                     <td class="px-4 py-3 text-xs text-gray-500">
                         @if($conn['type'] === 'metricscube')
