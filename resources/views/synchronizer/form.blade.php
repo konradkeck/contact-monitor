@@ -333,10 +333,14 @@
                 <button type="button" class="btn btn-secondary"
                         @click="
                             testStatus = 'testing'; testMsg = '';
-                            fetch('{{ route('synchronizer.connections.test') }}', {
+                            const fd = new FormData($el.closest('form'));
+                            fd.append('_token', document.querySelector('[name=_token]').value);
+                            const params = new URLSearchParams(window.location.search);
+                            const server = params.get('server') || '';
+                            fetch('{{ route('synchronizer.connections.test') }}' + (server ? '?server=' + server : ''), {
                                 method: 'POST',
-                                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('[name=_token]').value},
-                                body: JSON.stringify(Object.fromEntries(new FormData($el.closest('form'))))
+                                headers: {'X-CSRF-TOKEN': document.querySelector('[name=_token]').value},
+                                body: fd
                             })
                             .then(r => r.json())
                             .then(d => { testStatus = d.ok ? 'ok' : 'fail'; testMsg = d.message || d.error || ''; })
