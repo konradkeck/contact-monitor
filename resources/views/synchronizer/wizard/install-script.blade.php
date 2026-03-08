@@ -22,7 +22,9 @@ fi
 
 cd "$INSTALL_DIR"
 
+rand32() { openssl rand -hex 32 2>/dev/null || php -r "echo bin2hex(random_bytes(32));"; }
 APP_KEY="base64:$(openssl rand -base64 32 2>/dev/null || php -r "echo base64_encode(random_bytes(32));")"
+DB_PASS="$(rand32)"
 
 echo "==> Writing .env..."
 cat > .env <<ENVEOF
@@ -36,7 +38,12 @@ LOG_CHANNEL=stack
 LOG_STACK=single
 LOG_LEVEL=warning
 
-DB_CONNECTION=sqlite
+DB_CONNECTION=pgsql
+DB_HOST=db
+DB_PORT=5432
+DB_DATABASE=contact-monitor-synchronizer
+DB_USERNAME=contact-monitor-synchronizer
+DB_PASSWORD=${DB_PASS}
 
 SESSION_DRIVER=database
 QUEUE_CONNECTION=database
@@ -51,39 +58,49 @@ CM_REGISTRATION_URL=${CM_REG_URL}
 CM_REGISTRATION_TOKEN=${CM_REG_TOKEN}
 ENVEOF
 
-echo "==> Patching docker-compose.yml (host access)..."
-# Add extra_hosts to app and worker services so they can reach the host machine
-python3 - <<'PYEOF'
+echo "==> Patching docker-compose.yml..."
+python3 - "$DB_PASS" <<'PYEOF'
 import re, sys
+db_pass = sys.argv[1]
 with open('docker-compose.yml', 'r') as f:
     content = f.read()
+
+# Replace hardcoded postgres password with generated one
+content = re.sub(r'(POSTGRES_PASSWORD:\s*)contact-monitor-synchronizer', rf'\g<1>{db_pass}', content)
+
+# Add extra_hosts so containers can reach the host machine
 extra = '    extra_hosts:\n      - "host.docker.internal:host-gateway"\n'
-# Insert after each service's `depends_on` or `restart` block if extra_hosts not already present
 if 'host.docker.internal' not in content:
-    content = re.sub(
-        r'(    depends_on:\n      - db\n)',
-        r'\1' + extra,
-        content
-    )
-    with open('docker-compose.yml', 'w') as f:
-        f.write(content)
+    content = re.sub(r'(    depends_on:\n      - db\n)', r'\1' + extra, content)
     print("  extra_hosts added.")
 else:
     print("  extra_hosts already present.")
+
+with open('docker-compose.yml', 'w') as f:
+    f.write(content)
 PYEOF
 
+echo "==> Building images..."
+docker compose build
+
+echo "==> Installing PHP dependencies..."
+docker compose run --rm app composer install --no-interaction --prefer-dist --no-dev
+
 echo "==> Starting containers..."
-docker compose up -d --build
+docker compose up -d
 
 echo "==> Waiting for app to be ready..."
 for i in $(seq 1 30); do
-  STATUS=$(docker compose ps -q app | xargs docker inspect --format='{{.State.Status}}' 2>/dev/null || echo "")
+  STATUS=$(docker compose ps -q app | xargs docker inspect --format='@{{.State.Status}}' 2>/dev/null || echo "")
   if [ "$STATUS" = "running" ]; then
-    sleep 2  # give PHP server a moment to boot
+    sleep 2
     break
   fi
   sleep 2
 done
+
+echo "==> Running database migrations..."
+docker compose exec -T app php artisan migrate --force
 
 echo "==> Registering with Contact Monitor..."
 docker compose exec -T app php artisan synchronizer:register
