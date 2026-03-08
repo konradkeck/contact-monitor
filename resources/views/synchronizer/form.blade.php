@@ -329,7 +329,7 @@
             <button type="submit" class="btn btn-primary">
                 {{ $isEdit ? 'Save changes' : 'Create connection' }}
             </button>
-            <template x-if="['whmcs','imap','discord','slack'].includes(type)">
+            <template x-if="['whmcs','imap','discord','slack','metricscube'].includes(type)">
                 <button type="button" class="btn btn-secondary"
                         @click="
                             testStatus = 'testing'; testMsg = '';
