@@ -224,7 +224,6 @@
                         <div class="flex items-center justify-end gap-1.5">
                             <span id="run-btn-{{ $conn['id'] }}">
                             @if($conn['type'] === 'metricscube')
-                                <span class="text-xs text-gray-400">auto</span>
                             @elseif($active)
                                 <button onclick="stopRun({{ $conn['id'] }}, this)" class="btn btn-danger btn-sm">
                                     <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-linejoin="round"/></svg>

@@ -99,7 +99,7 @@ class SynchronizerController extends Controller
             }
 
             $conn = $res->json('connection');
-            return redirect()->route('synchronizer.connections.show', $conn['id'])
+            return redirect()->route('synchronizer.index')
                 ->with('success', 'Connection created.');
         } catch (\Exception $e) {
             return back()->withErrors(['api' => $e->getMessage()])->withInput();
