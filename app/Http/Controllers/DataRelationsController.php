@@ -178,6 +178,8 @@ class DataRelationsController extends Controller
             ->where('system_slug', $account->system_slug)
             ->update(['company_id' => $data['company_id']]);
 
+        (new AutoResolver())->fillActivityCompanies();
+
         return redirect()->back()->with('success', 'Account linked to company.');
     }
 
@@ -209,6 +211,7 @@ class DataRelationsController extends Controller
     {
         $data = $request->validate(['company_id' => 'required|exists:companies,id']);
         $conversation->update(['company_id' => $data['company_id']]);
+        (new AutoResolver())->fillActivityCompanies();
         return redirect()->back()->with('success', 'Channel linked to company.');
     }
 
