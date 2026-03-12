@@ -202,14 +202,18 @@
         <table class="w-full text-sm table-fixed">
             <colgroup>
                 <col style="width:32px">{{-- checkbox --}}
-                <col>{{-- Company: takes remaining space --}}
-                <col style="width:190px">
-                <col style="width:185px">
-                @foreach($brandProducts as $bp)
-                    <col style="width:120px">
-                @endforeach
+                <col style="width:220px">{{-- Company: fixed --}}
+                <col style="width:190px">{{-- Domain --}}
+                <col style="width:185px">{{-- Contacts --}}
+                @if($brandProducts->isEmpty())
+                    <col>{{-- spacer: takes remaining space --}}
+                @else
+                    @foreach($brandProducts as $bp)
+                        <col style="width:120px">
+                    @endforeach
+                @endif
                 <col style="width:110px">
-                <col style="width:120px">{{-- conv channels: icons only --}}
+                <col style="width:120px">{{-- conv channels --}}
             </colgroup>
             <thead class="tbl-header">
                 <tr>
@@ -232,15 +236,24 @@
                             <span>Contacts</span><span class="shrink-0 opacity-60">{{ $sortIcon('contacts') }}</span>
                         </a>
                     </th>
-                    @foreach($brandProducts as $bp)
-                        <th class="px-2 py-2.5 text-left">
-                            <a href="{{ $sortUrl('bp_score_'.$bp->id) }}"
-                               class="flex items-center justify-between gap-1 hover:text-gray-900 text-xs">
-                                <span class="leading-tight">{{ $bp->name }}{{ $bp->variant ? ' · '.$bp->variant : '' }}</span>
-                                <span class="shrink-0 opacity-60">{{ $sortIcon('bp_score_'.$bp->id) }}</span>
-                            </a>
+                    @if($brandProducts->isEmpty())
+                        <th class="px-4 py-2.5 text-left">
+                            <span class="text-xs text-gray-400 font-normal italic">
+                                Configure <a href="{{ route('brand-products.index') }}"
+                                             class="underline hover:text-gray-600 transition">Segmentation</a> to evaluate
+                            </span>
                         </th>
-                    @endforeach
+                    @else
+                        @foreach($brandProducts as $bp)
+                            <th class="px-2 py-2.5 text-left">
+                                <a href="{{ $sortUrl('bp_score_'.$bp->id) }}"
+                                   class="flex items-center justify-between gap-1 hover:text-gray-900 text-xs">
+                                    <span class="leading-tight">{{ $bp->name }}{{ $bp->variant ? ' · '.$bp->variant : '' }}</span>
+                                    <span class="shrink-0 opacity-60">{{ $sortIcon('bp_score_'.$bp->id) }}</span>
+                                </a>
+                            </th>
+                        @endforeach
+                    @endif
                     <th class="px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('updated_at') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Updated</span><span class="shrink-0 opacity-60">{{ $sortIcon('updated_at') }}</span>
@@ -366,6 +379,9 @@
                         </td>
 
                         {{-- Segmentation columns: dot + score + stage badge inline --}}
+                        @if($brandProducts->isEmpty())
+                            <td></td>
+                        @endif
                         @foreach($brandProducts as $bp)
                             @php
                                 $status = $company->brandStatuses->first(fn($s) => $s->brand_product_id === $bp->id);
