@@ -41,49 +41,37 @@
         {{-- Domain --}}
         <div id="fm-sec-domain" class="hidden mb-4 space-y-3">
             @if($domains->isNotEmpty())
-                <div>
-                    <p class="text-xs text-gray-500 font-medium mb-1.5">Suggested domains:</p>
-                    <div class="flex flex-wrap gap-1.5" id="fm-domain-chips">
-                        @foreach($domains as $d)
-                            <button type="button"
-                                    onclick="fmPickChip('domain', '{{ $d }}')"
-                                    class="fm-chip px-2.5 py-1 rounded-full text-xs border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 transition">
-                                {{ $d }}
-                            </button>
-                        @endforeach
-                    </div>
+                <div class="flex flex-wrap gap-1.5" id="fm-domain-chips">
+                    @foreach($domains as $d)
+                        <button type="button"
+                                onclick="fmPickChip('domain', {{ json_encode($d) }})"
+                                class="fm-chip px-2.5 py-1 rounded-full text-xs border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 transition">
+                            {{ $d }}
+                        </button>
+                    @endforeach
                 </div>
             @endif
-            <div>
-                <label class="text-xs text-gray-500 font-medium block mb-1">Or enter domain manually:</label>
-                <input type="text" id="fm-domain-input" placeholder="example.com"
-                       oninput="fmSetValue('domain', this.value)"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400">
-            </div>
+            <input type="text" id="fm-domain-input" placeholder="example.com"
+                   oninput="fmInputChanged('domain', this.value)"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400">
         </div>
 
         {{-- Email --}}
         <div id="fm-sec-email" class="hidden mb-4 space-y-3">
             @if($emails->isNotEmpty())
-                <div>
-                    <p class="text-xs text-gray-500 font-medium mb-1.5">Suggested emails:</p>
-                    <div class="flex flex-wrap gap-1.5">
-                        @foreach($emails as $e)
-                            <button type="button"
-                                    onclick="fmPickChip('email', '{{ $e }}')"
-                                    class="fm-chip px-2.5 py-1 rounded-full text-xs border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 transition">
-                                {{ $e }}
-                            </button>
-                        @endforeach
-                    </div>
+                <div class="flex flex-wrap gap-1.5">
+                    @foreach($emails as $e)
+                        <button type="button"
+                                onclick="fmPickChip('email', {{ json_encode($e) }})"
+                                class="fm-chip px-2.5 py-1 rounded-full text-xs border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 transition">
+                            {{ $e }}
+                        </button>
+                    @endforeach
                 </div>
             @endif
-            <div>
-                <label class="text-xs text-gray-500 font-medium block mb-1">Or enter email manually:</label>
-                <input type="text" id="fm-email-input" placeholder="user@example.com"
-                       oninput="fmSetValue('email', this.value)"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400">
-            </div>
+            <input type="text" id="fm-email-input" placeholder="user@example.com"
+                   oninput="fmInputChanged('email', this.value)"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400">
         </div>
 
         {{-- Contact --}}
@@ -92,7 +80,7 @@
             @foreach($contacts as $personId => $name)
                 <label class="flex items-center gap-2 text-sm cursor-pointer hover:text-gray-900">
                     <input type="radio" name="fm-contact-radio" value="{{ $personId }}"
-                           onchange="fmSetValue('contact', '{{ $personId }}')"
+                           onchange="fmInputChanged('contact', '{{ $personId }}')"
                            class="accent-brand-600">
                     {{ $name }}
                 </label>
@@ -102,26 +90,20 @@
         {{-- Subject --}}
         <div id="fm-sec-subject" class="hidden mb-4 space-y-3">
             @if($subjects->isNotEmpty())
-                <div>
-                    <p class="text-xs text-gray-500 font-medium mb-1.5">Suggested subjects:</p>
-                    <div class="flex flex-wrap gap-1.5">
-                        @foreach($subjects as $s)
-                            <button type="button"
-                                    onclick="fmPickChip('subject', {{ json_encode($s) }})"
-                                    class="fm-chip px-2.5 py-1 rounded-full text-xs border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 transition max-w-[220px] truncate"
-                                    title="{{ $s }}">
-                                {{ $s }}
-                            </button>
-                        @endforeach
-                    </div>
+                <div class="flex flex-wrap gap-1.5">
+                    @foreach($subjects as $s)
+                        <button type="button"
+                                onclick="fmPickChip('subject', {{ json_encode($s) }})"
+                                class="fm-chip px-2.5 py-1 rounded-full text-xs border border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 transition max-w-[220px] truncate"
+                                title="{{ $s }}">
+                            {{ $s }}
+                        </button>
+                    @endforeach
                 </div>
             @endif
-            <div>
-                <label class="text-xs text-gray-500 font-medium block mb-1">Or enter subject manually:</label>
-                <input type="text" id="fm-subject-input" placeholder="Subject text…"
-                       oninput="fmSetValue('subject', this.value)"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400">
-            </div>
+            <input type="text" id="fm-subject-input" placeholder="Subject text…"
+                   oninput="fmInputChanged('subject', this.value)"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-400">
         </div>
 
         {{-- Preview of rule --}}
@@ -147,7 +129,6 @@
 
     window.fmSetType = function(type) {
         currentType = type;
-        // Update tabs
         document.querySelectorAll('[id^="fm-tab-"]').forEach(function(btn) {
             var t = btn.id.replace('fm-tab-', '');
             if (t === type) {
@@ -156,19 +137,18 @@
                 btn.className = btn.className.replace('bg-gray-800 text-white border-gray-800', 'bg-white text-gray-600 border-gray-300 hover:border-gray-500');
             }
         });
-        // Show/hide sections
         ['none','domain','email','contact','subject'].forEach(function(t) {
             var sec = document.getElementById('fm-sec-' + t);
             if (sec) sec.classList.toggle('hidden', t !== type);
         });
-        // Reset value when switching type
         document.getElementById('fm-rule-type').value = type;
         document.getElementById('fm-rule-value').value = '';
         updatePreview();
     };
 
-    window.fmSetValue = function(type, val) {
-        // Deselect chips when typing manually
+    // Called when user types in an input field
+    window.fmInputChanged = function(type, val) {
+        // Deselect all chips when typing manually
         document.querySelectorAll('.fm-chip').forEach(function(c) {
             c.classList.remove('bg-brand-100', 'border-brand-400', 'text-brand-700');
             c.classList.add('bg-gray-50', 'border-gray-300', 'text-gray-700');
@@ -178,10 +158,13 @@
         updatePreview();
     };
 
+    // Called when user clicks a chip — populates the input field
     window.fmPickChip = function(type, val) {
-        // Clear manual inputs
         var inp = document.getElementById('fm-' + type + '-input');
-        if (inp) inp.value = '';
+        if (inp) {
+            inp.value = val;
+            inp.focus();
+        }
         document.getElementById('fm-rule-type').value = type;
         document.getElementById('fm-rule-value').value = val;
         // Highlight selected chip
@@ -189,10 +172,9 @@
             c.classList.remove('bg-brand-100', 'border-brand-400', 'text-brand-700');
             c.classList.add('bg-gray-50', 'border-gray-300', 'text-gray-700');
         });
-        // Find the clicked chip — match by onclick attr value
         document.querySelectorAll('.fm-chip').forEach(function(c) {
             var oc = c.getAttribute('onclick') || '';
-            if (oc.indexOf(JSON.stringify(val)) !== -1 || oc.indexOf("'" + val + "'") !== -1) {
+            if (oc.indexOf(JSON.stringify(val)) !== -1) {
                 c.classList.add('bg-brand-100', 'border-brand-400', 'text-brand-700');
                 c.classList.remove('bg-gray-50', 'border-gray-300', 'text-gray-700');
             }

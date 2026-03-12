@@ -130,7 +130,7 @@
         'whmcs'       => ['bg' => 'rgba(88,166,255,.1)',  'color' => '#388bfd', 'border' => 'rgba(88,166,255,.25)'],
         'gmail'       => ['bg' => 'rgba(248,81,73,.1)',   'color' => '#f85149', 'border' => 'rgba(248,81,73,.25)'],
         'imap'        => ['bg' => 'rgba(63,185,80,.1)',   'color' => '#3fb950', 'border' => 'rgba(63,185,80,.25)'],
-        'metricscube' => ['bg' => 'rgba(210,153,34,.1)',  'color' => '#d29922', 'border' => 'rgba(210,153,34,.25)'],
+        'metricscube' => ['bg' => 'rgba(139,92,246,.1)',  'color' => '#7c3aed', 'border' => 'rgba(139,92,246,.25)'],
         'discord'     => ['bg' => 'rgba(88,101,242,.12)', 'color' => '#5865f2', 'border' => 'rgba(88,101,242,.3)'],
         'slack'       => ['bg' => 'rgba(74,21,75,.1)',    'color' => '#e01e5a', 'border' => 'rgba(224,30,90,.3)'],
     ];

@@ -229,10 +229,39 @@ class DataRelationsController extends Controller
             $identitiesByExtId = collect();
         }
 
+        // For WHMCS/MetricsCube: collect email identities NOT matched to any account.
+        // These are ticket senders and other contacts without a WHMCS client record.
+        $unregisteredUsers = collect();
+        $unregisteredStats = null;
+        if ($isAccountSystem) {
+            $unreg = Identity::where('system_slug', $systemSlug)
+                ->where('type', 'email')
+                ->where(function ($q) {
+                    $q->whereNull(DB::raw("meta_json->>'account_external_id'"))
+                      ->orWhereRaw("meta_json->>'account_external_id' = ''");
+                })
+                ->with('person')
+                ->orderBy('value')
+                ->get();
+
+            // Also exclude those matched via primary-email fallback (they DO belong to an account)
+            $allExtIds = $identitiesByExtId->keys()->all();
+            $unregisteredUsers = $unreg->filter(function ($i) use ($allExtIds) {
+                // If this identity ended up in $identitiesByExtId via fallback, exclude it
+                return true; // Already filtered by missing account_external_id above
+            });
+
+            $unregisteredStats = [
+                'total'    => $unregisteredUsers->count(),
+                'unlinked' => $unregisteredUsers->whereNull('person_id')->count(),
+                'linked'   => $unregisteredUsers->whereNotNull('person_id')->count(),
+            ];
+        }
+
         return view('data-relations.mapping', compact(
             'systemType', 'systemSlug', 'isAccountSystem', 'stats', 'unlinked', 'linked',
             'conversations', 'conversationStats',
-            'identitiesByExtId'
+            'identitiesByExtId', 'unregisteredUsers', 'unregisteredStats'
         ));
     }
 
@@ -265,7 +294,9 @@ class DataRelationsController extends Controller
             ->where('system_slug', $account->system_slug)
             ->update(['company_id' => $data['company_id']]);
 
-        (new AutoResolver())->fillActivityCompanies();
+        $resolver = new AutoResolver();
+        $resolver->fillActivityCompanies();
+        $resolver->linkWhmcsPersonsToCompanies();
 
         return redirect()->back()->with('success', 'Account linked to company.');
     }

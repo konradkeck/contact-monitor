@@ -31,17 +31,14 @@ if ($isEmail && $firstMsg) {
     <div class="mb-4 pr-6">
         <div class="flex items-center gap-2 mb-2">
             <x-channel-badge :type="$conversation->channel_type" />
-            @if($isTicket && $conversation->external_thread_id)
-                @php preg_match('/ticket_(\d+)/', $conversation->external_thread_id, $_m); @endphp
-                <span class="text-xs font-mono text-gray-400">#{{ $_m[1] ?? '' }} {{ $conversation->system_slug }}</span>
-            @elseif(!$isEmail && $conversation->company)
+            @if(!$isTicket && !$isEmail && $conversation->company)
                 <span class="text-sm font-semibold text-gray-800">{{ $conversation->company->name }}</span>
             @endif
             @if($date)
                 <span class="text-xs text-gray-400 shrink-0">{{ \Carbon\Carbon::parse($date)->format('d M Y') }}</span>
             @endif
         </div>
-        @if($conversation->subject)
+        @if(!$isTicket && $conversation->subject)
             <h3 class="text-sm font-semibold text-gray-900 leading-snug break-words">{{ $conversation->subject }}</h3>
         @endif
     </div>

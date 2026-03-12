@@ -3,7 +3,8 @@
 
 @php
     $hasTabs    = $conversationStats !== null; // Discord / Slack
-    $activeTab  = request('tab', 'people');
+    $hasWhmcsTabs = $isAccountSystem && $unregisteredStats !== null;
+    $activeTab  = request('tab', $hasWhmcsTabs ? 'clients' : 'people');
     $activeView = request('view', 'unlinked');
     $q          = request('q', '');
 @endphp
@@ -27,25 +28,46 @@
     </form>
 </div>
 
-{{-- ─── TOP-LEVEL TABS (Discord/Slack only: People / Channels) ─── --}}
-@if($hasTabs)
+{{-- ─── TOP-LEVEL TABS ─── --}}
+@if($hasTabs || $hasWhmcsTabs)
 <div class="flex gap-0 border-b border-gray-200 mb-6">
-    @foreach(['people' => ['label' => 'People', 'count' => $stats['unlinked']], 'channels' => ['label' => 'Channels', 'count' => $conversationStats['unlinked']]] as $tabKey => $tab)
-        @php $isActive = $activeTab === $tabKey; @endphp
-        <a href="{{ request()->fullUrlWithQuery(['tab' => $tabKey, 'view' => 'unlinked', 'q' => '']) }}"
-           class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
-                  {{ $isActive ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
-            {{ $tab['label'] }}
-            @if($tab['count'] > 0)
-                <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-xs {{ $isActive ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700' }}">{{ $tab['count'] }}</span>
-            @endif
-        </a>
-    @endforeach
+    @if($hasWhmcsTabs)
+        @php
+            $whmcsTabs = [
+                'clients'      => ['label' => 'Clients & Contacts', 'count' => $stats['unlinked']],
+                'unregistered' => ['label' => 'Unregistered Users',  'count' => $unregisteredStats['unlinked']],
+            ];
+        @endphp
+        @foreach($whmcsTabs as $tabKey => $tab)
+            @php $isActive = $activeTab === $tabKey; @endphp
+            <a href="{{ request()->fullUrlWithQuery(['tab' => $tabKey, 'view' => 'unlinked', 'q' => '']) }}"
+               class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
+                      {{ $isActive ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                {{ $tab['label'] }}
+                @if($tab['count'] > 0)
+                    <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-xs {{ $isActive ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700' }}">{{ $tab['count'] }}</span>
+                @endif
+            </a>
+        @endforeach
+    @endif
+    @if($hasTabs)
+        @foreach(['people' => ['label' => 'People', 'count' => $stats['unlinked']], 'channels' => ['label' => 'Channels', 'count' => $conversationStats['unlinked']]] as $tabKey => $tab)
+            @php $isActive = $activeTab === $tabKey; @endphp
+            <a href="{{ request()->fullUrlWithQuery(['tab' => $tabKey, 'view' => 'unlinked', 'q' => '']) }}"
+               class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
+                      {{ $isActive ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                {{ $tab['label'] }}
+                @if($tab['count'] > 0)
+                    <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-xs {{ $isActive ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700' }}">{{ $tab['count'] }}</span>
+                @endif
+            </a>
+        @endforeach
+    @endif
 </div>
 @endif
 
 {{-- ─── ACCOUNT-BASED (WHMCS, MetricsCube) — Companies with inline contacts ─── --}}
-@if($isAccountSystem)
+@if($isAccountSystem && $activeTab !== 'unregistered')
 
 @include('data-relations._people-toolbar', ['linkedCount' => $stats['linked'], 'unlinkedCount' => $stats['unlinked']])
 
@@ -209,6 +231,73 @@
     @endif
 
 @endif {{-- end activeView --}}
+
+{{-- ─── UNREGISTERED USERS (WHMCS/MetricsCube: ticket senders without a client account) ─── --}}
+@if($isAccountSystem && $activeTab === 'unregistered')
+<div class="mb-4 text-sm text-gray-500">
+    Email addresses that appeared in tickets or other activity but are <strong>not registered WHMCS clients</strong>.
+    Auto-Resolve will try to match them to existing people by email.
+</div>
+@if($unregisteredUsers->isNotEmpty())
+<div class="bg-white rounded-lg border border-gray-200">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+            <tr>
+                <th class="px-4 py-2 text-left font-medium">Email address</th>
+                <th class="px-4 py-2 text-left font-medium">Display name</th>
+                <th class="px-4 py-2 text-left font-medium w-72">Person in Contact Monitor</th>
+                <th class="px-4 py-2 text-center font-medium">Team</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+            @foreach($unregisteredUsers as $identity)
+            @php
+                $gHash  = md5(strtolower(trim($identity->value)));
+                $idFmUrl = route('filtering.identity-filter-modal') . '?' . http_build_query(array_filter([
+                    'email'  => $identity->value,
+                    'domain' => substr(strrchr($identity->value, '@'), 1),
+                    'name'   => $identity->meta_json['display_name'] ?? '',
+                ]));
+            @endphp
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-2.5 font-mono text-xs text-gray-700">{{ $identity->value }}</td>
+                <td class="px-4 py-2.5">
+                    <div class="flex items-center gap-2">
+                        <img src="https://www.gravatar.com/avatar/{{ $gHash }}?d=identicon&s=40"
+                             class="w-6 h-6 rounded-full object-cover shrink-0">
+                        <span class="text-gray-600 text-xs">{{ $identity->meta_json['display_name'] ?? '—' }}</span>
+                    </div>
+                </td>
+                <td class="px-4 py-2.5 flex items-center gap-2">
+                    @if($identity->person)
+                        <a href="{{ route('people.show', $identity->person) }}" class="text-brand-700 hover:underline font-medium text-xs">{{ $identity->person->full_name }}</a>
+                        <form action="{{ route('data-relations.identities.unlink', $identity) }}" method="POST" class="inline ml-2">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
+                        </form>
+                    @else
+                        @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $identity)])
+                        <button type="button"
+                                onclick="openActivityModal({ dataset: { modalSrc: '{{ $idFmUrl }}' } })"
+                                class="text-xs text-red-400 hover:text-red-600 shrink-0 whitespace-nowrap transition">Filter…</button>
+                    @endif
+                </td>
+                <td class="px-4 py-2.5 text-center">
+                    <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
+                        @csrf
+                        <button type="submit" title="{{ $identity->is_team_member ? 'Team member' : 'Mark as team member' }}"
+                                class="text-base leading-none transition {{ $identity->is_team_member ? 'opacity-100' : 'opacity-20 hover:opacity-60' }}">🏢</button>
+                    </form>
+                </td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@else
+    <div class="bg-green-50 border border-green-200 rounded-lg px-5 py-4 text-sm text-green-700">No unregistered users found.</div>
+@endif
+@endif
 
 {{-- ─── IDENTITY-BASED (IMAP, Slack, Discord) ─── --}}
 @elseif($activeTab === 'people' || !$hasTabs)

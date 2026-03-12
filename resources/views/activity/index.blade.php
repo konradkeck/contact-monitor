@@ -63,10 +63,20 @@
                 </label>
                 <div class="border-t border-gray-100 my-1"></div>
                 @foreach($convSystems as $sys)
+                    @php
+                        $sysIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type ?? ''));
+                        $chnIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type));
+                        $showSysLogo = $sys->system_type && $sysIntCls !== $chnIntCls;
+                    @endphp
                     <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
                         <input type="checkbox" class="tl-conv-item rounded border-gray-300"
                                value="{{ $sys->channel_type }}|{{ $sys->system_slug }}" onchange="tlConvItem(this)">
-                        <x-channel-badge :type="$sys->channel_type" :label="false" />
+                        <span class="inline-flex items-center gap-1">
+                            <x-channel-badge :type="$sys->channel_type" :label="false" />
+                            @if($showSysLogo)
+                                {!! \App\Integrations\IntegrationRegistry::get($sys->system_type)->iconHtml('w-4 h-4', false) !!}
+                            @endif
+                        </span>
                         <span class="text-xs text-gray-700 truncate">{{ $sys->system_slug }}</span>
                     </label>
                 @endforeach

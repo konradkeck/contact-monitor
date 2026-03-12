@@ -42,6 +42,71 @@
     </div>
 @endif
 
+{{-- ─── FILTER BAR ─── --}}
+@if($convSystems->isNotEmpty() && !$companyId)
+<div class="flex flex-wrap items-center gap-3 mb-3">
+
+    {{-- Channels dropdown --}}
+    <div class="relative" id="cv-conv-wrapper">
+        <button onclick="cvToggle(event)"
+                class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white
+                       text-xs text-gray-600 hover:border-gray-300 transition min-w-[130px]">
+            <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h18M7 8h10M11 12h2"/>
+            </svg>
+            <span id="cv-conv-label" class="flex-1 text-left">
+                @if(count($activeSystems) === 1)
+                    {{ explode('|', $activeSystems[0])[1] ?? 'Channels' }}
+                @elseif(count($activeSystems) > 1)
+                    {{ count($activeSystems) }} channels
+                @else
+                    Channels
+                @endif
+            </span>
+            <svg class="w-3 h-3 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+        </button>
+        <div id="cv-conv-menu" class="hidden absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 py-1.5 w-64">
+            <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                <input type="checkbox" id="cv-conv-all" class="rounded border-gray-300"
+                       {{ empty($activeSystems) ? 'checked' : '' }}
+                       onchange="cvAll(this)">
+                <span class="text-sm text-gray-700 font-medium">All channels</span>
+            </label>
+            <div class="border-t border-gray-100 my-1"></div>
+            @foreach($convSystems as $sys)
+                @php
+                    $val = $sys->channel_type . '|' . $sys->system_slug;
+                    $sysIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type ?? ''));
+                    $chnIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type));
+                    $showSysLogo = $sys->system_type && $sysIntCls !== $chnIntCls;
+                @endphp
+                <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                    <input type="checkbox" class="cv-item rounded border-gray-300"
+                           value="{{ $val }}"
+                           {{ in_array($val, $activeSystems) ? 'checked' : '' }}
+                           onchange="cvItem()">
+                    <span class="inline-flex items-center gap-1">
+                        <x-channel-badge :type="$sys->channel_type" :label="false" />
+                        @if($showSysLogo)
+                            {!! \App\Integrations\IntegrationRegistry::get($sys->system_type)->iconHtml('w-4 h-4', false) !!}
+                        @endif
+                    </span>
+                    <span class="text-xs text-gray-700 truncate">{{ $sys->system_slug }}</span>
+                </label>
+            @endforeach
+        </div>
+    </div>
+
+    @if(count($activeSystems) > 0)
+        <a href="{{ request()->fullUrlWithQuery(['systems' => null, 'page' => null]) }}"
+           class="text-xs text-gray-400 hover:text-gray-600 transition">✕ Clear</a>
+    @endif
+
+</div>
+@endif
+
 {{-- ─── TABLE ─── --}}
 <div class="card overflow-hidden">
     {{-- Bulk action bar (hidden until selection) --}}
@@ -57,8 +122,8 @@
                     <input type="checkbox" id="select-all" class="rounded border-gray-300 cursor-pointer"
                            onchange="toggleAll(this)">
                 </th>
-                <th class="px-4 py-2.5 text-left">Company</th>
                 <th class="px-4 py-2.5 text-left">Channel</th>
+                <th class="px-4 py-2.5 text-left">Company</th>
                 <th class="px-4 py-2.5 text-left">People</th>
                 <th class="px-4 py-2.5 text-left">Team</th>
                 <th class="px-4 py-2.5 text-center">Msgs</th>
@@ -81,6 +146,23 @@
                                onchange="updateBulkBar()">
                     </td>
 
+                    {{-- Channel --}}
+                    @php
+                        $sysIntCls = get_class(\App\Integrations\IntegrationRegistry::get($conv->system_type ?? ''));
+                        $chnIntCls = get_class(\App\Integrations\IntegrationRegistry::get($conv->channel_type));
+                        $showSysLogo = $conv->system_type && $sysIntCls !== $chnIntCls;
+                    @endphp
+                    <td class="px-4 py-3">
+                        <a href="{{ route('conversations.show', $conv) }}"
+                           class="flex items-center gap-1.5 hover:underline">
+                            <x-channel-badge :type="$conv->channel_type" :label="false" />
+                            @if($showSysLogo)
+                                {!! \App\Integrations\IntegrationRegistry::get($conv->system_type)->iconHtml('w-4 h-4', false) !!}
+                            @endif
+                            <span class="text-xs text-gray-700">{{ $conv->system_slug }}</span>
+                        </a>
+                    </td>
+
                     {{-- Company --}}
                     <td class="px-4 py-3 font-medium max-w-[180px]">
                         @if($conv->company)
@@ -91,17 +173,6 @@
                         @else
                             <span class="text-gray-300">—</span>
                         @endif
-                    </td>
-
-                    {{-- Channel --}}
-                    <td class="px-4 py-3 max-w-[220px]">
-                        <a href="{{ route('conversations.show', $conv) }}"
-                           class="flex items-center gap-1.5 min-w-0 hover:underline">
-                            <x-channel-badge :type="$conv->channel_type" />
-                            <span class="text-gray-700 truncate text-xs" title="{{ $conv->subject }}">
-                                {{ $conv->subject ?: $conv->external_thread_id }}
-                            </span>
-                        </a>
                     </td>
 
                     {{-- People (customer side) --}}
@@ -257,6 +328,40 @@ function openFilterModalFor(ids) {
     const src = '{{ route('conversations.filter-modal') }}?' + qs;
     openActivityModal({ dataset: { modalSrc: src } });
 }
+
+// ── Channel filter dropdown ──
+function cvNavigate() {
+    const checked = Array.from(document.querySelectorAll('.cv-item:checked')).map(c => c.value);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('systems[]');
+    url.searchParams.delete('page');
+    checked.forEach(v => url.searchParams.append('systems[]', v));
+    window.location.href = url.toString();
+}
+window.cvAll = function(cb) {
+    if (cb.checked) {
+        document.querySelectorAll('.cv-item').forEach(c => c.checked = false);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('systems[]');
+        url.searchParams.delete('page');
+        window.location.href = url.toString();
+    } else {
+        cb.checked = true;
+    }
+};
+window.cvItem = function() {
+    const allCb = document.getElementById('cv-conv-all');
+    const checked = document.querySelectorAll('.cv-item:checked');
+    if (allCb) allCb.checked = checked.length === 0;
+    cvNavigate();
+};
+window.cvToggle = function(e) {
+    e.stopPropagation();
+    document.getElementById('cv-conv-menu')?.classList.toggle('hidden');
+};
+document.addEventListener('click', () => {
+    document.getElementById('cv-conv-menu')?.classList.add('hidden');
+});
 </script>
 
 @endsection

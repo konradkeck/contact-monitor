@@ -14,7 +14,7 @@ class IntegrationRegistry
         // Email integrations
         'email'        => EmailIntegration::class,
         'imap'         => EmailIntegration::class,
-        'gmail'        => EmailIntegration::class,
+        'gmail'        => GmailIntegration::class,
 
         // Ticket channel type (generic, used in timeline)
         'ticket'       => TicketIntegration::class,

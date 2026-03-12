@@ -230,7 +230,11 @@ class CompanyController extends Controller
             ->where('company_id', $company->id)
             ->where('type', 'conversation')
             ->whereRaw("meta_json->>'channel_type' IS NOT NULL")
-            ->select(DB::raw("meta_json->>'channel_type' as channel_type"), DB::raw("meta_json->>'system_slug' as system_slug"))
+            ->select(
+                DB::raw("meta_json->>'channel_type' as channel_type"),
+                DB::raw("meta_json->>'system_slug' as system_slug"),
+                DB::raw("meta_json->>'system_type' as system_type")
+            )
             ->distinct()->get()->sortBy('channel_type')->values();
 
         $filteredConvCount = DB::table('conversations')

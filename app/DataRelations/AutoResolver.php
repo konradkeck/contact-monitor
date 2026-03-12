@@ -98,6 +98,9 @@ class AutoResolver
         // 3. Link people to companies via email ↔ account matching
         $this->linkPeopleToCompanies();
 
+        // 3b. Link WHMCS/MetricsCube contacts to companies via account_external_id
+        $this->linkWhmcsPersonsToCompanies();
+
         // 4. Propagate team member status → fix message directions, then mark activities
         $this->markMessagesFromTeamIdentities();
         $this->markTeamMemberActivities();
@@ -477,6 +480,54 @@ class AutoResolver
             });
 
         return $updated;
+    }
+
+    // -------------------------------------------------------------------------
+    // WHMCS/MC contacts → Companies (via account_external_id)
+    // -------------------------------------------------------------------------
+
+    /**
+     * For every WHMCS/MetricsCube account that has a company, find all email
+     * identities tagged with that account's external_id and link their Person
+     * records to the same company. Runs automatically after account linking.
+     */
+    public function linkWhmcsPersonsToCompanies(): int
+    {
+        $linked = 0;
+
+        $existingPairs = DB::table('company_person')
+            ->get(['company_id', 'person_id'])
+            ->mapWithKeys(fn($r) => ["{$r->company_id}:{$r->person_id}" => true])
+            ->toArray();
+
+        Account::whereIn('system_type', ['whmcs', 'metricscube'])
+            ->whereNotNull('company_id')
+            ->cursor()
+            ->each(function (Account $account) use (&$linked, &$existingPairs) {
+                $identities = Identity::where('system_slug', $account->system_slug)
+                    ->where('type', 'email')
+                    ->whereRaw("meta_json->>'account_external_id' = ?", [$account->external_id])
+                    ->whereNotNull('person_id')
+                    ->get();
+
+                foreach ($identities as $identity) {
+                    $key = "{$account->company_id}:{$identity->person_id}";
+                    if (isset($existingPairs[$key])) continue;
+
+                    DB::table('company_person')->insert([
+                        'company_id' => $account->company_id,
+                        'person_id'  => $identity->person_id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    $existingPairs[$key] = true;
+                    $linked++;
+                    $this->log[] = "WHMCS: linked person #{$identity->person_id} to company #{$account->company_id} via account {$account->external_id}";
+                }
+            });
+
+        return $linked;
     }
 
     // -------------------------------------------------------------------------

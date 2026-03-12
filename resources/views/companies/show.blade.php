@@ -189,11 +189,9 @@
                 <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
                     @foreach($company->accounts as $account)
                         <div class="flex items-center gap-2 px-4 py-2.5">
-                            <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 shrink-0">
-                                {{ $account->system_type }}
-                            </span>
+                            <x-channel-badge :type="$account->system_type" :label="false" />
                             @if($account->system_slug !== 'default')
-                                <span class="text-xs text-gray-400 shrink-0">{{ $account->system_slug }}</span>
+                                <span class="text-xs text-gray-700 shrink-0">{{ $account->system_slug }}</span>
                             @endif
                             <span class="font-mono text-sm text-gray-700 truncate flex-1">{{ $account->external_id }}</span>
                             <form action="{{ route('companies.accounts.destroy', [$company, $account]) }}" method="POST"
@@ -451,10 +449,20 @@
                         @if($convSystems->isNotEmpty())
                             <div class="border-t border-gray-100 my-1"></div>
                             @foreach($convSystems as $sys)
+                                @php
+                                    $sysIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type ?? ''));
+                                    $chnIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type));
+                                    $showSysLogo = $sys->system_type && $sysIntCls !== $chnIntCls;
+                                @endphp
                                 <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
                                     <input type="checkbox" class="tl-conv-item rounded border-gray-300"
                                            value="{{ $sys->channel_type }}|{{ $sys->system_slug }}" onchange="tlConvItem(this)">
-                                    <x-channel-badge :type="$sys->channel_type" :label="false" />
+                                    <span class="inline-flex items-center gap-1">
+                                        <x-channel-badge :type="$sys->channel_type" :label="false" />
+                                        @if($showSysLogo)
+                                            {!! \App\Integrations\IntegrationRegistry::get($sys->system_type)->iconHtml('w-4 h-4', false) !!}
+                                        @endif
+                                    </span>
                                     <span class="text-xs text-gray-700 truncate">{{ $sys->system_slug }}</span>
                                 </label>
                             @endforeach

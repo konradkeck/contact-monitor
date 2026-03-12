@@ -56,11 +56,26 @@
                         </span>
                     </div>
                 @else
+                    @php
+                        $chatAvatar = null;
+                        if ($msg->identity) {
+                            if (in_array($msg->identity->type, ['discord_user', 'discord_id']) && !empty($msg->identity->meta_json['avatar'])) {
+                                $chatAvatar = 'https://cdn.discordapp.com/avatars/' . $msg->identity->value_normalized . '/' . $msg->identity->meta_json['avatar'] . '.webp?size=56';
+                            } elseif ($msg->identity->type === 'slack_user' && !empty($msg->identity->meta_json['avatar'])) {
+                                $chatAvatar = $msg->identity->meta_json['avatar'];
+                            }
+                        }
+                    @endphp
                     <div class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition group">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5
-                                    {{ $isTeamMsg ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600' }}">
-                            {{ strtoupper(mb_substr($msg->author_name, 0, 2)) }}
-                        </div>
+                        @if($chatAvatar)
+                            <img src="{{ $chatAvatar }}" alt="{{ $msg->author_name }}"
+                                 class="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5">
+                        @else
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5
+                                        {{ $isTeamMsg ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600' }}">
+                                {{ strtoupper(mb_substr($msg->author_name, 0, 2)) }}
+                            </div>
+                        @endif
                         <div class="flex-1 min-w-0">
                             <div class="flex items-baseline gap-2 mb-1">
                                 <span class="text-sm font-semibold {{ $isTeamMsg ? 'text-brand-700' : 'text-gray-800' }}">
@@ -109,11 +124,26 @@
                                         <p class="text-xs text-gray-400 italic">{{ $msg->thread_count }} thread replies (not loaded)</p>
                                     @else
                                         @foreach($msgReplies as $reply)
+                                            @php
+                                                $replyAvatar = null;
+                                                if ($reply->identity) {
+                                                    if (in_array($reply->identity->type, ['discord_user', 'discord_id']) && !empty($reply->identity->meta_json['avatar'])) {
+                                                        $replyAvatar = 'https://cdn.discordapp.com/avatars/' . $reply->identity->value_normalized . '/' . $reply->identity->meta_json['avatar'] . '.webp?size=56';
+                                                    } elseif ($reply->identity->type === 'slack_user' && !empty($reply->identity->meta_json['avatar'])) {
+                                                        $replyAvatar = $reply->identity->meta_json['avatar'];
+                                                    }
+                                                }
+                                            @endphp
                                             <div class="flex items-start gap-2">
-                                                <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0
-                                                            {{ ($reply->direction === 'internal' || $reply->identity?->is_team_member) ? 'bg-brand-50 text-brand-600' : 'bg-gray-100 text-gray-500' }}">
-                                                    {{ strtoupper(mb_substr($reply->author_name, 0, 2)) }}
-                                                </div>
+                                                @if($replyAvatar)
+                                                    <img src="{{ $replyAvatar }}" alt="{{ $reply->author_name }}"
+                                                         class="w-6 h-6 rounded-full object-cover shrink-0">
+                                                @else
+                                                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0
+                                                                {{ ($reply->direction === 'internal' || $reply->identity?->is_team_member) ? 'bg-brand-50 text-brand-600' : 'bg-gray-100 text-gray-500' }}">
+                                                        {{ strtoupper(mb_substr($reply->author_name, 0, 2)) }}
+                                                    </div>
+                                                @endif
                                                 <div>
                                                     <span class="text-xs font-semibold text-gray-700">{{ $reply->author_name }}</span>
                                                     <span class="text-xs text-gray-400 ml-1">{{ $reply->occurred_at->format('H:i') }}</span>
@@ -134,32 +164,52 @@
 @else
     {{-- ── Email / Ticket: bubble layout ── --}}
     @if($isTicket)
-        <div class="bg-white rounded-lg border border-gray-200 p-4">
-            <div class="flex items-center gap-3 flex-wrap">
-                @php $subject = $messages->first()?->meta_json['subject'] ?? null; @endphp
-                @if($subject)
-                    <span class="font-semibold text-gray-800 text-sm">{{ $subject }}</span>
-                @endif
-                @php $ticketStatus = $messages->first()?->meta_json['ticket_status'] ?? null; @endphp
-                @if($ticketStatus)
-                    <x-badge color="{{ match($ticketStatus) {
-                        'open'    => 'green',
-                        'pending' => 'yellow',
-                        'closed'  => 'gray',
-                        default   => 'blue',
-                    } }}">{{ $ticketStatus }}</x-badge>
-                @endif
-                @php $priority = $messages->first()?->meta_json['priority'] ?? null; @endphp
-                @if($priority)
-                    <x-badge color="{{ match($priority) {
-                        'high'   => 'red',
-                        'medium' => 'yellow',
-                        'low'    => 'gray',
-                        default  => 'blue',
-                    } }}">{{ $priority }}</x-badge>
-                @endif
-            </div>
+        @php
+            $firstMsgMeta = $messages->first()?->meta_json ?? [];
+            $ticketStatus = $firstMsgMeta['status'] ?? $firstMsgMeta['ticket_status'] ?? $conversation->meta_json['status'] ?? null;
+            $ticketDept   = $firstMsgMeta['dept'] ?? $conversation->meta_json['dept'] ?? null;
+            $priority     = $firstMsgMeta['priority'] ?? null;
+            preg_match('/ticket_(\d+)/', $conversation->external_thread_id ?? '', $_tm);
+            $ticketNumber = $_tm[1] ?? null;
+            $ticketTitle  = $conversation->subject ?? null;
+            $hasTicketInfo = $ticketStatus || $ticketDept || $priority || $ticketNumber;
+        @endphp
+        @php
+            $statusColor = match(strtolower($ticketStatus ?? '')) {
+                'open'                => 'green',
+                'answered'            => 'blue',
+                'customer-reply',
+                'pending'             => 'yellow',
+                'closed', 'resolved'  => 'gray',
+                default               => 'blue',
+            };
+            $priorityColor = match(strtolower($priority ?? '')) {
+                'high'   => 'red',
+                'medium' => 'yellow',
+                'low'    => 'gray',
+                default  => 'blue',
+            };
+            $ticketHeading = '';
+            if ($ticketNumber) $ticketHeading .= '#' . $ticketNumber;
+            if ($ticketNumber && $ticketTitle) $ticketHeading .= ' — ';
+            if ($ticketTitle) $ticketHeading .= $ticketTitle;
+        @endphp
+        @if($hasTicketInfo)
+        <div class="bg-white rounded-lg border border-gray-200 px-4 py-2.5 mb-3 flex items-center gap-2 flex-wrap">
+            @if($ticketHeading !== '')
+                <span class="text-sm font-semibold text-gray-800">{{ $ticketHeading }}</span>
+            @endif
+            @if($ticketStatus)
+                <x-badge color="{{ $statusColor }}">{{ $ticketStatus }}</x-badge>
+            @endif
+            @if($ticketDept)
+                <span class="text-xs text-gray-500">{{ $ticketDept }}</span>
+            @endif
+            @if($priority)
+                <x-badge color="{{ $priorityColor }}">{{ $priority }}</x-badge>
+            @endif
         </div>
+        @endif
     @endif
 
     <div class="space-y-3">

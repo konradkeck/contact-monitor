@@ -4,4 +4,4 @@
            <x-channel-badge type="ticket" :label="false" />
 --}}
 @props(['type', 'label' => true])
-{!! \App\Integrations\IntegrationRegistry::get($type ?? '')->iconHtml('w-3 h-3', $label) !!}
+{!! \App\Integrations\IntegrationRegistry::get($type ?? '')->iconHtml('w-5 h-5', $label) !!}

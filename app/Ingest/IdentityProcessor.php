@@ -2,6 +2,7 @@
 
 namespace App\Ingest;
 
+use App\Models\Account;
 use App\Models\Identity;
 use App\Models\IngestItem;
 use App\Models\Person;
@@ -104,6 +105,40 @@ class IdentityProcessor
             'entity_id'   => $identity->id,
             'processed_at' => now(),
         ]);
+
+        // Auto-link person → company for WHMCS/MetricsCube identities.
+        // If this identity has an account_external_id and that account is already
+        // linked to a company, immediately attach the person to that company.
+        $this->autoLinkPersonToCompany($identity, $item);
+    }
+
+    private function autoLinkPersonToCompany(Identity $identity, IngestItem $item): void
+    {
+        if (!$identity->person_id) return;
+
+        $accountExtId = $identity->meta_json['account_external_id'] ?? null;
+        if (!$accountExtId) return;
+
+        $account = Account::where('system_slug', $item->system_slug)
+            ->where('external_id', (string) $accountExtId)
+            ->whereNotNull('company_id')
+            ->first();
+
+        if (!$account) return;
+
+        $alreadyLinked = DB::table('company_person')
+            ->where('company_id', $account->company_id)
+            ->where('person_id', $identity->person_id)
+            ->exists();
+
+        if (!$alreadyLinked) {
+            DB::table('company_person')->insert([
+                'company_id' => $account->company_id,
+                'person_id'  => $identity->person_id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     private function findPersonByEmail(string $email): ?int

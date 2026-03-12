@@ -21,16 +21,35 @@ class ConversationController extends Controller
         $channelType = $request->input('channel_type');
         $systemSlug  = $request->input('system_slug');
         $personId    = $request->input('person_id');
+        // Multi-system filter: each element is "channel_type|system_slug"
+        $systems     = array_filter((array) $request->input('systems', []));
+
+        $convSystems = DB::table('conversations')
+            ->whereNotNull('channel_type')
+            ->select('channel_type', 'system_slug', 'system_type')
+            ->distinct()->get()->sortBy('channel_type')->values();
 
         $query = Conversation::with(['company'])->orderByDesc('last_message_at');
 
-        if ($channelType) {
+        if (!empty($systems)) {
+            $pairs = array_map(fn($s) => explode('|', $s, 2), $systems);
+            $query->where(function ($q) use ($pairs) {
+                foreach ($pairs as $pair) {
+                    if (count($pair) === 2) {
+                        $q->orWhere(fn($q2) => $q2
+                            ->where('channel_type', $pair[0])
+                            ->where('system_slug', $pair[1]));
+                    }
+                }
+            });
+        } elseif ($channelType) {
             $query->where('channel_type', $channelType);
+            if ($systemSlug) {
+                $query->where('system_slug', $systemSlug);
+            }
         }
 
-        if ($systemSlug) {
-            $query->where('system_slug', $systemSlug);
-        }
+        $activeSystems = $systems;
 
         if ($personId) {
             $query->where(function ($q) use ($personId) {
@@ -228,7 +247,8 @@ class ConversationController extends Controller
         $q = $search;
         return view('conversations.index', compact(
             'conversations', 'convParticipants', 'tab', 'tabCounts',
-            'companyId', 'channelType', 'systemSlug', 'personId', 'q'
+            'companyId', 'channelType', 'systemSlug', 'personId', 'q',
+            'convSystems', 'activeSystems'
         ));
     }
 
