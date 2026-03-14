@@ -6,8 +6,7 @@
 {{-- Run All modal --}}
 <div id="run-all-modal" class="fixed inset-0 z-50 hidden" onclick="if(event.target===this)closeRunAllModal()">
     <div class="absolute inset-0 bg-black/25"></div>
-    <div class="absolute bg-white rounded-xl shadow-xl w-80"
-         style="top:50%;left:50%;transform:translate(-50%,-50%)"
+    <div class="absolute modal-center bg-white rounded-xl shadow-xl w-80"
          onclick="event.stopPropagation()">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <span class="font-semibold text-gray-800 text-sm">Run all connections</span>
@@ -45,8 +44,7 @@
 {{-- Run mode popup --}}
 <div id="run-modal" class="fixed inset-0 z-50 hidden" onclick="if(event.target===this)closeRunModal()">
     <div class="absolute inset-0 bg-black/25"></div>
-    <div class="absolute bg-white rounded-xl shadow-xl w-80"
-         style="top:50%;left:50%;transform:translate(-50%,-50%)"
+    <div class="absolute modal-center bg-white rounded-xl shadow-xl w-80"
          onclick="event.stopPropagation()">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <span class="font-semibold text-gray-800 text-sm">Start sync</span>
@@ -123,7 +121,7 @@
 </div>
 
 @if($error)
-    <div class="card p-4 mb-4 text-sm" style="border-color:#fca5a5; background:#fff0f0; color:#991b1b">
+    <div class="card p-4 mb-4 text-sm alert-danger">
         <strong>Connection error:</strong> {{ $error }}
     </div>
 @endif

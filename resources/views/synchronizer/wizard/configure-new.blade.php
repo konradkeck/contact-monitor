@@ -15,8 +15,7 @@
         <p class="text-xs text-gray-500 mb-3">This downloads and sets up the synchronizer, then connects it to this Contact Monitor instance automatically.</p>
 
         <div class="relative">
-            <pre id="install-cmd" class="rounded-lg text-xs p-4 overflow-x-auto leading-relaxed select-all"
-                 style="background:#1e2430; color:#e2e8f0; font-family:monospace">bash &lt;(curl -sSL {{ route('synchronizer.wizard.install-script', $pending->token) }})</pre>
+            <pre id="install-cmd" class="code-block rounded-lg text-xs p-4 overflow-x-auto leading-relaxed select-all">bash &lt;(curl -sSL {{ route('synchronizer.wizard.install-script', $pending->token) }})</pre>
             <button onclick="copyCmd()" class="absolute top-2 right-2 btn btn-secondary btn-sm" id="copy-btn">Copy</button>
         </div>
     </div>

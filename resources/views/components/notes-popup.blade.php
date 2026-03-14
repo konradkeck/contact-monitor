@@ -3,8 +3,7 @@
      class="fixed inset-0 z-50 hidden"
      onclick="if(event.target===this)this.classList.add('hidden')">
     <div class="absolute inset-0 bg-black/20"></div>
-    <div class="absolute bg-yellow-50 border border-yellow-200 rounded-xl shadow-xl w-80 max-h-[480px] overflow-hidden flex flex-col"
-         style="top:50%;left:50%;transform:translate(-50%,-50%)"
+    <div class="absolute modal-center bg-yellow-50 border border-yellow-200 rounded-xl shadow-xl w-80 max-h-[480px] overflow-hidden flex flex-col"
          onclick="event.stopPropagation()">
 
         <div class="px-4 py-3 border-b border-yellow-200 flex items-center justify-between shrink-0">

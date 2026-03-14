@@ -141,8 +141,8 @@
     {{-- Table — overflow-visible so tooltips escape the container --}}
     <div class="card overflow-visible relative">
         {{-- Bulk action bar --}}
-        <div id="companies-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b" style="background:#fff8e1; border-color:#fde68a">
-            <span id="companies-bulk-count" class="text-sm font-medium" style="color:#92400e"></span>
+        <div id="companies-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
+            <span id="companies-bulk-count" class="text-sm font-medium bulk-bar-text"></span>
             <button type="button" onclick="companiesOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
             <button type="button" onclick="companiesClearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
         </div>

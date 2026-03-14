@@ -9,8 +9,7 @@
      class="fixed inset-0 z-50 hidden"
      onclick="if(event.target===this)this.classList.add('hidden')">
     <div class="absolute inset-0 bg-black/20"></div>
-    <div class="absolute bg-white rounded-xl shadow-xl w-80"
-         style="top:50%;left:50%;transform:translate(-50%,-50%)"
+    <div class="absolute bg-white rounded-xl shadow-xl w-80 modal-center"
          onclick="event.stopPropagation()">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <span class="font-semibold text-gray-800 text-sm">Link company</span>
@@ -47,8 +46,7 @@
      class="fixed inset-0 z-50 hidden"
      onclick="if(event.target===this)this.classList.add('hidden')">
     <div class="absolute inset-0 bg-black/20"></div>
-    <div class="absolute bg-white rounded-xl shadow-xl w-80"
-         style="top:50%;left:50%;transform:translate(-50%,-50%)"
+    <div class="absolute bg-white rounded-xl shadow-xl w-80 modal-center"
          onclick="event.stopPropagation()">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <span class="font-semibold text-gray-800 text-sm">Add identity</span>

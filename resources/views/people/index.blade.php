@@ -46,8 +46,8 @@
 @csrf
 <div class="card overflow-hidden">
     {{-- Bulk action bar --}}
-    <div id="people-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b" style="background:#fff8e1; border-color:#fde68a">
-        <span id="people-bulk-count" class="text-sm font-medium" style="color:#92400e"></span>
+    <div id="people-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
+        <span id="people-bulk-count" class="text-sm font-medium bulk-bar-text"></span>
         @can('data_write')
         <button type="button" onclick="peopleOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
         <button type="button" onclick="peopleOpenAssignCompanyModal()" class="btn btn-secondary btn-sm">Assign Company…</button>

@@ -274,6 +274,57 @@ Manages users and permission groups. Two tabs: Users / Groups.
 
 ---
 
+## CSS / Style System
+
+All global styles live in **`resources/css/app.css`**. Do **not** invent per-page inline styles for things that already have a class — use the class. When a new pattern appears in 2+ places, add a class to `app.css`.
+
+### Class inventory
+
+| Class | Use |
+|-------|-----|
+| `.card` | Standard content card — white bg, gray border, `0.5rem` radius |
+| `.card-xl` | Larger card variant (`0.75rem` radius) for show-page main sections |
+| `.card-xl-overflow` | Same as `.card-xl` but with `overflow: hidden` (use when card contains a table) |
+| `.card-header` | Top row inside a `.card` — flex, space-between, border-bottom |
+| `.card-inner` | Inner section divider inside a card — just a top border |
+| `.section-header` | Title row inside a card section — flex, space-between, border-bottom |
+| `.section-header-title` | Text inside `.section-header` — `0.875rem`, semibold |
+| `.page-header` | Top row of every page — flex, space-between, `1.25rem` bottom margin |
+| `.page-title` | Text inside `.page-header` — `1.125rem`, bold |
+| `.tbl-header` | `<thead>` style — gray bg, small caps text |
+| `.tbl-row` | `<tbody> <tr>` style — top border, hover bg |
+| `.bulk-bar` | Bulk action bar — amber tinted bg/border |
+| `.bulk-bar-text` | Text color inside bulk bar — amber/brown |
+| `.divider` | Simple horizontal rule between sections — top border only |
+| `.modal-center` | Absolutely-centered modal overlay — `position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)` |
+| `.modal-overlay` | Full-screen dark scrim — `background: rgba(0,0,0,0.4)` |
+| `.alert-warning` | Amber tinted notice box — amber-50 bg, amber-300 border |
+| `.alert-success` | Green tinted notice box — green-50 bg, green-300 border |
+| `.alert-danger` | Red tinted notice box — red bg, red border, dark red text |
+| `.code-block` | Dark monospace code block — `#1e2430` bg, light text, monospace font |
+| `.btn` | Base button — inline-flex, rounded, padded |
+| `.btn-sm` | Smaller button variant |
+| `.btn-primary` | Blue filled button |
+| `.btn-secondary` | White/bordered button |
+| `.btn-danger` | Red outlined button (used for Filter / destructive) |
+| `.btn-muted` | Gray muted button |
+| `.input` | Text input |
+| `.label` | Input label — small caps, `0.75rem` |
+| `.badge` | Inline pill badge |
+| `.badge-{gray,blue,green,red,yellow}` | Colored badge variants |
+
+### Rules
+
+1. **Never use inline `style=` for layout/color that a utility class covers.** Use the class.
+2. **Bulk action bars** → always `<div class="... bulk-bar">` + `<span class="... bulk-bar-text">`. Never inline amber/yellow colors.
+3. **Card with table** → use `.card-xl-overflow` (not `.card` or `.card-xl`). `.card` is for smaller sections.
+4. **Modal centering** → use `.modal-center`. Never repeat `position:absolute; top:50%...` inline.
+5. **Page titles** → always `<div class="page-header">` + `<span class="page-title">`. Never inline font-size/font-weight for a page title.
+6. **Section headers inside cards** → `.section-header` + `.section-header-title`. Not ad-hoc padding classes.
+7. **New repeated pattern?** → add a class to `app.css` before writing it a second time in a view.
+
+---
+
 ## Frontend
 
 Tailwind CSS v4 compiled by Vite. Compiled assets land in `public/build/`. The `@vite` directive in `resources/views/layouts/app.blade.php` serves them. In production only the compiled manifest is used — no HMR server.

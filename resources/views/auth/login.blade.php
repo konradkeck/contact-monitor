@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
     @vite(['resources/css/app.css'])
 </head>
-<body class="min-h-screen flex items-center justify-center" style="background:#f3f4f6">
+<body class="min-h-screen flex items-center justify-center bg-gray-100">
 
 <div class="w-full max-w-sm">
     {{-- Logo / brand --}}

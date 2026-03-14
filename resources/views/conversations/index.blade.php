@@ -104,8 +104,8 @@
 {{-- ─── TABLE ─── --}}
 <div class="card overflow-hidden">
     {{-- Bulk action bar (hidden until selection) --}}
-    <div id="bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b" style="background:#fff8e1; border-color:#fde68a">
-        <span id="bulk-count" class="text-sm font-medium" style="color:#92400e"></span>
+    <div id="bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
+        <span id="bulk-count" class="text-sm font-medium bulk-bar-text"></span>
         @can('data_write')
         <button type="button" onclick="openFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
         @endcan

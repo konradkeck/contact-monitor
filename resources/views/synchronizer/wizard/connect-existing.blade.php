@@ -39,14 +39,14 @@
     <div id="step-2" class="hidden">
 
         {{-- Points elsewhere warning --}}
-        <div id="warning-box" class="hidden card p-4 mb-4 text-sm" style="border-color:#fbbf24; background:#fffbeb">
+        <div id="warning-box" class="hidden card p-4 mb-4 text-sm alert-warning">
             <div class="flex gap-2 items-start">
-                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#b45309" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
                 </svg>
                 <div>
-                    <strong style="color:#92400e">This synchronizer is currently sending data elsewhere.</strong>
-                    <p class="mt-1 text-xs" style="color:#78350f">
+                    <strong class="text-amber-800">This synchronizer is currently sending data elsewhere.</strong>
+                    <p class="mt-1 text-xs text-amber-900">
                         Currently connected to: <code id="current-ingest" class="font-mono"></code><br>
                         Connecting it here will redirect all data to <strong>this Contact Monitor</strong> and break the existing connection.<br>
                         All previous run history will be reset.
@@ -60,12 +60,12 @@
         </div>
 
         {{-- All good --}}
-        <div id="ok-box" class="hidden card p-4 mb-4 text-sm" style="border-color:#86efac; background:#f0fdf4">
+        <div id="ok-box" class="hidden card p-4 mb-4 text-sm alert-success">
             <div class="flex gap-2 items-start">
-                <svg class="w-4 h-4 mt-0.5 flex-shrink-0" style="color:#16a34a" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 mt-0.5 flex-shrink-0 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                <div style="color:#166534">
+                <div class="text-green-800">
                     <strong>Ready to connect.</strong> This synchronizer is already configured to send data to this Contact Monitor instance.
                 </div>
             </div>

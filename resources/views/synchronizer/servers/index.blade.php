@@ -82,11 +82,11 @@
 </div>
 
 {{-- Delete confirmation modal --}}
-<div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center" style="background:rgba(0,0,0,0.4)">
+<div id="delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay">
     <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
         <div class="flex items-start gap-3 mb-4">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style="background:#fee2e2">
-                <svg class="w-5 h-5" style="color:#dc2626" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+            <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 bg-red-100">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
             </div>
             <div>
                 <h3 class="font-semibold text-gray-900 mb-1">Remove server <span id="delete-server-name" class="text-red-600"></span>?</h3>
@@ -96,7 +96,7 @@
             </div>
         </div>
 
-        <div class="rounded-lg p-3 mb-5 text-sm" style="background:#fef3c7;border:1px solid #fde68a">
+        <div class="rounded-lg p-3 mb-5 text-sm alert-warning">
             <p class="font-medium text-amber-800 mb-1">To fully uninstall the synchronizer, run on the remote server:</p>
             <code class="text-xs text-amber-900 font-mono block">cd contact-monitor-synchronizer &amp;&amp; docker compose down -v</code>
         </div>
