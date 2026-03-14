@@ -119,7 +119,7 @@
                                     <span class="text-gray-500 truncate">{{ $contact->meta_json['display_name'] ?? '—' }}</span>
                                     <div class="flex items-center gap-2">
                                         @if($contact->person)
-                                            <a href="{{ route('people.show', $contact->person) }}" class="text-brand-700 hover:underline font-medium">{{ $contact->person->full_name }}</a>
+                                            <a href="{{ route('people.show', $contact->person) }}" class="link font-medium">{{ $contact->person->full_name }}</a>
                                             <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
@@ -176,7 +176,7 @@
                         @if($systemType === 'whmcs')<td class="px-4 py-2.5 text-gray-600 text-xs truncate">{{ ($account->meta_json ?? [])['company_name'] ?? '—' }}</td>@endif
                         <td class="px-4 py-2.5">
                             <div class="flex items-center gap-2">
-                                <a href="{{ route('companies.show', $account->company) }}" class="text-brand-700 hover:underline font-medium">{{ $account->company->name }}</a>
+                                <a href="{{ route('companies.show', $account->company) }}" class="link font-medium">{{ $account->company->name }}</a>
                                 <form action="{{ route('data-relations.accounts.unlink', $account) }}" method="POST" class="inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
@@ -194,7 +194,7 @@
                                     <span class="text-gray-500 truncate">{{ $contact->meta_json['display_name'] ?? '—' }}</span>
                                     <div class="flex items-center gap-2">
                                         @if($contact->person)
-                                            <a href="{{ route('people.show', $contact->person) }}" class="text-brand-700 hover:underline font-medium">{{ $contact->person->full_name }}</a>
+                                            <a href="{{ route('people.show', $contact->person) }}" class="link font-medium">{{ $contact->person->full_name }}</a>
                                             <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline">
                                                 @csrf @method('DELETE')
                                                 <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
@@ -260,7 +260,7 @@
                 </td>
                 <td class="px-4 py-2.5 flex items-center gap-2">
                     @if($identity->person)
-                        <a href="{{ route('people.show', $identity->person) }}" class="text-brand-700 hover:underline font-medium text-xs">{{ $identity->person->full_name }}</a>
+                        <a href="{{ route('people.show', $identity->person) }}" class="link font-medium text-xs">{{ $identity->person->full_name }}</a>
                         <form action="{{ route('data-relations.identities.unlink', $identity) }}" method="POST" class="inline ml-2">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
@@ -410,7 +410,7 @@
                             </div>
                         </td>
                         @if($systemType === 'slack')<td class="px-4 py-2.5 text-gray-500 text-xs">{{ $identity->meta_json['email_hint'] ?? '—' }}</td>@endif
-                        <td class="px-4 py-2.5"><a href="{{ route('people.show', $identity->person) }}" class="text-brand-700 hover:underline font-medium">{{ $identity->person->first_name }} {{ $identity->person->last_name }}</a></td>
+                        <td class="px-4 py-2.5"><a href="{{ route('people.show', $identity->person) }}" class="link font-medium">{{ $identity->person->first_name }} {{ $identity->person->last_name }}</a></td>
                         <td class="px-4 py-2.5">
                             <div class="flex items-center gap-1.5">
                                 <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
@@ -479,7 +479,7 @@
                     <td class="px-4 py-2.5 font-medium text-gray-800">{{ $conv->subject ?: $conv->external_thread_id }}</td>
                     <td class="px-4 py-2.5">
                         @if($conv->company)
-                            <a href="{{ route('companies.show', $conv->company) }}" class="text-brand-700 hover:underline font-medium">{{ $conv->company->name }}</a>
+                            <a href="{{ route('companies.show', $conv->company) }}" class="link font-medium">{{ $conv->company->name }}</a>
                         @else
                             <span class="text-gray-400 text-xs">—</span>
                         @endif

@@ -16,7 +16,7 @@
                class="btn btn-secondary btn-sm">
                 Filtered
                 @if($filteredCount > 0)
-                    <span class="ml-1 inline-flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 leading-none">
+                    <span class="ml-1 inline-flex items-center justify-center bg-brand-600 text-white text-xs font-bold rounded-full w-4 h-4 leading-none">
                         {{ $filteredCount }}
                     </span>
                 @else

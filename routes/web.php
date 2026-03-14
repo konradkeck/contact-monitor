@@ -41,16 +41,16 @@ Route::middleware('auth')->group(function () {
         Route::get('companies/search', [CompanyController::class, 'search'])->name('companies.search');
         Route::get('companies/filter-modal', [FilteringController::class, 'companyFilterModal'])->name('companies.filter-modal');
         Route::get('companies', [CompanyController::class, 'index'])->name('companies.index');
-        Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show');
-        Route::get('companies/{company}/timeline', [CompanyController::class, 'timeline'])->name('companies.timeline');
+        Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show')->whereNumber('company');
+        Route::get('companies/{company}/timeline', [CompanyController::class, 'timeline'])->name('companies.timeline')->whereNumber('company');
 
         // People (read)
         Route::get('people/search', [PersonController::class, 'search'])->name('people.search');
         Route::get('people/filter-modal', [FilteringController::class, 'personFilterModal'])->name('people.filter-modal');
         Route::get('people/assign-company-modal', [PersonController::class, 'assignCompanyModal'])->name('people.assign-company-modal');
         Route::get('people', [PersonController::class, 'index'])->name('people.index');
-        Route::get('people/{person}', [PersonController::class, 'show'])->name('people.show');
-        Route::get('people/{person}/timeline', [PersonController::class, 'timeline'])->name('people.timeline');
+        Route::get('people/{person}', [PersonController::class, 'show'])->name('people.show')->whereNumber('person');
+        Route::get('people/{person}/timeline', [PersonController::class, 'timeline'])->name('people.timeline')->whereNumber('person');
 
         // Conversations (read)
         Route::get('conversations/filter-modal', [ConversationController::class, 'filterModal'])->name('conversations.filter-modal');

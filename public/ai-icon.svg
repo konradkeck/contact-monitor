@@ -2,10 +2,9 @@
 
   <defs>
     <linearGradient id="starGrad" x1="0%" y1="0%" x2="30%" y2="100%">
-      <stop offset="0%" stop-color="#90FCF9"/>
-      <stop offset="38%" stop-color="#bdfefd"/>
-      <stop offset="68%" stop-color="#eaffff"/>
-      <stop offset="100%" stop-color="#eb007d"/>
+      <stop offset="0%" stop-color="#0AFFA9"/>
+      <stop offset="52%" stop-color="#EBFFF8"/>
+      <stop offset="100%" stop-color="#E00078"/>
     </linearGradient>
 
     <filter id="starShadow" x="-50%" y="-50%" width="200%" height="200%">

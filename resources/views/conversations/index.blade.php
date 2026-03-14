@@ -153,7 +153,7 @@
                     <td class="px-4 py-3 font-medium max-w-[180px]">
                         @if($conv->company)
                             <a href="{{ route('companies.show', $conv->company) }}"
-                               class="text-brand-700 hover:underline truncate block">
+                               class="link truncate block">
                                 {{ $conv->company->name }}
                             </a>
                         @else

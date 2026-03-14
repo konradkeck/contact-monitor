@@ -16,7 +16,7 @@
                class="btn btn-secondary btn-sm">
                 Filtered
                 @if($filteredCount > 0)
-                    <span class="ml-1 inline-flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4 leading-none">
+                    <span class="ml-1 inline-flex items-center justify-center bg-brand-600 text-white text-xs font-bold rounded-full w-4 h-4 leading-none">
                         {{ $filteredCount }}
                     </span>
                 @else
@@ -92,7 +92,7 @@
                             <a href="{{ route('people.show', $person) }}" class="shrink-0">
                                 <x-person-avatar :person="$person" size="8" class="border border-gray-100 bg-gray-100" />
                             </a>
-                            <a href="{{ route('people.show', $person) }}" class="font-medium text-brand-700 hover:underline truncate">
+                            <a href="{{ route('people.show', $person) }}" class="font-medium link truncate">
                                 {{ $person->full_name }}
                             </a>
                             @if($showFiltered && isset($filteredReasons[$person->id]))
@@ -125,7 +125,7 @@
                         <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                             @foreach($person->companies as $company)
                                 <a href="{{ route('companies.show', $company) }}"
-                                   class="text-brand-700 hover:underline whitespace-nowrap">{{ $company->name }}</a>
+                                   class="link whitespace-nowrap">{{ $company->name }}</a>
                             @endforeach
                             @if($person->companies->isEmpty())
                                 <span class="text-gray-300">—</span>

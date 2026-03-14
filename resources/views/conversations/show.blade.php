@@ -29,7 +29,7 @@
             <h1 class="text-xl font-bold text-gray-900 leading-tight mt-0.5">
                 @if($conversation->company)
                     <a href="{{ route('companies.show', $conversation->company) }}"
-                       class="text-brand-700 hover:underline">{{ $conversation->company->name }}</a>
+                       class="link">{{ $conversation->company->name }}</a>
                     @if($conversation->subject)
                         <span class="text-gray-300 font-normal mx-1">—</span>
                     @endif
@@ -65,7 +65,7 @@
         <p class="text-xs text-gray-500 mb-0.5">Primary Contact</p>
         <p class="font-medium">
             @if($conversation->primaryPerson)
-                <a href="{{ route('people.show', $conversation->primaryPerson) }}" class="text-brand-700 hover:underline">
+                <a href="{{ route('people.show', $conversation->primaryPerson) }}" class="link">
                     {{ $conversation->primaryPerson->full_name }}
                 </a>
             @else

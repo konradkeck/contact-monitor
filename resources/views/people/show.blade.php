@@ -159,7 +159,7 @@
                             <li class="px-4 py-2.5 flex items-start justify-between gap-2">
                                 <div class="min-w-0">
                                     <a href="{{ route('companies.show', $company) }}"
-                                       class="text-sm font-medium text-brand-700 hover:underline block truncate">
+                                       class="text-sm font-medium link block truncate">
                                         {{ $company->name }}
                                     </a>
                                     @if($company->pivot->role)
@@ -219,7 +219,7 @@
                                 @if(!in_array($identity->type, ['discord_user', 'discord_id', 'slack_user']) || empty($identity->meta_json['display_name']))
                                     @if(\App\View\Components\IdentityIcon::hrefFor($identity->type, $identity->value))
                                         <a href="{{ \App\View\Components\IdentityIcon::hrefFor($identity->type, $identity->value) }}" target="_blank" rel="noopener"
-                                           class="font-mono text-xs text-brand-700 hover:underline truncate">{{ $identity->value }}</a>
+                                           class="font-mono text-xs link truncate">{{ $identity->value }}</a>
                                     @else
                                         <span class="font-mono text-xs text-gray-600 truncate">{{ $identity->value }}</span>
                                     @endif

@@ -25,7 +25,7 @@
             @forelse($products as $product)
                 <tr class="tbl-row">
                     <td class="px-4 py-3 font-medium">
-                        <a href="{{ route('segmentation.edit', $product) }}" class="text-brand-700 hover:underline">
+                        <a href="{{ route('segmentation.edit', $product) }}" class="link">
                             {{ $product->name }}
                         </a>
                     </td>

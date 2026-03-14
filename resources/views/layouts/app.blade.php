@@ -20,7 +20,7 @@
 </a>
 
 {{-- ─── TOP BAR ─── --}}
-<header class="flex-shrink-0 z-20 sticky top-0 border-b" style="background:#24292f; border-color:#1b1f24">
+<header class="flex-shrink-0 z-20 sticky top-0 border-b" style="background:rgba(33,39,49,0.97);border-color:rgba(255,255,255,0.07);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
     <div class="flex items-center h-16 px-5 gap-6">
         <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 flex-shrink-0">
             <img src="/logo.svg" alt="" class="w-6 h-6">
@@ -43,7 +43,7 @@
                     <a href="{{ $section['href'] }}"
                        @if($section['disabled']) title="{{ $disabledMsg }}" onclick="return false" @endif
                        class="flex items-center px-4 py-2 rounded text-sm font-medium transition
-                              {{ $section['isActive'] ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/8' }}
+                              {{ $section['isActive'] ? 'bg-white/12 text-white' : 'text-slate-300 hover:text-white hover:bg-white/10' }}
                               {{ $section['disabled'] ? 'opacity-40 cursor-not-allowed' : '' }}">
                         {{ $label }}
                         @if(($section['dot'] ?? false))
@@ -57,7 +57,7 @@
         {{-- ─── User dropdown ─── --}}
         <div class="ml-auto relative" x-data="{ open: false }" @click.outside="open = false">
             <button @click="open = !open"
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/8 transition">
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/10 transition">
                 <div class="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-xs font-semibold text-white">
                     {{ strtoupper(substr(auth()->user()->name ?? '?', 0, 1)) }}
                 </div>
@@ -93,21 +93,17 @@
 <div class="flex flex-1">
 
     {{-- Left sidebar --}}
-    <aside class="w-52 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 left-0 h-[calc(100vh-4rem)] bg-white border-r border-gray-200">
+    <aside class="sidebar w-52 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 left-0 h-[calc(100vh-4rem)]">
         <nav class="flex-1 px-2 py-3 space-y-0.5" aria-label="Sidebar">
 
         @if($isConfigRoute)
             {{-- ── Configuration sidebar ── --}}
 
-            {{-- General --}}
-            <p class="px-2 pt-1 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">General</p>
+            <span class="sidebar-section pt-1">General</span>
 
             {{-- Setup Assistant --}}
-            <a href="{{ route('setup-assistant.index') }}"
-               class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition
-                      {{ $saActive ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-900 hover:bg-gray-50' }}">
-                <svg class="w-4 h-4 flex-shrink-0 {{ $saActive ? 'text-blue-700' : 'text-gray-400' }}"
-                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="{{ route('setup-assistant.index') }}" class="sidebar-link {{ $saActive ? 'is-active' : '' }}">
+                <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                 </svg>
                 <span class="flex-1">Setup Assistant</span>
@@ -121,33 +117,26 @@
             </a>
 
             {{-- Team Access --}}
-            <a href="{{ route('team-access.index') }}"
-               class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition
-                      {{ $taActive ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-900 hover:bg-gray-50' }}">
-                <svg class="w-4 h-4 flex-shrink-0 {{ $taActive ? 'text-blue-700' : 'text-gray-400' }}"
-                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="{{ route('team-access.index') }}" class="sidebar-link {{ $taActive ? 'is-active' : '' }}">
+                <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                 </svg>
                 Team Access
             </a>
 
-            <div class="pt-2 pb-1 px-2"><div class="border-t border-gray-100"></div></div>
+            <div class="sidebar-divider"></div>
 
             {{-- Synchronization --}}
-            <p class="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Synchronization</p>
+            <span class="sidebar-section">Synchronization</span>
             @foreach($syncItems as $item)
                 @if($item['disabled'])
-                    <span class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm cursor-not-allowed select-none text-gray-300"
-                          title="{{ $disabledMsg }}">
-                        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
+                    <span class="sidebar-link is-disabled select-none" title="{{ $disabledMsg }}">
+                        <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                         {{ $item['label'] }}
                     </span>
                 @else
-                    <a href="{{ route($item['route']) }}"
-                       class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition
-                              {{ $item['active'] ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-900 hover:bg-gray-50' }}">
-                        <svg class="w-4 h-4 flex-shrink-0 {{ $item['active'] ? 'text-blue-700' : 'text-gray-400' }}"
-                             fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
+                    <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}">
+                        <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                         <span class="flex-1">{{ $item['label'] }}</span>
                         @if($item['dot'] ?? false)
                             <span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
@@ -156,16 +145,13 @@
                 @endif
             @endforeach
 
-            <div class="pt-2 pb-1 px-2"><div class="border-t border-gray-100"></div></div>
+            <div class="sidebar-divider"></div>
 
             {{-- Data Relations --}}
-            <p class="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Data Relations</p>
+            <span class="sidebar-section">Data Relations</span>
             @foreach($drItems as $item)
-                <a href="{{ $item['href'] }}"
-                   class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition
-                          {{ $item['active'] ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-900 hover:bg-gray-50' }}">
-                    <svg class="w-4 h-4 flex-shrink-0 {{ $item['active'] ? 'text-blue-700' : 'text-gray-400' }}"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
+                <a href="{{ $item['href'] }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}">
+                    <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                     <span class="flex-1">{{ $item['label'] }}</span>
                     @if($item['dot'] ?? false)
                         <span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
@@ -173,15 +159,12 @@
                 </a>
             @endforeach
 
-            <div class="pt-2 pb-1 px-2"><div class="border-t border-gray-100"></div></div>
+            <div class="sidebar-divider"></div>
 
             {{-- Segmentation --}}
-            <p class="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Segmentation</p>
-            <a href="{{ route('segmentation.index') }}"
-               class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition
-                      {{ $segActive ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-900 hover:bg-gray-50' }}">
-                <svg class="w-4 h-4 flex-shrink-0 {{ $segActive ? 'text-blue-700' : 'text-gray-400' }}"
-                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span class="sidebar-section">Segmentation</span>
+            <a href="{{ route('segmentation.index') }}" class="sidebar-link {{ $segActive ? 'is-active' : '' }}">
+                <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
                 </svg>
                 Segmentation
@@ -189,14 +172,11 @@
 
         @elseif(auth()->user()->hasPermission('browse_data'))
             {{-- ── Browse Data sidebar ── --}}
-            <p class="px-2 pt-1 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Browse Data</p>
+            <span class="sidebar-section pt-1">Browse Data</span>
 
             @foreach($sidebarItems as $item)
-                <a href="{{ route($item['route']) }}"
-                   class="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition
-                          {{ $item['active'] ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-900 hover:bg-gray-50' }}">
-                    <svg class="w-4 h-4 flex-shrink-0 {{ $item['active'] ? 'text-blue-800' : 'text-gray-500' }}"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}">
+                    <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         {!! $item['icon'] !!}
                     </svg>
                     {{ $item['label'] }}
@@ -209,18 +189,17 @@
 
     {{-- Secondary sidebar: Mapping connections (only on mapping routes) --}}
     @if($isConfigRoute && $onMapping && $mappingSystems->isNotEmpty())
-    <aside class="w-44 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200" style="left: 13rem;">
+    <aside class="sidebar w-44 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 h-[calc(100vh-4rem)]" style="left: 13rem;">
         <div class="px-2 py-3 space-y-0.5">
             <a href="{{ route('configuration.mapping') }}"
-               class="flex items-center gap-1.5 px-2 py-1.5 mb-1 rounded text-xs text-gray-400 hover:text-gray-700 hover:bg-white transition">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+               class="sidebar-link text-xs mb-1">
+                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 Back
             </a>
-            <p class="px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Connections</p>
+            <span class="sidebar-section">Connections</span>
             @foreach($mappingSystems as $sys)
                 <a href="{{ route('data-relations.mapping', [$sys->system_type, $sys->system_slug]) }}"
-                   class="flex items-center gap-2 px-2 py-1.5 rounded text-sm transition
-                          {{ $currentMapping === $sys->system_type.'/'.$sys->system_slug ? 'bg-blue-100 text-blue-800 font-semibold' : 'text-gray-700 hover:bg-white hover:shadow-sm' }}">
+                   class="sidebar-link {{ $currentMapping === $sys->system_type.'/'.$sys->system_slug ? 'is-active' : '' }}">
                     <x-channel-badge :type="$sys->system_type" />
                     <span class="truncate text-xs">{{ $sys->system_slug }}</span>
                 </a>

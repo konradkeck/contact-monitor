@@ -36,7 +36,7 @@
                     <li class="px-4 py-2.5 flex items-center gap-3">
                         <x-badge color="gray">{{ $activity->type }}</x-badge>
                         <a href="{{ route('companies.show', $activity->company) }}"
-                           class="text-sm text-gray-700 hover:text-brand-700 hover:underline truncate">
+                           class="text-sm link truncate">
                             {{ $activity->company->name }}
                         </a>
                         <span class="ml-auto text-xs text-gray-400 shrink-0">

@@ -37,13 +37,13 @@
                     @if($activity->_display->modalUrl && !$activity->_display->rowClickable)
                         <button type="button" data-modal-src="{{ $activity->_display->modalUrl }}"
                                 onclick="openActivityModal(this)"
-                                class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px] text-right cursor-pointer"
+                                class="text-xs link truncate max-w-[180px] text-right cursor-pointer"
                                 title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</button>
                     @elseif($activity->_display->ticketNotFound)
                         <span class="text-xs text-red-500 truncate max-w-[180px]"
                               title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</span>
                     @elseif($activity->_display->url && !$activity->_display->modalUrl)
-                        <a href="{{ $activity->_display->url }}" class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px] text-right" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</a>
+                        <a href="{{ $activity->_display->url }}" class="text-xs link truncate max-w-[180px] text-right" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</a>
                     @else
                         <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</span>
                     @endif
@@ -114,13 +114,13 @@
                     @if($activity->_display->modalUrl && !$activity->_display->rowClickable)
                         <button type="button" data-modal-src="{{ $activity->_display->modalUrl }}"
                                 onclick="openActivityModal(this)"
-                                class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px] text-left cursor-pointer"
+                                class="text-xs link truncate max-w-[180px] text-left cursor-pointer"
                                 title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</button>
                     @elseif($activity->_display->ticketNotFound)
                         <span class="text-xs text-red-500 truncate max-w-[180px]"
                               title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</span>
                     @elseif($activity->_display->url && !$activity->_display->modalUrl)
-                        <a href="{{ $activity->_display->url }}" class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</a>
+                        <a href="{{ $activity->_display->url }}" class="text-xs link truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</a>
                     @else
                         <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</span>
                     @endif

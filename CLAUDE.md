@@ -297,7 +297,12 @@ All global styles live in **`resources/css/app.css`**. Do **not** invent per-pag
 | `.bulk-bar-text` | Text color inside bulk bar — amber/brown |
 | `.divider` | Simple horizontal rule between sections — top border only |
 | `.modal-center` | Absolutely-centered modal overlay — `position:absolute; top:50%; left:50%; transform:translate(-50%,-50%)` |
-| `.modal-overlay` | Full-screen dark scrim — `background: rgba(0,0,0,0.4)` |
+| `.modal-overlay` | Full-screen glassmorphism scrim — `rgba(0,0,0,0.3)` + `backdrop-filter: blur(4px)` |
+| `.sidebar` | Dark sidebar shell — `#161b22` bg, `#30363d` border |
+| `.sidebar-section` | Section label inside sidebar — muted uppercase text |
+| `.sidebar-link` | Nav link in sidebar — add `is-active` for active state, `is-disabled` for disabled |
+| `.sidebar-icon` | Icon inside a `.sidebar-link` — color managed via parent's state |
+| `.sidebar-divider` | Horizontal rule between sidebar sections |
 | `.alert-warning` | Amber tinted notice box — amber-50 bg, amber-300 border |
 | `.alert-success` | Green tinted notice box — green-50 bg, green-300 border |
 | `.alert-danger` | Red tinted notice box — red bg, red border, dark red text |
@@ -312,6 +317,24 @@ All global styles live in **`resources/css/app.css`**. Do **not** invent per-pag
 | `.label` | Input label — small caps, `0.75rem` |
 | `.badge` | Inline pill badge |
 | `.badge-{gray,blue,green,red,yellow}` | Colored badge variants |
+
+### Brand colors
+
+Three system colors — always use these, never arbitrary blues/teals:
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| **Primary** | `#A40057` | Logo, primary buttons, active states, key accents. Used sparingly — high impact only. `--color-brand-*` shades radiate from this. |
+| **Dark base** | `#212731` | Top header background. Shades of this color for sidebar, navigation backgrounds, dark typography, dark UI elements. |
+| **Light accent** | `#F1FFFA` | Reserved for AI-related features and themes. Light shades only. |
+
+`--color-brand-*` CSS vars run from brand-50 (very light pink) to brand-900 (very dark magenta) centered on `#A40057` at brand-600.
+
+Sidebar active state uses brand color tinted bg + brighter brand shade for text (readable on dark bg).
+
+### Sidebar
+
+Always use `.sidebar-link` / `.sidebar-icon` / `.sidebar-section` / `.sidebar-divider` for sidebar nav — never raw Tailwind color classes. Active state = add `is-active` to `.sidebar-link`. Disabled = `is-disabled`. The icon color is managed by CSS via parent state — no conditional classes on `sidebar-icon`.
 
 ### Rules
 
