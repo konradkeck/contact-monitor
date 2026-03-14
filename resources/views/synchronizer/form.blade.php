@@ -30,9 +30,9 @@
 </div>
 
 @if($errors->any())
-    <div class="card p-4 mb-4 text-sm" style="border-color:#fca5a5; background:#fff0f0; color:#991b1b">
-        <strong>Validation errors:</strong>
-        <ul class="mt-1 list-disc list-inside space-y-0.5">
+    <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
+        <strong class="block mb-1">Validation errors:</strong>
+        <ul class="list-disc list-inside space-y-0.5">
             @foreach($errors->all() as $err)
                 <li>{{ $err }}</li>
             @endforeach

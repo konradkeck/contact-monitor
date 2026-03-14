@@ -89,6 +89,9 @@ class AutoResolver
         $teamFromMessages = $this->markTeamMembersFromMessageDirection();
         $mcDetected = $this->detectMcInternalActivities();
 
+        // 0b. Ensure all known bots have person records and are linked
+        $this->autoLinkBots();
+
         // 1. Match existing companies/people first
         $accountsLinked = $this->resolveAccounts();
         $identitiesLinked = $this->resolveIdentities();
@@ -312,7 +315,32 @@ class AutoResolver
                             $pendingByPerson[$person->id][] = $identity->id;
                             $this->log[] = "Identity #{$identity->id}: linked to person #{$person->id} via name '{$name}'";
                             $linked++;
+
+                            return;
                         }
+                    }
+                }
+
+                // Strategy 3: Slack/Discord identity matched by display_name to existing person full name
+                if (in_array($identity->type, ['slack_user', 'discord_user'], true) && ! empty($identity->meta_json['display_name'])) {
+                    $name = trim($identity->meta_json['display_name']);
+                    $parts = explode(' ', $name, 2);
+                    $firstName = $parts[0];
+                    $lastName = $parts[1] ?? null;
+
+                    $person = Person::where('first_name', $firstName)
+                        ->where('last_name', $lastName)
+                        ->first();
+
+                    if (! $person && $lastName === null) {
+                        // Single-word name: try first_name only with null last_name
+                        $person = Person::where('first_name', $firstName)->whereNull('last_name')->first();
+                    }
+
+                    if ($person) {
+                        $pendingByPerson[$person->id][] = $identity->id;
+                        $this->log[] = "Identity #{$identity->id} ({$identity->type}/{$identity->value}): linked to person #{$person->id} via display_name '{$name}'";
+                        $linked++;
                     }
                 }
             });
@@ -335,10 +363,16 @@ class AutoResolver
     {
         $created = 0;
 
-        // Only use email identities — display_name is a real name (Firstname Lastname from WHMCS etc.)
-        // Slack/Discord display names are often usernames, not real names
+        // Email identities: display_name is a real name (Firstname Lastname from WHMCS etc.)
+        // Also include Slack/Discord bots: they need a person record so they appear as "Linked"
         $unlinked = Identity::whereNull('person_id')
-            ->where('type', 'email')
+            ->where(function ($q) {
+                $q->where('type', 'email')
+                    ->orWhere(function ($q2) {
+                        $q2->whereIn('type', ['slack_user', 'discord_user'])
+                            ->where('is_bot', true);
+                    });
+            })
             ->whereNotNull('meta_json')
             ->get();
 
@@ -978,6 +1012,71 @@ class AutoResolver
             });
 
         return $filled;
+    }
+
+    // -------------------------------------------------------------------------
+    // Bot auto-link: ensure is_bot identities have a Person and are Linked
+    // -------------------------------------------------------------------------
+
+    /**
+     * For every Slack/Discord identity flagged as is_bot=true:
+     *  1. Find or create a Person using the display_name.
+     *  2. Link the identity to that person (person_id).
+     * This ensures bots are "Linked" in data-relations without requiring manual action.
+     */
+    public function autoLinkBots(): int
+    {
+        $linked = 0;
+
+        $bots = Identity::where('is_bot', true)
+            ->whereIn('type', ['slack_user', 'discord_user'])
+            ->get();
+
+        foreach ($bots as $identity) {
+            $displayName = trim($identity->meta_json['display_name'] ?? $identity->value);
+            if ($displayName === '') {
+                $displayName = $identity->value;
+            }
+
+            $parts     = explode(' ', $displayName, 2);
+            $firstName = $parts[0];
+            $lastName  = $parts[1] ?? null;
+
+            if ($identity->person_id) {
+                // Already linked — ensure the person is marked as our org
+                $person = $identity->person;
+                if ($person && ! $person->is_our_org) {
+                    $person->update(['is_our_org' => true]);
+                }
+            } else {
+                // Find or create person
+                $person = Person::where('first_name', $firstName)
+                    ->where('last_name', $lastName)
+                    ->first();
+
+                if (! $person) {
+                    $person = Person::create([
+                        'first_name' => $firstName,
+                        'last_name'  => $lastName,
+                        'is_our_org' => true,
+                    ]);
+                    $this->log[] = "Bot: created person '{$displayName}' (#{$person->id}) for {$identity->type} {$identity->value}";
+                } elseif (! $person->is_our_org) {
+                    $person->update(['is_our_org' => true]);
+                }
+
+                $identity->update(['person_id' => $person->id]);
+                $linked++;
+                $this->log[] = "Bot: linked identity #{$identity->id} ({$identity->value}) to person #{$person->id}";
+            }
+
+            // Ensure the identity itself is marked as team member
+            if (! $identity->is_team_member) {
+                $identity->update(['is_team_member' => true]);
+            }
+        }
+
+        return $linked;
     }
 
     // -------------------------------------------------------------------------

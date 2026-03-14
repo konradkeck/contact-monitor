@@ -9,7 +9,7 @@
 </div>
 
 @if($errors->any())
-    <div class="card p-4 mb-4 text-sm" style="border-color:#fca5a5; background:#fff0f0; color:#991b1b">
+    <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm">
         <ul class="space-y-1">
             @foreach($errors->all() as $e)
                 <li>{{ $e }}</li>

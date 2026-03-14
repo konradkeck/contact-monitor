@@ -211,7 +211,7 @@
     <div class="col-span-2 space-y-5">
 
         {{-- Segmentation --}}
-        <div>
+        <div class="w-4/5">
             <div class="flex items-center justify-between mb-3">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Segmentation</p>
                 @if($availableBrands->isNotEmpty())

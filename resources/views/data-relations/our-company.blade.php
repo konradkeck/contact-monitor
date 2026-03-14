@@ -12,12 +12,6 @@
     </div>
 </div>
 
-@if(session('success'))
-    <div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm">
-        {{ session('success') }}
-    </div>
-@endif
-
 {{-- Tabs --}}
 <div class="flex gap-0 border-b border-gray-200 mb-6">
     @foreach([
@@ -44,7 +38,7 @@
 {{-- ── TAB: MEMBERS ── --}}
 @if($activeTab === 'members')
     @if($teamPeople->isNotEmpty())
-        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+        <div class="w-4/5 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
             @foreach($teamPeople as $person)
                 @php
                     $emailId = $person->identities->firstWhere('type', 'email');
@@ -84,7 +78,7 @@
 {{-- ── TAB: IDENTITIES ── --}}
 @if($activeTab === 'identities')
     @if($unlinkedTeamIdentities->isNotEmpty())
-        <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+        <div class="w-4/5 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
             @foreach($unlinkedTeamIdentities as $identity)
                 <div class="flex items-center gap-3 px-4 py-2.5 text-sm">
                     <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded shrink-0">{{ $identity->type }}</span>

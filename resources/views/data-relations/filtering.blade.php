@@ -10,12 +10,6 @@
     </div>
 </div>
 
-@if(session('success'))
-    <div class="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm">
-        {{ session('success') }}
-    </div>
-@endif
-
 {{-- Tabs --}}
 <div class="flex gap-0 border-b border-gray-200 mb-6">
     @foreach([

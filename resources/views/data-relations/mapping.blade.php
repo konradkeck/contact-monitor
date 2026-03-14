@@ -74,7 +74,21 @@
 @if($activeView === 'unlinked')
     @if($unlinked->isNotEmpty())
     <div class="bg-white rounded-lg border border-gray-200">
-        <table class="w-full text-sm">
+        <table class="w-full text-sm" style="table-layout:fixed">
+            <colgroup>
+                @if($systemType === 'whmcs')
+                    <col style="width:80px">
+                    <col style="width:190px">
+                    <col style="width:170px">
+                    <col style="width:120px">
+                    <col style="width:70px">
+                @else
+                    <col style="width:80px">
+                    <col style="width:220px">
+                    <col style="width:170px">
+                @endif
+                <col style="width:280px">
+            </colgroup>
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
                 <tr>
                     @if($systemType === 'whmcs')
@@ -88,7 +102,7 @@
                         <th class="px-4 py-2 text-left font-medium">Company name</th>
                         <th class="px-4 py-2 text-left font-medium">Email</th>
                     @endif
-                    <th class="px-4 py-2 text-left font-medium w-72">Link to company</th>
+                    <th class="px-4 py-2 text-left font-medium">Link to company</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -101,12 +115,12 @@
                         $acContacts = $identitiesByExtId->get((string) $account->external_id, collect());
                     @endphp
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-2.5 font-mono text-xs text-gray-500">{{ $account->external_id }}</td>
-                        <td class="px-4 py-2.5 text-gray-800">{{ $meta['company_name'] ?? '—' }}</td>
-                        <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $meta['email'] ?? '—' }}</td>
+                        <td class="px-4 py-2.5 font-mono text-xs text-gray-500 truncate">{{ $account->external_id }}</td>
+                        <td class="px-4 py-2.5 text-gray-800 truncate">{{ $meta['company_name'] ?? '—' }}</td>
+                        <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ $meta['email'] ?? '—' }}</td>
                         @if($systemType === 'whmcs')
-                            <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $meta['phone'] ?? '—' }}</td>
-                            <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $meta['country'] ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ $meta['phone'] ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ $meta['country'] ?? '—' }}</td>
                         @endif
                         <td class="px-4 py-2.5 flex items-center gap-2">
                             @include('data-relations._ac-company', ['action' => route('data-relations.accounts.link', $account)])
@@ -120,38 +134,36 @@
                     </tr>
                     @if($acContacts->isNotEmpty())
                     <tr class="bg-gray-50 border-t-0">
-                        <td colspan="{{ $systemType === 'whmcs' ? 6 : 4 }}" class="px-6 pb-2 pt-0">
-                            <table class="w-full text-xs">
-                                <tbody class="divide-y divide-gray-100">
-                                    @foreach($acContacts as $contact)
-                                    <tr>
-                                        <td class="py-1.5 pr-3 font-mono text-gray-500 w-48">{{ $contact->value }}</td>
-                                        <td class="py-1.5 pr-3 text-gray-500">{{ $contact->meta_json['display_name'] ?? '—' }}</td>
-                                        <td class="py-1.5 pr-3 w-64">
-                                            @if($contact->person)
-                                                <a href="{{ route('people.show', $contact->person) }}" class="text-brand-700 hover:underline font-medium">{{ $contact->person->full_name }}</a>
-                                                <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline ml-2">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
-                                                </form>
-                                            @else
-                                                @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
-                                            @endif
-                                        </td>
-                                        <td class="py-1.5">
-                                            <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
-                                                @csrf
-                                                <button type="submit" title="{{ $contact->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
-                                                        class="btn btn-sm {{ $contact->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
-                                                    Our Org
-                                                </button>
+                        <td colspan="{{ $systemType === 'whmcs' ? 6 : 4 }}" class="pr-6 pb-2 pt-0" style="padding-left:50px">
+                            <div class="divide-y divide-gray-100">
+                                @foreach($acContacts as $contact)
+                                <div class="grid items-center gap-x-3 py-1.5 text-xs" style="grid-template-columns:260px 180px 1fr 90px">
+                                    <span class="font-mono text-gray-500 truncate">{{ $contact->value }}</span>
+                                    <span class="text-gray-500 truncate">{{ $contact->meta_json['display_name'] ?? '—' }}</span>
+                                    <div class="flex items-center gap-2">
+                                        @if($contact->person)
+                                            <a href="{{ route('people.show', $contact->person) }}" class="text-brand-700 hover:underline font-medium">{{ $contact->person->full_name }}</a>
+                                            <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
                                             </form>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                                        @else
+                                            @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
+                                            @csrf
+                                            <button type="submit" title="{{ $contact->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
+                                                    class="btn btn-sm {{ $contact->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                                Our Org
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
                         </td>
                     </tr>
                     @endif
@@ -167,13 +179,17 @@
 @else {{-- linked --}}
     @if($linked->isNotEmpty())
     <div class="bg-white rounded-lg border border-gray-200">
-        <table class="w-full text-sm">
+        <table class="w-full text-sm" style="table-layout:fixed">
+            <colgroup>
+                <col style="width:80px">
+                @if($systemType === 'whmcs')<col style="width:200px">@endif
+                <col>
+            </colgroup>
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
                 <tr>
                     <th class="px-4 py-2 text-left font-medium">External ID</th>
                     @if($systemType === 'whmcs')<th class="px-4 py-2 text-left font-medium">Company name (WHMCS)</th>@endif
                     <th class="px-4 py-2 text-left font-medium">Company in Contact Monitor</th>
-                    <th class="px-4 py-2"></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -183,50 +199,50 @@
                         $acContacts = $identitiesByExtId->get((string) $account->external_id, collect());
                     @endphp
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-2.5 font-mono text-xs text-gray-500">{{ $account->external_id }}</td>
-                        @if($systemType === 'whmcs')<td class="px-4 py-2.5 text-gray-600 text-xs">{{ $meta['company_name'] ?? '—' }}</td>@endif
-                        <td class="px-4 py-2.5"><a href="{{ route('companies.show', $account->company) }}" class="text-brand-700 hover:underline font-medium">{{ $account->company->name }}</a></td>
-                        <td class="px-4 py-2.5 text-right">
-                            <form action="{{ route('data-relations.accounts.unlink', $account) }}" method="POST" class="inline">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
-                            </form>
+                        <td class="px-4 py-2.5 font-mono text-xs text-gray-500 truncate">{{ $account->external_id }}</td>
+                        @if($systemType === 'whmcs')<td class="px-4 py-2.5 text-gray-600 text-xs truncate">{{ $meta['company_name'] ?? '—' }}</td>@endif
+                        <td class="px-4 py-2.5">
+                            <div class="flex items-center gap-2">
+                                <a href="{{ route('companies.show', $account->company) }}" class="text-brand-700 hover:underline font-medium">{{ $account->company->name }}</a>
+                                <form action="{{ route('data-relations.accounts.unlink', $account) }}" method="POST" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     @if($acContacts->isNotEmpty())
                     <tr class="bg-gray-50 border-t-0">
-                        <td colspan="{{ $systemType === 'whmcs' ? 4 : 3 }}" class="px-6 pb-2 pt-0">
-                            <table class="w-full text-xs">
-                                <tbody class="divide-y divide-gray-100">
-                                    @foreach($acContacts as $contact)
-                                    <tr>
-                                        <td class="py-1.5 pr-3 font-mono text-gray-500 w-48">{{ $contact->value }}</td>
-                                        <td class="py-1.5 pr-3 text-gray-500">{{ $contact->meta_json['display_name'] ?? '—' }}</td>
-                                        <td class="py-1.5 pr-3 w-64">
-                                            @if($contact->person)
-                                                <a href="{{ route('people.show', $contact->person) }}" class="text-brand-700 hover:underline font-medium">{{ $contact->person->full_name }}</a>
-                                                <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline ml-2">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
-                                                </form>
-                                            @else
-                                                @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
-                                            @endif
-                                        </td>
-                                        <td class="py-1.5">
-                                            <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
-                                                @csrf
-                                                <button type="submit" title="{{ $contact->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
-                                                        class="btn btn-sm {{ $contact->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
-                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
-                                                    Our Org
-                                                </button>
+                        <td colspan="{{ $systemType === 'whmcs' ? 3 : 2 }}" class="pr-6 pb-2 pt-0" style="padding-left:50px">
+                            <div class="divide-y divide-gray-100">
+                                @foreach($acContacts as $contact)
+                                <div class="grid items-center gap-x-3 py-1.5 text-xs" style="grid-template-columns:260px 180px 1fr 90px">
+                                    <span class="font-mono text-gray-500 truncate">{{ $contact->value }}</span>
+                                    <span class="text-gray-500 truncate">{{ $contact->meta_json['display_name'] ?? '—' }}</span>
+                                    <div class="flex items-center gap-2">
+                                        @if($contact->person)
+                                            <a href="{{ route('people.show', $contact->person) }}" class="text-brand-700 hover:underline font-medium">{{ $contact->person->full_name }}</a>
+                                            <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
                                             </form>
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                                        @else
+                                            @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
+                                        @endif
+                                    </div>
+                                    <div>
+                                        <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
+                                            @csrf
+                                            <button type="submit" title="{{ $contact->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
+                                                    class="btn btn-sm {{ $contact->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                                Our Org
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
                         </td>
                     </tr>
                     @endif
@@ -402,16 +418,6 @@
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
                                         Filter
                                     </button>
-                                @endif
-                                @if(in_array($systemType, ['discord', 'slack']))
-                                    <form action="{{ route('data-relations.identities.toggle-bot', $identity) }}" method="POST" class="inline">
-                                        @csrf
-                                        <button type="submit" title="Mark as bot — hides from this list"
-                                                class="btn btn-sm btn-muted">
-                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path stroke-linecap="round" d="M12 7v4M8 15h.01M16 15h.01"/></svg>
-                                            Bot
-                                        </button>
-                                    </form>
                                 @endif
                             </div>
                         </td>
