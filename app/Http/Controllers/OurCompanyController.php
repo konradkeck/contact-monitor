@@ -30,8 +30,10 @@ class OurCompanyController extends Controller
             ->orderBy('value')
             ->get();
 
+        $activeTab = request('tab', 'members');
+
         return view('data-relations.our-company', compact(
-            'teamDomains', 'teamPeople', 'unlinkedTeamIdentities'
+            'teamDomains', 'teamPeople', 'unlinkedTeamIdentities', 'activeTab'
         ));
     }
 

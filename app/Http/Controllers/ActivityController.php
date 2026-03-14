@@ -17,6 +17,7 @@ class ActivityController extends Controller
         $timelinePage = $this->baseQuery()->cursorPaginate(25);
 
         $convSubjectMap = $this->buildConvSubjectMap($timelinePage->items());
+        $this->prepareTimelineDisplay($timelinePage->items(), $convSubjectMap);
 
         $convSystems = DB::table('activities')
             ->where('type', 'conversation')
@@ -68,9 +69,21 @@ class ActivityController extends Controller
 
         $totalConv = $convCounts->sum('cnt');
 
+        $typeColors = [
+            'payment'       => 'bg-green-400',
+            'renewal'       => 'bg-blue-400',
+            'cancellation'  => 'bg-red-500',
+            'ticket'        => 'bg-yellow-400',
+            'conversation'  => 'bg-purple-400',
+            'note'          => 'bg-gray-400',
+            'status_change' => 'bg-slate-300',
+            'campaign_run'  => 'bg-slate-300',
+            'followup'      => 'bg-slate-300',
+        ];
+
         return view('activity.index', compact(
             'timelinePage', 'convSubjectMap', 'convSystems', 'activityTypes',
-            'typeCounts', 'convCounts', 'totalConv'
+            'typeCounts', 'convCounts', 'totalConv', 'typeColors'
         ));
     }
 
@@ -106,11 +119,13 @@ class ActivityController extends Controller
         }
 
         $page = $query->cursorPaginate(25, ['*'], 'cursor', $request->get('cursor'));
+        $convSubjectMap = $this->buildConvSubjectMap($page->items());
+        $this->prepareTimelineDisplay($page->items(), $convSubjectMap);
 
         return view('activity.partials.timeline-items', [
             'activities' => $page->items(),
             'nextCursor' => $page->nextCursor()?->encode(),
-            'convSubjectMap' => $this->buildConvSubjectMap($page->items()),
+            'convSubjectMap' => $convSubjectMap,
         ]);
     }
 

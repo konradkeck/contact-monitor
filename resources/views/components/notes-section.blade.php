@@ -22,6 +22,7 @@
         </ul>
     @endif
 
+    @can('notes_write')
     <div class="px-4 py-3 border-t border-gray-100 bg-gray-50 rounded-b-lg">
         <form action="{{ route('notes.store') }}" method="POST">
             @csrf
@@ -36,4 +37,5 @@
             </div>
         </form>
     </div>
+    @endcan
 </div>

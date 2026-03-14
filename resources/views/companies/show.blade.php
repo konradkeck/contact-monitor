@@ -3,41 +3,6 @@
 
 @section('content')
 
-@php
-    $primaryDomain = $company->domains->firstWhere('is_primary', true) ?? $company->domains->first();
-    $otherDomains  = $company->domains->filter(fn($d) => $d->id !== $primaryDomain?->id);
-    $primaryAlias  = $company->aliases->firstWhere('is_primary', true);
-
-    $allTypes   = ['payment','renewal','cancellation','ticket','conversation','note','status_change','campaign_run','followup'];
-
-    // Score ring colors: 1 (red) → 10 (dark green)
-    $scoreColorMap = [
-        1  => '#ef4444',
-        2  => '#f97316',
-        3  => '#f59e0b',
-        4  => '#eab308',
-        5  => '#84cc16',
-        6  => '#4ade80',
-        7  => '#22c55e',
-        8  => '#16a34a',
-        9  => '#15803d',
-        10 => '#166534',
-    ];
-
-    $typeColors = [
-        'payment'       => 'bg-green-400',
-        'renewal'       => 'bg-blue-400',
-        'cancellation'  => 'bg-red-500',
-        'ticket'        => 'bg-yellow-400',
-        'conversation'  => 'bg-purple-400',
-        'note'          => 'bg-gray-400',
-        'status_change' => 'bg-slate-300',
-        'campaign_run'  => 'bg-slate-300',
-        'followup'      => 'bg-slate-300',
-    ];
-
-@endphp
-
 {{-- Breadcrumb --}}
 <div class="flex items-center gap-2 text-sm text-gray-500 mb-5">
     @if($backLink ?? null)
@@ -70,8 +35,7 @@
                     <h2 class="text-white font-bold text-xl leading-tight">
                         {{ $primaryAlias?->alias ?? $company->name }}
                     </h2>
-                    @php $nonPrimaryAliasCount = $company->aliases->filter(fn($a) => !$a->is_primary)->count(); @endphp
-                    @if($nonPrimaryAliasCount > 0)
+                    @if($company->aliases->filter(fn($a) => !$a->is_primary)->count() > 0)
                         <button onclick="openPopup('popup-aliases')"
                                 class="text-xs text-blue-300 hover:text-blue-200 font-medium transition cursor-pointer">
                             [+{{ $nonPrimaryAliasCount }} more]
@@ -109,7 +73,6 @@
         </div>{{-- /Company Card --}}
 
         {{-- Contacts (exclude team members) --}}
-        @php $contacts = $company->people->filter(fn($p) => !$p->identities->contains('is_team_member', true)); @endphp
         <div>
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Contacts</p>
             @if($contacts->isEmpty())
@@ -155,6 +118,7 @@
                         @endforeach
                     </ul>
                 @endif
+                @can('notes_write')
                 <div class="px-4 py-3">
                     <form action="{{ route('notes.store') }}" method="POST">
                         @csrf
@@ -168,6 +132,7 @@
                                        font-semibold text-xs rounded-lg transition">+ Add note</button>
                     </form>
                 </div>
+                @endcan
             </div>
         </div>
 
@@ -175,11 +140,13 @@
         <div>
             <div class="flex items-center justify-between mb-2 px-1">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">External Accounts</p>
+                @can('data_write')
                 <button onclick="openPopup('popup-add-account')"
                         class="text-xs font-medium text-brand-600 hover:text-brand-700 border border-brand-200
                                hover:border-brand-400 px-3 py-1 rounded-full transition">
                     + Add
                 </button>
+                @endcan
             </div>
             @if($company->accounts->isEmpty())
                 <div class="bg-white rounded-xl border border-gray-200 px-4 py-4 text-sm text-gray-400 italic">
@@ -194,11 +161,13 @@
                                 <span class="text-xs text-gray-700 shrink-0">{{ $account->system_slug }}</span>
                             @endif
                             <span class="font-mono text-sm text-gray-700 truncate flex-1">{{ $account->external_id }}</span>
+                            @can('data_write')
                             <form action="{{ route('companies.accounts.destroy', [$company, $account]) }}" method="POST"
                                   onsubmit="return confirm('Remove this account?')">
                                 @csrf @method('DELETE')
                                 <button class="text-xs text-red-400 hover:text-red-600 font-bold shrink-0">✕</button>
                             </form>
+                            @endcan
                         </div>
                     @endforeach
                 </div>
@@ -227,17 +196,7 @@
             @else
                 <div class="grid grid-cols-2 xl:grid-cols-3 gap-3">
                     @foreach($company->brandStatuses as $status)
-                        @php
-                            [$stageColor, $cardBg, $cardBorder] = match(strtolower($status->stage)) {
-                                'lead'     => ['bg-blue-100 text-blue-700',   'bg-blue-50',   'border-blue-200'],
-                                'prospect' => ['bg-purple-100 text-purple-700','bg-purple-50','border-purple-200'],
-                                'trial'    => ['bg-yellow-100 text-yellow-800','bg-yellow-50','border-yellow-200'],
-                                'active'   => ['bg-green-100 text-green-700', 'bg-green-50',  'border-green-200'],
-                                'churned'  => ['bg-red-100 text-red-700',     'bg-red-50',    'border-red-200'],
-                                default    => ['bg-gray-100 text-gray-700',   'bg-white',     'border-gray-200'],
-                            };
-                        @endphp
-                        <div class="{{ $cardBg }} {{ $cardBorder }} rounded-xl border p-4">
+                        <div class="{{ match(strtolower($status->stage)) { 'lead' => 'bg-blue-50 border-blue-200', 'prospect' => 'bg-purple-50 border-purple-200', 'trial' => 'bg-yellow-50 border-yellow-200', 'active' => 'bg-green-50 border-green-200', 'churned' => 'bg-red-50 border-red-200', default => 'bg-white border-gray-200' } }} rounded-xl border p-4">
                             <div class="flex items-start justify-between mb-3">
                                 <div>
                                     <p class="font-semibold text-gray-900 text-sm">{{ $status->brandProduct?->name ?? '(deleted)' }}</p>
@@ -245,34 +204,14 @@
                                         <p class="text-xs text-gray-400">{{ $status->brandProduct->variant }}</p>
                                     @endif
                                 </div>
-                                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ $stageColor }}">
+                                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium {{ match(strtolower($status->stage)) { 'lead' => 'bg-blue-100 text-blue-700', 'prospect' => 'bg-purple-100 text-purple-700', 'trial' => 'bg-yellow-100 text-yellow-800', 'active' => 'bg-green-100 text-green-700', 'churned' => 'bg-red-100 text-red-700', default => 'bg-gray-100 text-gray-700' } }}">
                                     {{ $status->stage }}
                                 </span>
                             </div>
                             <div class="flex items-end justify-between">
                                 <div>
                                     @if($status->evaluation_score !== null)
-                                        @php
-                                            $sc     = $status->evaluation_score;
-                                            $scClr  = $scoreColorMap[$sc] ?? '#e5e7eb';
-                                            $r      = 26;
-                                            $circ   = 2 * M_PI * $r;
-                                            $offset = $circ * (1 - $sc / 10);
-                                        @endphp
-                                        <div class="relative w-16 h-16">
-                                            <svg width="64" height="64" viewBox="0 0 64 64"
-                                                 style="transform:rotate(-90deg)">
-                                                <circle cx="32" cy="32" r="{{ $r }}" fill="none"
-                                                        stroke="#e5e7eb" stroke-width="5"/>
-                                                <circle cx="32" cy="32" r="{{ $r }}" fill="none"
-                                                        stroke="{{ $scClr }}" stroke-width="5"
-                                                        stroke-linecap="round"
-                                                        style="stroke-dasharray:{{ number_format($circ,3) }};stroke-dashoffset:{{ number_format($offset,3) }}"/>
-                                            </svg>
-                                            <div class="absolute inset-0 flex items-center justify-center">
-                                                <span class="text-xl font-bold text-gray-900">{{ $sc }}</span>
-                                            </div>
-                                        </div>
+                                        <x-score-ring :score="$status->evaluation_score" />
                                     @else
                                         <div class="w-16 h-16 rounded-full border-4 border-gray-100 flex items-center justify-center">
                                             <span class="text-2xl font-bold text-gray-200">—</span>
@@ -283,6 +222,7 @@
                                     @if($status->last_evaluated_at)
                                         <p>{{ $status->last_evaluated_at->format('d M Y') }}</p>
                                     @endif
+                                    @can('data_write')
                                     <div class="flex items-center gap-3">
                                         @if($status->brandProduct)
                                         <button onclick="document.getElementById('edit-bs-{{ $status->id }}').classList.toggle('hidden')"
@@ -295,11 +235,13 @@
                                             </button>
                                         </form>
                                     </div>
+                                    @endcan
                                 </div>
                             </div>
                             @if($status->evaluation_notes)
                                 <p class="text-xs text-gray-500 mt-2 line-clamp-2">{{ $status->evaluation_notes }}</p>
                             @endif
+                            @can('data_write')
                             <div id="edit-bs-{{ $status->id }}" class="hidden mt-3 pt-3 border-t border-gray-100">
                                 <form action="{{ route('companies.brand-statuses.update', [$company, $status]) }}" method="POST" class="space-y-2">
                                     @csrf @method('PATCH')
@@ -318,6 +260,7 @@
                                     <button class="w-full py-1.5 bg-brand-600 text-white text-xs rounded hover:bg-brand-700 transition">Save</button>
                                 </form>
                             </div>
+                            @endcan
                         </div>
                     @endforeach
                 </div>
@@ -325,34 +268,6 @@
         </div>
 
         {{-- ── Services ── --}}
-        @php
-            // Group services by system_slug (each WHMCS instance = separate tab)
-            $serviceSystems = [];
-            foreach ($company->accounts as $acc) {
-                if (empty($acc->meta_json['services'])) continue;
-                $slug = $acc->system_slug;
-                if (!isset($serviceSystems[$slug])) {
-                    $serviceSystems[$slug] = ['system_type' => $acc->system_type, 'services' => []];
-                }
-                foreach ($acc->meta_json['services'] as $svc) {
-                    $serviceSystems[$slug]['services'][] = $svc;
-                }
-            }
-            // Compute KPIs per slug
-            foreach ($serviceSystems as $slug => &$sys) {
-                $svcs = $sys['services'];
-                $sys['revenue'] = array_sum(array_column($svcs, 'total_revenue'));
-                $sys['active']  = count(array_filter($svcs, fn($s) => strtolower($s['status'] ?? '') === 'active'));
-                $sys['total']   = count($svcs);
-                // Sort: active first, then by product name
-                usort($sys['services'], fn($a, $b) =>
-                    (strtolower($b['status'] ?? '') === 'active') <=> (strtolower($a['status'] ?? '') === 'active')
-                    ?: strcmp($a['product_name'] ?? '', $b['product_name'] ?? '')
-                );
-            }
-            unset($sys);
-        @endphp
-
         @if(!empty($serviceSystems))
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {{-- Tab bar (left-aligned, same style as activity widget) --}}
@@ -369,14 +284,9 @@
             </div>
 
             @foreach($serviceSystems as $slug => $sys)
-                @php
-                    $svcIntegration  = \App\Integrations\IntegrationRegistry::get($sys['system_type'] ?? '');
-                    $svcWidgetView   = $svcIntegration->servicesWidgetView();
-                    $svcWidgetData   = $svcIntegration->prepareWidgetData($sys, $slug);
-                @endphp
                 <div id="svc-panel-{{ $slug }}" class="{{ $loop->first ? '' : 'hidden' }}">
-                    @if($svcWidgetView)
-                        @include($svcWidgetView, $svcWidgetData)
+                    @if($svcWidgets[$slug]['view'])
+                        @include($svcWidgets[$slug]['view'], $svcWidgets[$slug]['data'])
                     @endif
                 </div>
             @endforeach
@@ -449,17 +359,12 @@
                         @if($convSystems->isNotEmpty())
                             <div class="border-t border-gray-100 my-1"></div>
                             @foreach($convSystems as $sys)
-                                @php
-                                    $sysIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type ?? ''));
-                                    $chnIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type));
-                                    $showSysLogo = $sys->system_type && $sysIntCls !== $chnIntCls;
-                                @endphp
                                 <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
                                     <input type="checkbox" class="tl-conv-item rounded border-gray-300"
                                            value="{{ $sys->channel_type }}|{{ $sys->system_slug }}" onchange="tlConvItem(this)">
                                     <span class="inline-flex items-center gap-1">
                                         <x-channel-badge :type="$sys->channel_type" :label="false" />
-                                        @if($showSysLogo)
+                                        @if($sys->system_type && get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type ?? '')) !== get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type)))
                                             {!! \App\Integrations\IntegrationRegistry::get($sys->system_type)->iconHtml('w-4 h-4', false) !!}
                                         @endif
                                     </span>
@@ -565,6 +470,7 @@
                         <span class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 shrink-0">primary</span>
                     @endif
                 </div>
+                @can('data_write')
                 <div class="flex items-center gap-3 shrink-0">
                     @if(!$domain->is_primary)
                         <form action="{{ route('companies.domains.primary', [$company, $domain]) }}" method="POST">
@@ -578,11 +484,13 @@
                         <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕</button>
                     </form>
                 </div>
+                @endcan
             </li>
         @empty
             <li class="px-5 py-5 text-sm text-gray-400 italic text-center">No domains yet.</li>
         @endforelse
     </ul>
+    @can('data_write')
     <div class="px-5 py-4 bg-gray-50 border-t border-gray-100">
         <form action="{{ route('companies.domains.store', $company) }}" method="POST" class="flex gap-2">
             @csrf
@@ -591,6 +499,7 @@
             <button class="px-4 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 transition">Add</button>
         </form>
     </div>
+    @endcan
 </div>
 
 {{-- Aliases --}}
@@ -610,6 +519,7 @@
                         <span class="px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700 shrink-0">primary</span>
                     @endif
                 </div>
+                @can('data_write')
                 <div class="flex items-center gap-3 shrink-0">
                     @if(!$alias->is_primary)
                         <form action="{{ route('companies.aliases.primary', [$company, $alias]) }}" method="POST">
@@ -623,11 +533,13 @@
                         <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕</button>
                     </form>
                 </div>
+                @endcan
             </li>
         @empty
             <li class="px-5 py-5 text-sm text-gray-400 italic text-center">No aliases yet.</li>
         @endforelse
     </ul>
+    @can('data_write')
     <div class="px-5 py-4 bg-gray-50 border-t border-gray-100">
         <form action="{{ route('companies.aliases.store', $company) }}" method="POST" class="flex gap-2">
             @csrf
@@ -636,9 +548,11 @@
             <button class="px-4 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 transition font-medium">Add</button>
         </form>
     </div>
+    @endcan
 </div>
 
 {{-- Add External Account --}}
+@can('data_write')
 <div id="popup-add-account"
      class="hidden fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
             w-[400px] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
@@ -673,8 +587,10 @@
         </button>
     </form>
 </div>
+@endcan
 
 {{-- Add Brand Status --}}
+@can('data_write')
 @if($availableBrands->isNotEmpty())
 <div id="popup-add-brand"
      class="hidden fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
@@ -714,6 +630,7 @@
     </form>
 </div>
 @endif
+@endcan
 
 
 

@@ -28,14 +28,13 @@
 @else
     <div class="flex gap-0 border-b border-gray-200 mb-5" role="tablist" aria-label="Conversation status">
         @foreach(['unassigned' => 'Unassigned', 'assigned' => 'Assigned', 'filtered' => 'Filtered'] as $tabKey => $tabLabel)
-            @php $isActive = $tab === $tabKey; @endphp
             <a href="{{ request()->fullUrlWithQuery(['tab' => $tabKey, 'page' => null]) }}"
-               role="tab" aria-selected="{{ $isActive ? 'true' : 'false' }}"
+               role="tab" aria-selected="{{ $tab === $tabKey ? 'true' : 'false' }}"
                class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
-                      {{ $isActive ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                      {{ $tab === $tabKey ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 {{ $tabLabel }}
                 <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-xs
-                             {{ $isActive ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500' }}">
+                             {{ $tab === $tabKey ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500' }}">
                     {{ number_format($tabCounts[$tabKey]) }}
                 </span>
             </a>
@@ -77,20 +76,14 @@
             </label>
             <div class="border-t border-gray-100 my-1"></div>
             @foreach($convSystems as $sys)
-                @php
-                    $val = $sys->channel_type . '|' . $sys->system_slug;
-                    $sysIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type ?? ''));
-                    $chnIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type));
-                    $showSysLogo = $sys->system_type && $sysIntCls !== $chnIntCls;
-                @endphp
                 <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
                     <input type="checkbox" class="cv-item rounded border-gray-300"
-                           value="{{ $val }}"
-                           {{ in_array($val, $activeSystems) ? 'checked' : '' }}
+                           value="{{ $sys->channel_type }}|{{ $sys->system_slug }}"
+                           {{ in_array($sys->channel_type . '|' . $sys->system_slug, $activeSystems) ? 'checked' : '' }}
                            onchange="cvItem()">
                     <span class="inline-flex items-center gap-1">
                         <x-channel-badge :type="$sys->channel_type" :label="false" />
-                        @if($showSysLogo)
+                        @if($sys->system_type && get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type)) !== get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type)))
                             {!! \App\Integrations\IntegrationRegistry::get($sys->system_type)->iconHtml('w-4 h-4', false) !!}
                         @endif
                     </span>
@@ -113,7 +106,9 @@
     {{-- Bulk action bar (hidden until selection) --}}
     <div id="bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b" style="background:#fff8e1; border-color:#fde68a">
         <span id="bulk-count" class="text-sm font-medium" style="color:#92400e"></span>
+        @can('data_write')
         <button type="button" onclick="openFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
+        @endcan
         <button type="button" onclick="clearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
     </div>
     <table class="w-full text-sm">
@@ -134,11 +129,6 @@
         </thead>
         <tbody>
             @forelse($conversations as $conv)
-                @php
-                    $parts    = $convParticipants[$conv->id] ?? ['customer' => [], 'team' => []];
-                    $customer = $parts['customer'];
-                    $team     = $parts['team'];
-                @endphp
                 <tr class="tbl-row">
                     {{-- Checkbox --}}
                     <td class="px-3 py-3">
@@ -148,16 +138,11 @@
                     </td>
 
                     {{-- Channel --}}
-                    @php
-                        $sysIntCls = get_class(\App\Integrations\IntegrationRegistry::get($conv->system_type ?? ''));
-                        $chnIntCls = get_class(\App\Integrations\IntegrationRegistry::get($conv->channel_type));
-                        $showSysLogo = $conv->system_type && $sysIntCls !== $chnIntCls;
-                    @endphp
                     <td class="px-4 py-3">
                         <a href="{{ route('conversations.show', $conv) }}"
                            class="flex items-center gap-1.5 hover:underline">
                             <x-channel-badge :type="$conv->channel_type" :label="false" />
-                            @if($showSysLogo)
+                            @if($conv->system_type && get_class(\App\Integrations\IntegrationRegistry::get($conv->system_type)) !== get_class(\App\Integrations\IntegrationRegistry::get($conv->channel_type)))
                                 {!! \App\Integrations\IntegrationRegistry::get($conv->system_type)->iconHtml('w-4 h-4', false) !!}
                             @endif
                             <span class="text-xs text-gray-700">{{ $conv->system_slug }}</span>
@@ -178,82 +163,60 @@
 
                     {{-- People (customer side) --}}
                     <td class="px-4 py-3">
-                        @if(count($customer) > 0)
-                            @php
-                                $shown  = array_slice($customer, 0, 4);
-                                $hidden = array_slice($customer, 4);
-                                $hiddenNames = implode(', ', array_map(fn($e) => $e['display_name'], $hidden));
-                            @endphp
+                        @if(count(($convParticipants[$conv->id] ?? ['customer' => []])['customer']) > 0)
                             <div class="flex items-center -space-x-1.5">
-                                @foreach($shown as $entry)
-                                    @php
-                                        $person   = $entry['identity']?->person;
-                                        $label    = $person ? $person->initials() : mb_strtoupper(mb_substr($entry['display_name'] ?? '?', 0, 2));
-                                        $title    = $person ? trim($person->first_name . ' ' . $person->last_name) : ($entry['display_name'] ?? '');
-                                        $imgSrc   = $entry['avatar_url'] ?? ($entry['gravatar_hash'] ? 'https://www.gravatar.com/avatar/' . $entry['gravatar_hash'] . '?d=identicon&s=56' : null);
-                                    @endphp
-                                    <span title="{{ $title }}" class="relative inline-block">
-                                        @if($imgSrc)
-                                            <img src="{{ $imgSrc }}"
-                                                 alt="{{ $title }}"
+                                @foreach(array_slice(($convParticipants[$conv->id])['customer'], 0, 4) as $entry)
+                                    <span title="{{ $entry['_title'] }}" class="relative inline-block">
+                                        @if($entry['_imgSrc'])
+                                            <img src="{{ $entry['_imgSrc'] }}"
+                                                 alt="{{ $entry['_title'] }}"
                                                  class="w-7 h-7 rounded-full ring-2 ring-white object-cover">
                                         @else
                                             <span class="flex items-center justify-center w-7 h-7 rounded-full ring-2 ring-white text-xs font-semibold
-                                                         {{ $person ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600' }}">
-                                                {{ $label }}
+                                                         {{ $entry['_person'] ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600' }}">
+                                                {{ $entry['_label'] }}
                                             </span>
                                         @endif
                                     </span>
                                 @endforeach
-                                @if(count($hidden) > 0)
-                                    <span title="{{ $hiddenNames }}"
+                                @if(count(($convParticipants[$conv->id])['customer']) > 4)
+                                    <span title="{{ implode(', ', array_map(fn($e) => $e['display_name'], array_slice(($convParticipants[$conv->id])['customer'], 4))) }}"
                                           class="flex items-center justify-center w-7 h-7 rounded-full ring-2 ring-white text-xs font-semibold bg-gray-100 text-gray-500 cursor-default">
-                                        +{{ count($hidden) }}
+                                        +{{ count(($convParticipants[$conv->id])['customer']) - 4 }}
                                     </span>
                                 @endif
                             </div>
                         @else
-                            <span class="text-gray-300">—</span>
+                            <span class="text-gray-300">---</span>
                         @endif
                     </td>
 
                     {{-- Team (internal side) --}}
                     <td class="px-4 py-3">
-                        @if(count($team) > 0)
-                            @php
-                                $shownT  = array_slice($team, 0, 4);
-                                $hiddenT = array_slice($team, 4);
-                                $hiddenTNames = implode(', ', array_map(fn($e) => $e['display_name'], $hiddenT));
-                            @endphp
+                        @if(count(($convParticipants[$conv->id] ?? ['team' => []])['team']) > 0)
                             <div class="flex items-center -space-x-1.5">
-                                @foreach($shownT as $entry)
-                                    @php
-                                        $person   = $entry['identity']?->person;
-                                        $label    = $person ? $person->initials() : mb_strtoupper(mb_substr($entry['display_name'] ?? '?', 0, 2));
-                                        $title    = $person ? trim($person->first_name . ' ' . $person->last_name) : ($entry['display_name'] ?? '');
-                                        $imgSrc   = $entry['avatar_url'] ?? ($entry['gravatar_hash'] ? 'https://www.gravatar.com/avatar/' . $entry['gravatar_hash'] . '?d=identicon&s=56' : null);
-                                    @endphp
-                                    <span title="{{ $title }}" class="relative inline-block">
-                                        @if($imgSrc)
-                                            <img src="{{ $imgSrc }}"
-                                                 alt="{{ $title }}"
+                                @foreach(array_slice(($convParticipants[$conv->id])['team'], 0, 4) as $entry)
+                                    <span title="{{ $entry['_title'] }}" class="relative inline-block">
+                                        @if($entry['_imgSrc'])
+                                            <img src="{{ $entry['_imgSrc'] }}"
+                                                 alt="{{ $entry['_title'] }}"
                                                  class="w-7 h-7 rounded-full ring-2 ring-white object-cover">
                                         @else
                                             <span class="flex items-center justify-center w-7 h-7 rounded-full ring-2 ring-white text-xs font-semibold bg-violet-100 text-violet-700">
-                                                {{ $label }}
+                                                {{ $entry['_label'] }}
                                             </span>
                                         @endif
                                     </span>
                                 @endforeach
-                                @if(count($hiddenT) > 0)
-                                    <span title="{{ $hiddenTNames }}"
+                                @if(count(($convParticipants[$conv->id])['team']) > 4)
+                                    <span title="{{ implode(', ', array_map(fn($e) => $e['display_name'], array_slice(($convParticipants[$conv->id])['team'], 4))) }}"
                                           class="flex items-center justify-center w-7 h-7 rounded-full ring-2 ring-white text-xs font-semibold bg-gray-100 text-gray-500 cursor-default">
-                                        +{{ count($hiddenT) }}
+                                        +{{ count(($convParticipants[$conv->id])['team']) - 4 }}
                                     </span>
                                 @endif
                             </div>
                         @else
-                            <span class="text-gray-300">—</span>
+                            <span class="text-gray-300">---</span>
                         @endif
                     </td>
 
@@ -269,6 +232,7 @@
                     <td class="px-4 py-3 text-right whitespace-nowrap">
                         <a href="{{ route('conversations.show', $conv) }}"
                            class="text-xs text-brand-600 hover:underline mr-2">View</a>
+                        @can('data_write')
                         <button type="button"
                                 onclick="openFilterModalFor([{{ $conv->id }}])"
                                 class="text-xs text-gray-400 hover:text-red-600 transition"
@@ -277,6 +241,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                             </svg>
                         </button>
+                        @endcan
                     </td>
                 </tr>
             @empty

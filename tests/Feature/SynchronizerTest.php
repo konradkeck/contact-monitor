@@ -10,6 +10,12 @@ class SynchronizerTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAsAdmin();
+    }
+
     public function test_synchronizer_index_redirects_when_no_server(): void
     {
         $response = $this->get(route('synchronizer.index'));

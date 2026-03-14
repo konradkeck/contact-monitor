@@ -42,23 +42,9 @@
     </div>
 </div>
 
-@php
-    $typeColors = [
-        'whmcs'       => ['bg' => 'rgba(88,166,255,.1)',  'color' => '#388bfd', 'border' => 'rgba(88,166,255,.25)'],
-        'gmail'       => ['bg' => 'rgba(248,81,73,.1)',   'color' => '#f85149', 'border' => 'rgba(248,81,73,.25)'],
-        'imap'        => ['bg' => 'rgba(63,185,80,.1)',   'color' => '#3fb950', 'border' => 'rgba(63,185,80,.25)'],
-        'metricscube' => ['bg' => 'rgba(139,92,246,.1)',  'color' => '#7c3aed', 'border' => 'rgba(139,92,246,.25)'],
-        'discord'     => ['bg' => 'rgba(88,101,242,.12)', 'color' => '#5865f2', 'border' => 'rgba(88,101,242,.3)'],
-        'slack'       => ['bg' => 'rgba(74,21,75,.1)',    'color' => '#e01e5a', 'border' => 'rgba(224,30,90,.3)'],
-    ];
-    $tc = $typeColors[$conn['type']] ?? $typeColors['imap'];
-    $latestRun    = $runs[0] ?? null;
-    $latestStatus = $latestRun['status'] ?? null;
-    $selectedRunId = request()->query('run_id', $latestRun['id'] ?? null);
-@endphp
 
 {{-- Outer Alpine scope covers everything so header/info/buttons all react to runStatus --}}
-<div x-data="showPage({{ $conn['id'] }}, {{ $selectedRunId ?? 'null' }}, {{ json_encode($latestStatus) }})">
+<div x-data="showPage({{ $conn['id'] }}, {{ request()->query('run_id', ($runs[0] ?? [])['id'] ?? 'null') }}, {{ json_encode(($runs[0] ?? [])['status'] ?? null) }})">
 
 {{-- HEADER --}}
 <div class="page-header">
@@ -66,7 +52,7 @@
         <a href="{{ route('synchronizer.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">&larr; Connections</a>
         <span class="text-gray-300">/</span>
         <span class="page-title">{{ $conn['name'] }}</span>
-        <span class="badge" style="background:{{ $tc['bg'] }}; color:{{ $tc['color'] }}; border-color:{{ $tc['border'] }}">
+        <span class="badge" style="background:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['bg'] }}; color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['color'] }}; border-color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['border'] }}">
             {{ $conn['type'] }}
         </span>
     </div>
@@ -103,12 +89,12 @@
             <div class="text-xs text-gray-400">next: {{ \Carbon\Carbon::parse($conn['next_run_at'])->diffForHumans() }}</div>
         @endif
     </div>
-    @if($latestRun)
+    @if($runs[0] ?? null)
         <div>
             <div class="text-xs text-gray-400 mb-0.5">Last run</div>
-            <div class="text-gray-700">{{ \Carbon\Carbon::parse($latestRun['created_at'])->diffForHumans() }}</div>
-            @if($latestRun['duration_seconds'])
-                <div class="text-xs text-gray-400">{{ $latestRun['duration_seconds'] }}s</div>
+            <div class="text-gray-700">{{ \Carbon\Carbon::parse($runs[0]['created_at'])->diffForHumans() }}</div>
+            @if($runs[0]['duration_seconds'])
+                <div class="text-xs text-gray-400">{{ $runs[0]['duration_seconds'] }}s</div>
             @endif
         </div>
     @endif
@@ -145,15 +131,6 @@
         </div>
         <div class="overflow-y-auto" style="max-height:560px">
             @forelse($runs as $run)
-                @php
-                    $sc = match($run['status']) {
-                        'completed' => ['color' => '#3fb950', 'bg' => 'rgba(63,185,80,.1)',   'border' => 'rgba(63,185,80,.25)'],
-                        'running'   => ['color' => '#388bfd', 'bg' => 'rgba(88,166,255,.1)',  'border' => 'rgba(88,166,255,.25)'],
-                        'pending'   => ['color' => '#8b949e', 'bg' => 'rgba(139,148,158,.1)', 'border' => 'rgba(139,148,158,.25)'],
-                        'failed'    => ['color' => '#f85149', 'bg' => 'rgba(248,81,73,.1)',   'border' => 'rgba(248,81,73,.25)'],
-                        default     => ['color' => '#8b949e', 'bg' => 'rgba(139,148,158,.1)', 'border' => 'rgba(139,148,158,.25)'],
-                    };
-                @endphp
                 <button
                     onclick="window.history.pushState({}, '', '?run_id={{ $run['id'] }}')"
                     @click="selectRun({{ $run['id'] }})"
@@ -161,7 +138,7 @@
                     class="w-full text-left px-4 py-2.5 border-b border-gray-50 transition text-sm">
                     <div class="flex items-center justify-between gap-2">
                         <span class="font-mono text-xs text-gray-400">#{{ $run['id'] }}</span>
-                        <span class="badge text-xs" style="background:{{ $sc['bg'] }}; color:{{ $sc['color'] }}; border-color:{{ $sc['border'] }}">
+                        <span class="badge text-xs" style="background:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['bg'] }}; color:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['color'] }}; border-color:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['border'] }}">
                             {{ $run['status'] }}
                         </span>
                     </div>

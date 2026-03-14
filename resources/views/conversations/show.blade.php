@@ -2,23 +2,6 @@
 @section('title', 'Conversation #' . $conversation->id)
 
 @section('content')
-@php
-    $sysIntCls   = get_class(\App\Integrations\IntegrationRegistry::get($conversation->system_type ?? ''));
-    $chnIntCls   = get_class(\App\Integrations\IntegrationRegistry::get($conversation->channel_type));
-    $showSysLogo = $conversation->system_type && $sysIntCls !== $chnIntCls;
-
-    $debugInfo = array_filter([
-        'conversation_id'    => $conversation->id,
-        'channel_type'       => $conversation->channel_type,
-        'system_type'        => $conversation->system_type,
-        'system_slug'        => $conversation->system_slug,
-        'external_thread_id' => $conversation->external_thread_id,
-        'company_id'         => $conversation->company_id,
-        'message_count'      => $conversation->message_count,
-        'started_at'         => $conversation->started_at?->toIso8601String(),
-        'last_message_at'    => $conversation->last_message_at?->toIso8601String(),
-    ], fn($v) => $v !== null && $v !== '');
-@endphp
 
 <div style="max-width:80%">
 

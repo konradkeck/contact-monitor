@@ -15,8 +15,7 @@
 
         {{-- Rule type tabs --}}
         <div class="flex flex-wrap gap-1.5 mb-4">
-            @php $tabs = ['none' => 'No rule', 'domain' => 'Domain']; @endphp
-            @foreach($tabs as $type => $label)
+            @foreach(['none' => 'No rule', 'domain' => 'Domain'] as $type => $label)
                 <button type="button"
                         onclick="cfmSetType('{{ $type }}')"
                         id="cfm-tab-{{ $type }}"

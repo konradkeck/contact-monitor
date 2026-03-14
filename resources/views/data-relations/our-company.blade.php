@@ -3,8 +3,6 @@
 
 @section('content')
 
-@php $activeTab = request('tab', 'members'); @endphp
-
 <div class="page-header">
     <div>
         <span class="page-title">Our Organization</span>
@@ -40,12 +38,8 @@
     @if($teamPeople->isNotEmpty())
         <div class="w-4/5 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
             @foreach($teamPeople as $person)
-                @php
-                    $emailId = $person->identities->firstWhere('type', 'email');
-                    $hash    = $emailId ? md5(strtolower(trim($emailId->value))) : md5('');
-                @endphp
                 <div class="flex items-center gap-3 px-4 py-3">
-                    <img src="https://www.gravatar.com/avatar/{{ $hash }}?d=identicon&s=80"
+                    <img src="https://www.gravatar.com/avatar/{{ md5(strtolower(trim($person->identities->firstWhere('type', 'email')?->value ?? ''))) }}?d=identicon&s=80"
                          class="w-9 h-9 rounded-full object-cover border border-gray-100 shrink-0">
                     <div class="flex-1 min-w-0">
                         <p class="font-semibold text-sm text-gray-800">{{ $person->full_name }}</p>

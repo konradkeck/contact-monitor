@@ -1,131 +1,25 @@
 {{--
     Shared timeline items partial.
     Parameters:
-      $activities      — collection of Activity models
+      $activities      — collection of Activity models (each has _display pre-computed)
       $nextCursor      — encoded cursor string or null
       $showPersonLink  — (bool) show person name link on company timeline
       $showCompanyLink — (bool) show company name link on person timeline
       $convSubjectMap  — (array) ticket extId → subject string (optional)
 --}}
 @foreach($activities as $activity)
-    @php
-        $url        = $activity->targetUrl();
-        $meta       = $activity->meta_json ?? [];
-        $isCustomer = $activity->direction() === 'customer';
-        $showPersonLink  = $showPersonLink ?? false;
-        $showCompanyLink = $showCompanyLink ?? false;
-        $chType  = $activity->conversationChannelType(); // email|ticket|discord|slack|null
-        $sysType = $meta['system_type'] ?? '';
-        $sysSlug = $meta['system_slug'] ?? '';
-        $convSubjectMap = $convSubjectMap ?? [];
-
-        // Tooltip for the channel badge: "{Type}: {system_slug}"
-        $badgeTitle = $chType ? (ucfirst($chType) . ': ' . $sysSlug) : null;
-
-        $mcType = $meta['mc_type'] ?? '';
-        $isMcTicket = in_array($mcType, ['Opened Ticket', 'Closed Ticket', 'Ticket Replied'], true);
-
-        // --- WHMCS-native ticket lookup ---
-        $convExtId   = $meta['conversation_external_id'] ?? '';
-        $convMapEntry = $convSubjectMap[$convExtId] ?? null; // ['id'=>…,'subject'=>…] or null
-        if (!$url && $convMapEntry) {
-            $url = '/conversations/' . $convMapEntry['id'];
-        }
-
-        // --- MetricsCube ticket lookup ---
-        $mcRelId    = $meta['relation_id'] ?? null;
-        $mcMapEntry = ($isMcTicket && $mcRelId) ? ($convSubjectMap['ticket_' . $mcRelId] ?? null) : null;
-        if ($isMcTicket && !$url && $mcMapEntry) {
-            $url = '/conversations/' . $mcMapEntry['id'];
-        }
-
-        // Build source label (shown left of the title, specific to integration)
-        $sourceLabel = null;
-        if ($chType === 'email') {
-            $sourceLabel = $meta['contact_email'] ?? null;
-        } elseif ($chType === 'discord' || $chType === 'slack') {
-            $sourceLabel = $meta['description'] ?? null; // already "#channelname"
-        } elseif ($chType === 'ticket') {
-            preg_match('/ticket_(\d+)/', $convExtId, $_tm);
-            $ticketNum = $_tm[1] ?? null;
-            $sourceLabel = null;
-        }
-
-        // Title text (clickable)
-        $titleText = null;
-        if ($chType === 'email') {
-            $titleText = $meta['subject'] ?? $meta['description'] ?? null;
-        } elseif ($chType === 'ticket') {
-            if ($isMcTicket) {
-                // MetricsCube: show subject only — no #id prefix, no customer name
-                if ($mcMapEntry) {
-                    $titleText = $mcMapEntry['subject'];
-                } else {
-                    // Fallback to description but strip leading customer name
-                    $desc     = $meta['description'] ?? null;
-                    $customer = trim($meta['customer'] ?? '');
-                    if ($desc && $customer && mb_stripos($desc, $customer) === 0) {
-                        $desc = trim(mb_substr($desc, mb_strlen($customer)));
-                        $desc = preg_replace('/^[\s\-–—]+/u', '', $desc);
-                    }
-                    $titleText = $desc;
-                }
-            } else {
-                // WHMCS-native: conversation_external_id = "ticket_NNN"
-                $subject   = $meta['subject'] ?? ($convMapEntry ? $convMapEntry['subject'] : null);
-                $titleText = $ticketNum
-                    ? ('#' . $ticketNum . ($subject ? ' — ' . $subject : ''))
-                    : ($subject ?? $meta['description'] ?? null);
-            }
-        } elseif ($chType === 'discord' || $chType === 'slack') {
-            $titleText = null; // channel name shown as sourceLabel; whole row is clickable
-        } else {
-            $titleText = $meta['description'] ?? $meta['text'] ?? $meta['subject'] ?? $meta['title'] ?? null;
-        }
-
-        // Modal URL for conversation preview
-        $modalDate = null;
-        if (in_array($chType, ['discord', 'slack'], true)) {
-            $modalDate = $activity->occurred_at->format('Y-m-d');
-        }
-        $modalUrl = ($url && preg_match('#^/conversations/(\d+)$#', $url))
-            ? $url . '/modal' . ($modalDate ? '?date=' . $modalDate : '')
-            : null;
-
-        // Discord/Slack: whole row is clickable
-        $rowClickable = in_array($chType, ['discord', 'slack'], true) && $modalUrl;
-
-        // "not found" indicator — only when we couldn't resolve the conversation
-        $ticketNotFound = null;
-        if ($isMcTicket && !$url) {
-            $ticketNotFound = $mcRelId;
-        } elseif ($chType === 'ticket' && !$url) {
-            preg_match('/ticket_(\d+)/', $convExtId, $_tm3);
-            $ticketNotFound = $_tm3[1] ?? null;
-        }
-
-        $useBadge = ($chType === null && $sysType !== 'metricscube')
-                 || ($chType === null && $sysType === 'metricscube' && !$isMcTicket);
-
-        // Hover tooltip: full title + "not found" notice (computed after $ticketNotFound)
-        $hoverText = $titleText ?? '';
-        if ($ticketNotFound !== null) {
-            $notFoundMsg = 'Cannot find corresponding ticket in WHMCS' . ($sysSlug ? ' ' . $sysSlug : '');
-            $hoverText   = ($hoverText !== '' ? $hoverText . "\n" : '') . $notFoundMsg;
-        }
-    @endphp
 
     {{-- LEFT cell (customer) --}}
     <div class="flex items-center justify-end py-1.5 pr-2">
-        @if($isCustomer)
+        @if($activity->_display->isCustomer)
             <div class="flex items-center gap-1.5 max-w-full group rounded-lg px-2 py-1 transition-colors min-w-0
-                        {{ $rowClickable ? 'hover:bg-gray-100 cursor-pointer' : 'hover:bg-gray-50' }}"
-                 @if($rowClickable) onclick="openActivityModal(this)" data-modal-src="{{ $modalUrl }}" @endif>
+                        {{ $activity->_display->rowClickable ? 'hover:bg-gray-100 cursor-pointer' : 'hover:bg-gray-50' }}"
+                 @if($activity->_display->rowClickable) onclick="openActivityModal(this)" data-modal-src="{{ $activity->_display->modalUrl }}" @endif>
 
                 {{-- Icon with tooltip --}}
-                @if($chType)
-                    <span @if($badgeTitle) title="{{ $badgeTitle }}" @endif class="shrink-0">
-                        <x-channel-badge :type="$chType" :label="false" />
+                @if($activity->_display->chType)
+                    <span @if($activity->_display->badgeTitle) title="{{ $activity->_display->badgeTitle }}" @endif class="shrink-0">
+                        <x-channel-badge :type="$activity->_display->chType" :label="false" />
                     </span>
                 @else
                     <span class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border {{ $activity->timelineColor() }} whitespace-nowrap">
@@ -134,37 +28,37 @@
                 @endif
 
                 {{-- Source label --}}
-                @if($sourceLabel)
-                    <span class="text-xs text-gray-400 shrink-0 font-mono truncate max-w-[120px]" title="{{ $sourceLabel }}">{{ $sourceLabel }}</span>
+                @if($activity->_display->sourceLabel)
+                    <span class="text-xs text-gray-400 shrink-0 font-mono truncate max-w-[120px]" title="{{ $activity->_display->sourceLabel }}">{{ $activity->_display->sourceLabel }}</span>
                 @endif
 
                 {{-- Title / main text --}}
-                @if($titleText)
-                    @if($modalUrl && !$rowClickable)
-                        <button type="button" data-modal-src="{{ $modalUrl }}"
+                @if($activity->_display->titleText)
+                    @if($activity->_display->modalUrl && !$activity->_display->rowClickable)
+                        <button type="button" data-modal-src="{{ $activity->_display->modalUrl }}"
                                 onclick="openActivityModal(this)"
                                 class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px] text-right cursor-pointer"
-                                title="{{ $hoverText }}">{{ $titleText }}</button>
-                    @elseif($ticketNotFound)
+                                title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</button>
+                    @elseif($activity->_display->ticketNotFound)
                         <span class="text-xs text-red-500 truncate max-w-[180px]"
-                              title="{{ $hoverText }}">{{ $titleText }}</span>
-                    @elseif($url && !$modalUrl)
-                        <a href="{{ $url }}" class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px] text-right" title="{{ $hoverText }}">{{ $titleText }}</a>
+                              title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</span>
+                    @elseif($activity->_display->url && !$activity->_display->modalUrl)
+                        <a href="{{ $activity->_display->url }}" class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px] text-right" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</a>
                     @else
-                        <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $hoverText }}">{{ $titleText }}</span>
+                        <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</span>
                     @endif
-                @elseif($ticketNotFound)
-                    <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $hoverText }}">#{{ $ticketNotFound }}</span>
+                @elseif($activity->_display->ticketNotFound)
+                    <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">#{{ $activity->_display->ticketNotFound }}</span>
                 @endif
 
                 <div class="flex-1 min-w-0"></div>
-                @if($showPersonLink && $activity->person)
+                @if(($showPersonLink ?? false) && $activity->person)
                     <a href="{{ route('people.show', $activity->person) }}"
                        class="text-xs text-brand-600 hover:underline shrink-0 max-w-[80px] truncate">
                         {{ $activity->person->full_name }}
                     </a>
                 @endif
-                @if($showCompanyLink && $activity->company)
+                @if(($showCompanyLink ?? false) && $activity->company)
                     <a href="{{ route('companies.show', $activity->company) }}"
                        class="text-xs text-brand-600 hover:underline shrink-0 max-w-[80px] truncate">
                         {{ $activity->company->name }}
@@ -174,8 +68,8 @@
                       title="{{ $activity->occurred_at->format('d M Y H:i') }}">
                     {{ $activity->occurred_at->diffForHumans(null, true, true) }}
                 </span>
-                @if(!$modalUrl && $url)
-                    <a href="{{ $url }}"
+                @if(!$activity->_display->modalUrl && $activity->_display->url)
+                    <a href="{{ $activity->_display->url }}"
                        class="opacity-20 group-hover:opacity-60 hover:!opacity-100 shrink-0 transition-opacity">
                         <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -194,15 +88,15 @@
 
     {{-- RIGHT cell (internal / our side) --}}
     <div class="flex items-center justify-start py-1.5 pl-2">
-        @if(!$isCustomer)
+        @if(!$activity->_display->isCustomer)
             <div class="flex items-center gap-1.5 max-w-full group rounded-lg px-2 py-1 transition-colors min-w-0
-                        {{ $rowClickable ? 'hover:bg-gray-100 cursor-pointer' : 'hover:bg-gray-50' }}"
-                 @if($rowClickable) onclick="openActivityModal(this)" data-modal-src="{{ $modalUrl }}" @endif>
+                        {{ $activity->_display->rowClickable ? 'hover:bg-gray-100 cursor-pointer' : 'hover:bg-gray-50' }}"
+                 @if($activity->_display->rowClickable) onclick="openActivityModal(this)" data-modal-src="{{ $activity->_display->modalUrl }}" @endif>
 
                 {{-- Icon with tooltip --}}
-                @if($chType)
-                    <span @if($badgeTitle) title="{{ $badgeTitle }}" @endif class="shrink-0">
-                        <x-channel-badge :type="$chType" :label="false" />
+                @if($activity->_display->chType)
+                    <span @if($activity->_display->badgeTitle) title="{{ $activity->_display->badgeTitle }}" @endif class="shrink-0">
+                        <x-channel-badge :type="$activity->_display->chType" :label="false" />
                     </span>
                 @else
                     <span class="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border {{ $activity->timelineColor() }} whitespace-nowrap">
@@ -211,37 +105,37 @@
                 @endif
 
                 {{-- Source label --}}
-                @if($sourceLabel)
-                    <span class="text-xs text-gray-400 shrink-0 font-mono truncate max-w-[120px]" title="{{ $sourceLabel }}">{{ $sourceLabel }}</span>
+                @if($activity->_display->sourceLabel)
+                    <span class="text-xs text-gray-400 shrink-0 font-mono truncate max-w-[120px]" title="{{ $activity->_display->sourceLabel }}">{{ $activity->_display->sourceLabel }}</span>
                 @endif
 
                 {{-- Title / main text --}}
-                @if($titleText)
-                    @if($modalUrl && !$rowClickable)
-                        <button type="button" data-modal-src="{{ $modalUrl }}"
+                @if($activity->_display->titleText)
+                    @if($activity->_display->modalUrl && !$activity->_display->rowClickable)
+                        <button type="button" data-modal-src="{{ $activity->_display->modalUrl }}"
                                 onclick="openActivityModal(this)"
                                 class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px] text-left cursor-pointer"
-                                title="{{ $hoverText }}">{{ $titleText }}</button>
-                    @elseif($ticketNotFound)
+                                title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</button>
+                    @elseif($activity->_display->ticketNotFound)
                         <span class="text-xs text-red-500 truncate max-w-[180px]"
-                              title="{{ $hoverText }}">{{ $titleText }}</span>
-                    @elseif($url && !$modalUrl)
-                        <a href="{{ $url }}" class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px]" title="{{ $hoverText }}">{{ $titleText }}</a>
+                              title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</span>
+                    @elseif($activity->_display->url && !$activity->_display->modalUrl)
+                        <a href="{{ $activity->_display->url }}" class="text-xs text-blue-600 hover:text-blue-800 truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</a>
                     @else
-                        <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $hoverText }}">{{ $titleText }}</span>
+                        <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">{{ $activity->_display->titleText }}</span>
                     @endif
-                @elseif($ticketNotFound)
-                    <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $hoverText }}">#{{ $ticketNotFound }}</span>
+                @elseif($activity->_display->ticketNotFound)
+                    <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $activity->_display->hoverText }}">#{{ $activity->_display->ticketNotFound }}</span>
                 @endif
 
                 <div class="flex-1 min-w-0"></div>
-                @if($showPersonLink && $activity->person)
+                @if(($showPersonLink ?? false) && $activity->person)
                     <a href="{{ route('people.show', $activity->person) }}"
                        class="text-xs text-brand-600 hover:underline shrink-0 max-w-[80px] truncate">
                         {{ $activity->person->full_name }}
                     </a>
                 @endif
-                @if($showCompanyLink && $activity->company)
+                @if(($showCompanyLink ?? false) && $activity->company)
                     <a href="{{ route('companies.show', $activity->company) }}"
                        class="text-xs text-brand-600 hover:underline shrink-0 max-w-[80px] truncate">
                         {{ $activity->company->name }}
@@ -251,8 +145,8 @@
                       title="{{ $activity->occurred_at->format('d M Y H:i') }}">
                     {{ $activity->occurred_at->diffForHumans(null, true, true) }}
                 </span>
-                @if(!$modalUrl && $url)
-                    <a href="{{ $url }}"
+                @if(!$activity->_display->modalUrl && $activity->_display->url)
+                    <a href="{{ $activity->_display->url }}"
                        class="opacity-20 group-hover:opacity-60 hover:!opacity-100 shrink-0 transition-opacity">
                         <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

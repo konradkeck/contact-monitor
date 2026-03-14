@@ -223,7 +223,31 @@ class PersonController extends Controller
             $person->last_conv = $lastMsgs->get($person->id);
         }
 
-        return view('people.index', compact('people', 'search', 'sort', 'dir', 'filteredCount', 'filteredReasons', 'showFiltered'));
+        $contactBadge = [
+            'ticket'       => 'bg-yellow-100 text-yellow-800',
+            'conversation' => 'bg-purple-100 text-purple-800',
+            'followup'     => 'bg-slate-100 text-slate-700',
+        ];
+
+        $sortLink = fn (string $col) =>
+            route('people.index', array_merge($request->query(), [
+                'sort' => $col,
+                'dir'  => ($sort === $col && $dir === 'asc') ? 'desc' : 'asc',
+            ]));
+        $sortIcon = fn (string $col) =>
+            $sort === $col ? ($dir === 'asc' ? "\u{2191}" : "\u{2193}") : "\u{2195}";
+
+        $channelBadge = [
+            'email'   => 'bg-sky-100 text-sky-700',
+            'ticket'  => 'bg-amber-100 text-amber-700',
+            'slack'   => 'bg-purple-100 text-purple-700',
+            'discord' => 'bg-indigo-100 text-indigo-700',
+        ];
+
+        return view('people.index', compact(
+            'people', 'search', 'sort', 'dir', 'filteredCount', 'filteredReasons', 'showFiltered',
+            'contactBadge', 'sortLink', 'sortIcon', 'channelBadge',
+        ));
     }
 
     public function create(): View
@@ -259,6 +283,7 @@ class PersonController extends Controller
             ->cursorPaginate(25);
 
         $convSubjectMap = $this->buildConvSubjectMap($timelinePage->items());
+        $this->prepareTimelineDisplay($timelinePage->items(), $convSubjectMap);
 
         // Conversations where this person appeared (sender via messages OR participant)
         $convGroups = collect(DB::select('
@@ -304,7 +329,25 @@ class PersonController extends Controller
 
         $backLink = $this->resolveBackLink($request);
 
-        return view('people.show', compact('person', 'notes', 'allCompanies', 'timelinePage', 'convSubjectMap', 'convGroups', 'convSystems', 'filteredConvCount', 'activityTypes', 'backLink'));
+        $initials = strtoupper(mb_substr($person->first_name, 0, 1) . mb_substr($person->last_name ?? '', 0, 1));
+
+        $typeColors = [
+            'payment'       => 'bg-green-400',
+            'renewal'       => 'bg-blue-400',
+            'cancellation'  => 'bg-red-500',
+            'ticket'        => 'bg-yellow-400',
+            'conversation'  => 'bg-purple-400',
+            'note'          => 'bg-gray-400',
+            'status_change' => 'bg-slate-300',
+            'campaign_run'  => 'bg-slate-300',
+            'followup'      => 'bg-slate-300',
+        ];
+
+        return view('people.show', compact(
+            'person', 'notes', 'allCompanies', 'timelinePage', 'convSubjectMap',
+            'convGroups', 'convSystems', 'filteredConvCount', 'activityTypes', 'backLink',
+            'initials', 'typeColors',
+        ));
     }
 
     public function timeline(Request $request, Person $person)
@@ -347,10 +390,12 @@ class PersonController extends Controller
         }
 
         $page = $query->cursorPaginate(25, ['*'], 'cursor', $request->get('cursor'));
+        $convSubjectMap = $this->buildConvSubjectMap($page->items());
+        $this->prepareTimelineDisplay($page->items(), $convSubjectMap);
 
         return view('people.partials.timeline-items', [
             'activities' => $page->items(),
-            'convSubjectMap' => $this->buildConvSubjectMap($page->items()),
+            'convSubjectMap' => $convSubjectMap,
             'nextCursor' => $page->nextCursor()?->encode(),
         ]);
     }

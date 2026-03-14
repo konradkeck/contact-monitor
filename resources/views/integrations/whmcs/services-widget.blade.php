@@ -2,20 +2,6 @@
     WHMCS services widget panel.
     Variables: $sys (array), $slug (string)
 --}}
-@php
-    $typeColors = [
-        'payment'       => 'bg-green-400',
-        'renewal'       => 'bg-blue-400',
-        'cancellation'  => 'bg-red-500',
-        'ticket'        => 'bg-yellow-400',
-        'conversation'  => 'bg-purple-400',
-        'note'          => 'bg-gray-400',
-        'status_change' => 'bg-slate-300',
-        'campaign_run'  => 'bg-slate-300',
-        'followup'      => 'bg-slate-300',
-    ];
-@endphp
-
 {{-- KPI row --}}
 <div class="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
     <div class="px-5 py-4">
@@ -50,25 +36,15 @@
     </thead>
     <tbody class="divide-y divide-gray-50">
         @foreach($sys['services'] as $svc)
-            @php
-                $st = strtolower($svc['status'] ?? '');
-                [$stBadge, $stDot] = match($st) {
-                    'active'    => ['bg-green-100 text-green-700',  'bg-green-400'],
-                    'pending'   => ['bg-yellow-100 text-yellow-700','bg-yellow-400'],
-                    'suspended' => ['bg-red-100 text-red-600',      'bg-red-400'],
-                    default     => ['bg-gray-100 text-gray-500',    'bg-gray-300'],
-                };
-                $startDate = $svc['start_date'] ? \Carbon\Carbon::parse($svc['start_date'])->format('M Y') : '—';
-            @endphp
             <tr class="hover:bg-gray-50/60">
                 <td class="px-5 py-2.5 font-medium text-gray-800">{{ $svc['product_name'] ?? '—' }}</td>
                 <td class="px-3 py-2.5">
-                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium {{ $stBadge }}">
-                        <span class="w-1.5 h-1.5 rounded-full {{ $stDot }}"></span>
+                    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium {{ match(strtolower($svc['status'] ?? '')) { 'active' => 'bg-green-100 text-green-700', 'pending' => 'bg-yellow-100 text-yellow-700', 'suspended' => 'bg-red-100 text-red-600', default => 'bg-gray-100 text-gray-500' } }}">
+                        <span class="w-1.5 h-1.5 rounded-full {{ match(strtolower($svc['status'] ?? '')) { 'active' => 'bg-green-400', 'pending' => 'bg-yellow-400', 'suspended' => 'bg-red-400', default => 'bg-gray-300' } }}"></span>
                         {{ ucfirst($svc['status'] ?? '—') }}
                     </span>
                 </td>
-                <td class="px-3 py-2.5 text-xs text-gray-500">{{ $startDate }}</td>
+                <td class="px-3 py-2.5 text-xs text-gray-500">{{ $svc['start_date'] ? \Carbon\Carbon::parse($svc['start_date'])->format('M Y') : '—' }}</td>
                 <td class="px-3 py-2.5 text-xs text-gray-500 text-right tabular-nums">{{ $svc['renewal_count'] ?? 0 }}×</td>
                 <td class="px-5 py-2.5 text-right font-semibold text-gray-800 tabular-nums">
                     ${{ number_format((float)($svc['total_revenue'] ?? 0), 2) }}

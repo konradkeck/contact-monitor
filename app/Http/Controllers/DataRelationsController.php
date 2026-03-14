@@ -113,7 +113,13 @@ class DataRelationsController extends Controller
                 return $row;
             });
 
-        return view('data-relations.index', compact('stats', 'accountSystems', 'identitySystems'));
+        $cards = [
+            ['label' => 'Conversations without company', 'value' => $stats['conversations_no_company'], 'total' => $stats['total_conversations']],
+            ['label' => 'Accounts without company',      'value' => $stats['accounts_no_company'],      'total' => $stats['total_accounts']],
+            ['label' => 'Identities without person',     'value' => $stats['identities_no_person'],     'total' => $stats['total_identities']],
+        ];
+
+        return view('data-relations.index', compact('stats', 'accountSystems', 'identitySystems', 'cards'));
     }
 
     // ─── Mapping overview (configuration/mapping) ────────────────────────────
@@ -265,10 +271,74 @@ class DataRelationsController extends Controller
             ];
         }
 
+        $hasTabs      = $conversationStats !== null;
+        $hasWhmcsTabs = $isAccountSystem && $unregisteredStats !== null;
+        $activeTab    = $request->input('tab', $hasWhmcsTabs ? 'clients' : 'people');
+        $activeView   = $request->input('view', 'unlinked');
+
+        // Pre-compute filter modal URLs on each account
+        if ($isAccountSystem) {
+            $filterRoute = route('filtering.identity-filter-modal');
+            foreach ([$unlinked, $linked] as $collection) {
+                foreach ($collection as $account) {
+                    $meta    = $account->meta_json ?? [];
+                    $acEmail = strtolower(trim($meta['email'] ?? ''));
+                    $acName  = $meta['company_name'] ?? $account->external_id;
+                    $account->filter_url = $filterRoute . '?' . http_build_query(array_filter([
+                        'email'  => $acEmail,
+                        'domain' => $acEmail ? substr(strrchr($acEmail, '@'), 1) : '',
+                        'name'   => $acName,
+                    ]));
+                }
+            }
+        }
+
+        // Pre-compute filter modal URLs and avatar data on each identity (for non-account systems)
+        if (! $isAccountSystem) {
+            $filterRoute = route('filtering.identity-filter-modal');
+            foreach ([$unlinked, $linked] as $collection) {
+                foreach ($collection as $identity) {
+                    $gEmail = $identity->type === 'email' ? $identity->value : ($identity->meta_json['email_hint'] ?? null);
+                    $identity->gravatar_hash = $gEmail ? md5(strtolower(trim($gEmail))) : null;
+                    $identity->sys_avatar = null;
+                    if (! empty($identity->meta_json['avatar'])) {
+                        if (in_array($identity->type, ['discord_user', 'discord_id'])) {
+                            $identity->sys_avatar = 'https://cdn.discordapp.com/avatars/' . $identity->value_normalized . '/' . $identity->meta_json['avatar'] . '.webp?size=40';
+                        } elseif ($identity->type === 'slack_user') {
+                            $identity->sys_avatar = $identity->meta_json['avatar'];
+                        }
+                    }
+                    $idFmEmail  = $gEmail ?? '';
+                    $idFmDomain = $idFmEmail ? substr(strrchr($idFmEmail, '@'), 1) : '';
+                    $idFmName   = $identity->meta_json['display_name'] ?? $identity->value;
+                    $identity->filter_url = $filterRoute . '?' . http_build_query(array_filter([
+                        'email'  => $idFmEmail,
+                        'domain' => $idFmDomain,
+                        'name'   => $idFmName,
+                    ]));
+                    $identity->has_filter_data = (bool) ($idFmEmail || $idFmDomain);
+                }
+            }
+        }
+
+        // Pre-compute filter URL and gravatar on unregistered users
+        if ($isAccountSystem && $unregisteredUsers->isNotEmpty()) {
+            $filterRoute = route('filtering.identity-filter-modal');
+            foreach ($unregisteredUsers as $identity) {
+                $identity->gravatar_hash = md5(strtolower(trim($identity->value)));
+                $identity->filter_url = $filterRoute . '?' . http_build_query(array_filter([
+                    'email'  => $identity->value,
+                    'domain' => substr(strrchr($identity->value, '@'), 1),
+                    'name'   => $identity->meta_json['display_name'] ?? '',
+                ]));
+            }
+        }
+
         return view('data-relations.mapping', compact(
             'systemType', 'systemSlug', 'isAccountSystem', 'stats', 'unlinked', 'linked',
             'conversations', 'conversationStats',
-            'identitiesByExtId', 'unregisteredUsers', 'unregisteredStats'
+            'identitiesByExtId', 'unregisteredUsers', 'unregisteredStats',
+            'hasTabs', 'hasWhmcsTabs', 'activeTab', 'activeView'
         ));
     }
 

@@ -84,10 +84,10 @@ class SynchronizerController extends Controller
             $whmcsConnections = collect();
         }
 
-        return view('synchronizer.form', [
-            'conn' => null,
-            'whmcsConnections' => $whmcsConnections,
-        ]);
+        return view('synchronizer.form', array_merge(
+            $this->formViewData(null),
+            ['whmcsConnections' => $whmcsConnections],
+        ));
     }
 
     public function store(\Illuminate\Http\Request $request)
@@ -123,7 +123,10 @@ class SynchronizerController extends Controller
             abort(404);
         }
 
-        return view('synchronizer.form', compact('conn', 'whmcsConnections'));
+        return view('synchronizer.form', array_merge(
+            $this->formViewData($conn),
+            ['whmcsConnections' => $whmcsConnections],
+        ));
     }
 
     public function update(\Illuminate\Http\Request $request, string $id)
@@ -164,6 +167,31 @@ class SynchronizerController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['api' => $e->getMessage()]);
         }
+    }
+
+    private function formViewData(?array $conn): array
+    {
+        $isEdit = !is_null($conn);
+        $action = $isEdit
+            ? route('synchronizer.connections.update', $conn['id'])
+            : route('synchronizer.connections.store');
+        $s    = $conn['settings'] ?? [];
+        $type = old('type', $conn['type'] ?? 'whmcs');
+
+        $v   = fn (string $key, mixed $default = '') => old($key, data_get($conn, $key, $default));
+        $sv  = fn (string $key, mixed $default = '') => old("settings.$key", $s[$key] ?? $default);
+        $arr = fn (string $key) => implode("\n", (array) (old("settings.$key", $s[$key] ?? [])));
+
+        $integrations = [
+            'whmcs'       => 'WHMCS',
+            'gmail'       => 'Gmail',
+            'imap'        => 'IMAP Email',
+            'metricscube' => 'MetricsCube',
+            'discord'     => 'Discord',
+            'slack'       => 'Slack',
+        ];
+
+        return compact('conn', 'isEdit', 'action', 'type', 'v', 'sv', 'arr', 'integrations');
     }
 
     private function buildPayload(\Illuminate\Http\Request $request): array

@@ -1,14 +1,6 @@
 @extends('layouts.app')
 @section('title', "{$systemSlug} — Mapping")
 
-@php
-    $hasTabs    = $conversationStats !== null; // Discord / Slack
-    $hasWhmcsTabs = $isAccountSystem && $unregisteredStats !== null;
-    $activeTab  = request('tab', $hasWhmcsTabs ? 'clients' : 'people');
-    $activeView = request('view', 'unlinked');
-    $q          = request('q', '');
-@endphp
-
 @section('content')
 
 {{-- ─── PAGE HEADER ─── --}}
@@ -32,33 +24,25 @@
 @if($hasTabs || $hasWhmcsTabs)
 <div class="flex gap-0 border-b border-gray-200 mb-6">
     @if($hasWhmcsTabs)
-        @php
-            $whmcsTabs = [
-                'clients'      => ['label' => 'Clients & Contacts', 'count' => $stats['unlinked']],
-                'unregistered' => ['label' => 'Unregistered Users',  'count' => $unregisteredStats['unlinked']],
-            ];
-        @endphp
-        @foreach($whmcsTabs as $tabKey => $tab)
-            @php $isActive = $activeTab === $tabKey; @endphp
+        @foreach(['clients' => ['label' => 'Clients & Contacts', 'count' => $stats['unlinked']], 'unregistered' => ['label' => 'Unregistered Users', 'count' => $unregisteredStats['unlinked']]] as $tabKey => $tab)
             <a href="{{ request()->fullUrlWithQuery(['tab' => $tabKey, 'view' => 'unlinked', 'q' => '']) }}"
                class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
-                      {{ $isActive ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                      {{ $activeTab === $tabKey ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 {{ $tab['label'] }}
                 @if($tab['count'] > 0)
-                    <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-xs {{ $isActive ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700' }}">{{ $tab['count'] }}</span>
+                    <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-xs {{ $activeTab === $tabKey ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700' }}">{{ $tab['count'] }}</span>
                 @endif
             </a>
         @endforeach
     @endif
     @if($hasTabs)
         @foreach(['people' => ['label' => 'People', 'count' => $stats['unlinked']], 'channels' => ['label' => 'Channels', 'count' => $conversationStats['unlinked']]] as $tabKey => $tab)
-            @php $isActive = $activeTab === $tabKey; @endphp
             <a href="{{ request()->fullUrlWithQuery(['tab' => $tabKey, 'view' => 'unlinked', 'q' => '']) }}"
                class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
-                      {{ $isActive ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                      {{ $activeTab === $tabKey ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 {{ $tab['label'] }}
                 @if($tab['count'] > 0)
-                    <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-xs {{ $isActive ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700' }}">{{ $tab['count'] }}</span>
+                    <span class="ml-1.5 px-1.5 py-0.5 rounded-full text-xs {{ $activeTab === $tabKey ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700' }}">{{ $tab['count'] }}</span>
                 @endif
             </a>
         @endforeach
@@ -107,36 +91,29 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($unlinked as $account)
-                    @php
-                        $meta       = $account->meta_json ?? [];
-                        $acEmail    = strtolower(trim($meta['email'] ?? ''));
-                        $acName     = $meta['company_name'] ?? $account->external_id;
-                        $acFmUrl    = route('filtering.identity-filter-modal') . '?' . http_build_query(array_filter(['email' => $acEmail, 'domain' => $acEmail ? substr(strrchr($acEmail, '@'), 1) : '', 'name' => $acName]));
-                        $acContacts = $identitiesByExtId->get((string) $account->external_id, collect());
-                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2.5 font-mono text-xs text-gray-500 truncate">{{ $account->external_id }}</td>
-                        <td class="px-4 py-2.5 text-gray-800 truncate">{{ $meta['company_name'] ?? '—' }}</td>
-                        <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ $meta['email'] ?? '—' }}</td>
+                        <td class="px-4 py-2.5 text-gray-800 truncate">{{ ($account->meta_json ?? [])['company_name'] ?? '—' }}</td>
+                        <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ ($account->meta_json ?? [])['email'] ?? '—' }}</td>
                         @if($systemType === 'whmcs')
-                            <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ $meta['phone'] ?? '—' }}</td>
-                            <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ $meta['country'] ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ ($account->meta_json ?? [])['phone'] ?? '—' }}</td>
+                            <td class="px-4 py-2.5 text-gray-500 text-xs truncate">{{ ($account->meta_json ?? [])['country'] ?? '—' }}</td>
                         @endif
                         <td class="px-4 py-2.5 flex items-center gap-2">
                             @include('data-relations._ac-company', ['action' => route('data-relations.accounts.link', $account)])
                             <button type="button"
-                                    onclick="openActivityModal({ dataset: { modalSrc: '{{ $acFmUrl }}' } })"
+                                    onclick="openActivityModal({ dataset: { modalSrc: '{{ $account->filter_url }}' } })"
                                     class="btn btn-sm btn-danger shrink-0">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
                                 Filter
                             </button>
                         </td>
                     </tr>
-                    @if($acContacts->isNotEmpty())
+                    @if($identitiesByExtId->get((string) $account->external_id, collect())->isNotEmpty())
                     <tr class="bg-gray-50 border-t-0">
                         <td colspan="{{ $systemType === 'whmcs' ? 6 : 4 }}" class="pr-6 pb-2 pt-0" style="padding-left:50px">
                             <div class="divide-y divide-gray-100">
-                                @foreach($acContacts as $contact)
+                                @foreach($identitiesByExtId->get((string) $account->external_id, collect()) as $contact)
                                 <div class="grid items-center gap-x-3 py-1.5 text-xs" style="grid-template-columns:260px 180px 1fr 90px">
                                     <span class="font-mono text-gray-500 truncate">{{ $contact->value }}</span>
                                     <span class="text-gray-500 truncate">{{ $contact->meta_json['display_name'] ?? '—' }}</span>
@@ -194,13 +171,9 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($linked as $account)
-                    @php
-                        $meta       = $account->meta_json ?? [];
-                        $acContacts = $identitiesByExtId->get((string) $account->external_id, collect());
-                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2.5 font-mono text-xs text-gray-500 truncate">{{ $account->external_id }}</td>
-                        @if($systemType === 'whmcs')<td class="px-4 py-2.5 text-gray-600 text-xs truncate">{{ $meta['company_name'] ?? '—' }}</td>@endif
+                        @if($systemType === 'whmcs')<td class="px-4 py-2.5 text-gray-600 text-xs truncate">{{ ($account->meta_json ?? [])['company_name'] ?? '—' }}</td>@endif
                         <td class="px-4 py-2.5">
                             <div class="flex items-center gap-2">
                                 <a href="{{ route('companies.show', $account->company) }}" class="text-brand-700 hover:underline font-medium">{{ $account->company->name }}</a>
@@ -211,11 +184,11 @@
                             </div>
                         </td>
                     </tr>
-                    @if($acContacts->isNotEmpty())
+                    @if($identitiesByExtId->get((string) $account->external_id, collect())->isNotEmpty())
                     <tr class="bg-gray-50 border-t-0">
                         <td colspan="{{ $systemType === 'whmcs' ? 3 : 2 }}" class="pr-6 pb-2 pt-0" style="padding-left:50px">
                             <div class="divide-y divide-gray-100">
-                                @foreach($acContacts as $contact)
+                                @foreach($identitiesByExtId->get((string) $account->external_id, collect()) as $contact)
                                 <div class="grid items-center gap-x-3 py-1.5 text-xs" style="grid-template-columns:260px 180px 1fr 90px">
                                     <span class="font-mono text-gray-500 truncate">{{ $contact->value }}</span>
                                     <span class="text-gray-500 truncate">{{ $contact->meta_json['display_name'] ?? '—' }}</span>
@@ -276,19 +249,11 @@
         </thead>
         <tbody class="divide-y divide-gray-100">
             @foreach($unregisteredUsers as $identity)
-            @php
-                $gHash  = md5(strtolower(trim($identity->value)));
-                $idFmUrl = route('filtering.identity-filter-modal') . '?' . http_build_query(array_filter([
-                    'email'  => $identity->value,
-                    'domain' => substr(strrchr($identity->value, '@'), 1),
-                    'name'   => $identity->meta_json['display_name'] ?? '',
-                ]));
-            @endphp
             <tr class="hover:bg-gray-50">
                 <td class="px-4 py-2.5 font-mono text-xs text-gray-700">{{ $identity->value }}</td>
                 <td class="px-4 py-2.5">
                     <div class="flex items-center gap-2">
-                        <img src="https://www.gravatar.com/avatar/{{ $gHash }}?d=identicon&s=40"
+                        <img src="https://www.gravatar.com/avatar/{{ $identity->gravatar_hash }}?d=identicon&s=40"
                              class="w-6 h-6 rounded-full object-cover shrink-0">
                         <span class="text-gray-600 text-xs">{{ $identity->meta_json['display_name'] ?? '—' }}</span>
                     </div>
@@ -316,7 +281,7 @@
                         </form>
                         @if(!$identity->person)
                             <button type="button"
-                                    onclick="openActivityModal({ dataset: { modalSrc: '{{ $idFmUrl }}' } })"
+                                    onclick="openActivityModal({ dataset: { modalSrc: '{{ $identity->filter_url }}' } })"
                                     class="btn btn-sm btn-danger">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
                                 Filter
@@ -365,31 +330,15 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($unlinked as $identity)
-                    @php
-                        $gEmail = $identity->type === 'email' ? $identity->value : ($identity->meta_json['email_hint'] ?? null);
-                        $gHash  = $gEmail ? md5(strtolower(trim($gEmail))) : null;
-                        $sysAvatar = null;
-                        if (!empty($identity->meta_json['avatar'])) {
-                            if (in_array($identity->type, ['discord_user', 'discord_id'])) {
-                                $sysAvatar = 'https://cdn.discordapp.com/avatars/' . $identity->value_normalized . '/' . $identity->meta_json['avatar'] . '.webp?size=40';
-                            } elseif ($identity->type === 'slack_user') {
-                                $sysAvatar = $identity->meta_json['avatar'];
-                            }
-                        }
-                        $idFmEmail  = $gEmail ?? '';
-                        $idFmDomain = $idFmEmail ? substr(strrchr($idFmEmail, '@'), 1) : '';
-                        $idFmName   = $identity->meta_json['display_name'] ?? $identity->value;
-                        $idFmUrl    = route('filtering.identity-filter-modal') . '?' . http_build_query(array_filter(['email' => $idFmEmail, 'domain' => $idFmDomain, 'name' => $idFmName]));
-                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2.5 font-mono text-xs text-gray-700">{{ $identity->value }}</td>
                         <td class="px-4 py-2.5">
                             <div class="flex items-center gap-2">
-                                @if($sysAvatar)
-                                    <img src="{{ $sysAvatar }}"
+                                @if($identity->sys_avatar)
+                                    <img src="{{ $identity->sys_avatar }}"
                                          class="w-6 h-6 rounded-full object-cover shrink-0">
-                                @elseif($gHash)
-                                    <img src="https://www.gravatar.com/avatar/{{ $gHash }}?d=identicon&s=40"
+                                @elseif($identity->gravatar_hash)
+                                    <img src="https://www.gravatar.com/avatar/{{ $identity->gravatar_hash }}?d=identicon&s=40"
                                          class="w-6 h-6 rounded-full object-cover shrink-0">
                                 @endif
                                 <span class="text-gray-600 text-xs">{{ $identity->meta_json['display_name'] ?? '—' }}</span>
@@ -411,9 +360,9 @@
                                         Our Org
                                     </button>
                                 </form>
-                                @if($idFmEmail || $idFmDomain)
+                                @if($identity->has_filter_data)
                                     <button type="button"
-                                            onclick="openActivityModal({ dataset: { modalSrc: '{{ $idFmUrl }}' } })"
+                                            onclick="openActivityModal({ dataset: { modalSrc: '{{ $identity->filter_url }}' } })"
                                             class="btn btn-sm btn-danger">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
                                         Filter
@@ -446,27 +395,15 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($linked as $identity)
-                    @php
-                        $gEmail = $identity->type === 'email' ? $identity->value : ($identity->meta_json['email_hint'] ?? null);
-                        $gHash  = $gEmail ? md5(strtolower(trim($gEmail))) : null;
-                        $sysAvatar = null;
-                        if (!empty($identity->meta_json['avatar'])) {
-                            if (in_array($identity->type, ['discord_user', 'discord_id'])) {
-                                $sysAvatar = 'https://cdn.discordapp.com/avatars/' . $identity->value_normalized . '/' . $identity->meta_json['avatar'] . '.webp?size=40';
-                            } elseif ($identity->type === 'slack_user') {
-                                $sysAvatar = $identity->meta_json['avatar'];
-                            }
-                        }
-                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2.5 font-mono text-xs text-gray-600">{{ $identity->value }}</td>
                         <td class="px-4 py-2.5">
                             <div class="flex items-center gap-2">
-                                @if($sysAvatar)
-                                    <img src="{{ $sysAvatar }}"
+                                @if($identity->sys_avatar)
+                                    <img src="{{ $identity->sys_avatar }}"
                                          class="w-6 h-6 rounded-full object-cover shrink-0">
-                                @elseif($gHash)
-                                    <img src="https://www.gravatar.com/avatar/{{ $gHash }}?d=identicon&s=40"
+                                @elseif($identity->gravatar_hash)
+                                    <img src="https://www.gravatar.com/avatar/{{ $identity->gravatar_hash }}?d=identicon&s=40"
                                          class="w-6 h-6 rounded-full object-cover shrink-0">
                                 @endif
                                 <span class="text-gray-500 text-xs">{{ $identity->meta_json['display_name'] ?? '—' }}</span>

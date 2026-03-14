@@ -1,9 +1,3 @@
-@props(['notes', 'linkableType', 'linkableId', 'entityName' => ''])
-@php
-    $popupId  = "notes-popup-{$linkableType}-{$linkableId}";
-    $hasNotes = $notes->isNotEmpty();
-@endphp
-
 {{-- Popup (fixed — unaffected by parent overflow:hidden or form context) --}}
 <div id="{{ $popupId }}"
      class="fixed inset-0 z-50 hidden"
@@ -38,6 +32,7 @@
             <p class="px-4 py-3 text-sm text-yellow-600 italic">No notes yet.</p>
         @endif
 
+        @can('notes_write')
         <div class="px-4 py-3 border-t border-yellow-100 shrink-0">
             <form action="{{ route('notes.store') }}" method="POST">
                 @csrf
@@ -52,6 +47,7 @@
                                font-semibold text-xs rounded-lg transition">+ Add note</button>
             </form>
         </div>
+        @endcan
 
     </div>
 </div>

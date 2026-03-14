@@ -2,72 +2,6 @@
 @section('title', $person->full_name)
 
 @section('content')
-@php
-    $identityIcons = [
-        'email' => [
-            'stroke' => true,
-            'd'      => 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
-            'cls'    => 'bg-sky-100 text-sky-700',
-            'href'   => fn($v) => "mailto:{$v}",
-            'title'  => 'Email',
-        ],
-        'slack_id' => [
-            'stroke' => false,
-            'd'      => 'M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z',
-            'style'  => 'background:#4A154B',
-            'cls'    => 'text-white',
-            'href'   => null,
-            'title'  => 'Slack',
-        ],
-        'slack_user' => [
-            'stroke' => false,
-            'd'      => 'M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z',
-            'style'  => 'background:#4A154B',
-            'cls'    => 'text-white',
-            'href'   => null,
-            'title'  => 'Slack',
-        ],
-        'discord_id' => [
-            'stroke' => false,
-            'd'      => 'M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.01.04.028.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z',
-            'style'  => 'background:#5865F2',
-            'cls'    => 'text-white',
-            'href'   => null,
-            'title'  => 'Discord',
-        ],
-        'discord_user' => [
-            'stroke' => false,
-            'd'      => 'M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.01.04.028.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z',
-            'style'  => 'background:#5865F2',
-            'cls'    => 'text-white',
-            'href'   => null,
-            'title'  => 'Discord',
-        ],
-        'phone' => [
-            'stroke' => true,
-            'd'      => 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z',
-            'cls'    => 'bg-green-100 text-green-700',
-            'href'   => fn($v) => "tel:{$v}",
-            'title'  => 'Phone',
-        ],
-        'linkedin' => [
-            'stroke' => false,
-            'd'      => 'M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z',
-            'cls'    => 'bg-sky-50 text-sky-700',
-            'href'   => fn($v) => str_starts_with($v, 'http') ? $v : "https://linkedin.com/in/{$v}",
-            'title'  => 'LinkedIn',
-        ],
-        'twitter' => [
-            'stroke' => false,
-            'd'      => 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z',
-            'cls'    => 'bg-gray-100 text-gray-800',
-            'href'   => fn($v) => "https://x.com/{$v}",
-            'title'  => 'Twitter/X',
-        ],
-    ];
-
-    $initials = strtoupper(mb_substr($person->first_name, 0, 1) . mb_substr($person->last_name ?? '', 0, 1));
-@endphp
 
 {{-- ── POPUP: Link company ── --}}
 @if($allCompanies->isNotEmpty())
@@ -108,6 +42,7 @@
 @endif
 
 {{-- ── POPUP: Add identity ── --}}
+@can('data_write')
 <div id="popup-add-identity"
      class="fixed inset-0 z-50 hidden"
      onclick="if(event.target===this)this.classList.add('hidden')">
@@ -142,6 +77,7 @@
         </form>
     </div>
 </div>
+@endcan
 
 {{-- ── PAGE HEADER ── --}}
 <div class="flex items-start justify-between mb-5">
@@ -160,6 +96,7 @@
                 onclick="showPersonFilterModal()"
                 class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-red-500 transition"
                 title="Filtered">🚫 Filter</button>
+        @can('data_write')
         @if(!$person->is_our_org)
         <button type="button" id="mark-our-org-btn"
                 onclick="markPersonOurOrg()"
@@ -171,6 +108,7 @@
                 class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-brand-600 transition">
             Assign company</button>
         <a href="{{ route('people.edit', $person) }}" class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50">Edit</a>
+        @endcan
     </div>
 </div>
 
@@ -230,10 +168,12 @@
                                         <span class="text-xs text-gray-400">{{ $company->pivot->role }}</span>
                                     @endif
                                 </div>
+                                @can('data_write')
                                 <form action="{{ route('people.companies.unlink', [$person, $company]) }}" method="POST" class="shrink-0 mt-0.5">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="text-xs text-red-400 hover:text-red-600">✕</button>
                                 </form>
+                                @endcan
                             </li>
                         @endforeach
                     </ul>
@@ -246,68 +186,41 @@
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                 <h3 class="font-semibold text-gray-800 text-sm">Identities</h3>
+                @can('data_write')
                 <button onclick="document.getElementById('popup-add-identity').classList.remove('hidden')"
                         class="text-xs font-medium text-brand-600 hover:text-brand-700 border border-brand-200
                                hover:border-brand-400 px-3 py-1 rounded-full transition">
                     + Add
                 </button>
+                @endcan
             </div>
             @if($person->identities->isEmpty())
                 <p class="px-4 py-4 text-sm text-gray-400 italic">No identities yet.</p>
             @else
                 <ul class="divide-y divide-gray-50">
                     @foreach($person->identities as $identity)
-                        @php
-                            $cfg  = $identityIcons[$identity->type] ?? null;
-                            $href = ($cfg && is_callable($cfg['href'] ?? null)) ? ($cfg['href'])($identity->value) : null;
-                        @endphp
                         <li class="px-4 py-2 flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2 min-w-0">
-                                @if($cfg)
-                                    @if($href)
-                                        <a href="{{ $href }}" target="_blank" rel="noopener"
-                                           title="{{ $cfg['title'] }}"
-                                           class="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 {{ $cfg['cls'] }}"
-                                           @if($cfg['style'] ?? null) style="{{ $cfg['style'] }}" @endif>
-                                            <svg class="w-3 h-3" @if($cfg['stroke']) fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" @else fill="currentColor" @endif viewBox="0 0 24 24">
-                                                <path d="{{ $cfg['d'] }}"/>
-                                            </svg>
-                                        </a>
-                                    @else
-                                        <span title="{{ $cfg['title'] }}"
-                                              class="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 {{ $cfg['cls'] }}"
-                                              @if($cfg['style'] ?? null) style="{{ $cfg['style'] }}" @endif>
-                                            <svg class="w-3 h-3" @if($cfg['stroke']) fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" @else fill="currentColor" @endif viewBox="0 0 24 24">
-                                                <path d="{{ $cfg['d'] }}"/>
-                                            </svg>
-                                        </span>
-                                    @endif
+                                @if(isset(\App\View\Components\IdentityIcon::getMap()[$identity->type]))
+                                    <x-identity-icon :type="$identity->type" :value="$identity->value" />
                                 @else
                                     <span class="text-xs text-gray-400 shrink-0 w-5 text-center">?</span>
                                 @endif
-                                @php
-                                    $showRawValue = !in_array($identity->type, ['discord_user', 'discord_id', 'slack_user'])
-                                        || empty($identity->meta_json['display_name']);
-                                    $avatarSrcId = null;
-                                    if (!empty($identity->meta_json['avatar'])) {
-                                        if (in_array($identity->type, ['discord_user', 'discord_id'])) {
-                                            $avatarSrcId = 'https://cdn.discordapp.com/avatars/' . $identity->value_normalized . '/' . $identity->meta_json['avatar'] . '.webp?size=32';
-                                        } elseif ($identity->type === 'slack_user') {
-                                            $avatarSrcId = $identity->meta_json['avatar'];
-                                        }
-                                    }
-                                @endphp
-                                @if($avatarSrcId)
-                                    <img src="{{ $avatarSrcId }}"
+                                @if(!empty($identity->meta_json['avatar']) && in_array($identity->type, ['discord_user', 'discord_id']))
+                                    <img src="https://cdn.discordapp.com/avatars/{{ $identity->value_normalized }}/{{ $identity->meta_json['avatar'] }}.webp?size=32"
+                                         class="w-5 h-5 rounded-full shrink-0 ring-1 ring-gray-200"
+                                         alt="avatar">
+                                @elseif(!empty($identity->meta_json['avatar']) && $identity->type === 'slack_user')
+                                    <img src="{{ $identity->meta_json['avatar'] }}"
                                          class="w-5 h-5 rounded-full shrink-0 ring-1 ring-gray-200"
                                          alt="avatar">
                                 @endif
                                 @if(!empty($identity->meta_json['display_name']))
                                     <span class="text-xs text-gray-700 truncate font-medium">{{ $identity->meta_json['display_name'] }}</span>
                                 @endif
-                                @if($showRawValue)
-                                    @if($href)
-                                        <a href="{{ $href }}" target="_blank" rel="noopener"
+                                @if(!in_array($identity->type, ['discord_user', 'discord_id', 'slack_user']) || empty($identity->meta_json['display_name']))
+                                    @if(\App\View\Components\IdentityIcon::hrefFor($identity->type, $identity->value))
+                                        <a href="{{ \App\View\Components\IdentityIcon::hrefFor($identity->type, $identity->value) }}" target="_blank" rel="noopener"
                                            class="font-mono text-xs text-brand-700 hover:underline truncate">{{ $identity->value }}</a>
                                     @else
                                         <span class="font-mono text-xs text-gray-600 truncate">{{ $identity->value }}</span>
@@ -317,10 +230,12 @@
                                     <x-badge color="gray">{{ $identity->system_slug }}</x-badge>
                                 @endif
                             </div>
+                            @can('data_write')
                             <form action="{{ route('people.identities.destroy', [$person, $identity]) }}" method="POST" class="shrink-0">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="text-xs text-red-400 hover:text-red-600">✕</button>
                             </form>
+                            @endcan
                         </li>
                     @endforeach
                 </ul>
@@ -346,6 +261,7 @@
                         @endforeach
                     </ul>
                 @endif
+                @can('notes_write')
                 <div class="px-4 py-3">
                     <form action="{{ route('notes.store') }}" method="POST">
                         @csrf
@@ -359,6 +275,7 @@
                                        font-semibold text-xs rounded-lg transition">+ Add note</button>
                     </form>
                 </div>
+                @endcan
             </div>
         </div>
 
@@ -393,20 +310,6 @@
     </div>{{-- /LEFT --}}
 
     {{-- ── RIGHT: TIMELINE (col-span-2) ── --}}
-    @php
-        $allTypes   = ['payment','renewal','cancellation','ticket','conversation','note','status_change','campaign_run','followup'];
-        $typeColors = [
-            'payment'       => 'bg-green-400',
-            'renewal'       => 'bg-blue-400',
-            'cancellation'  => 'bg-red-500',
-            'ticket'        => 'bg-yellow-400',
-            'conversation'  => 'bg-purple-400',
-            'note'          => 'bg-gray-400',
-            'status_change' => 'bg-slate-300',
-            'campaign_run'  => 'bg-slate-300',
-            'followup'      => 'bg-slate-300',
-        ];
-    @endphp
     <div class="col-span-2">
         <div id="timeline-box" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 

@@ -12,7 +12,7 @@ Contact Monitor is a multi-channel contact hub that centralizes a company's comm
 
 **No queue worker, no scheduler** — all operations are synchronous. No Redis; sessions and cache use database tables.
 
-**No authentication** — the app is open by default (internal tool).
+**Authentication is enabled** — login via email + password. Email comparison is case-insensitive (`strtolower()` before `Auth::attempt()`). Password is case-sensitive.
 
 ---
 
@@ -93,6 +93,160 @@ notes → note_links (polymorphic: company / person / conversation)
 ### Integrations
 
 `app/Integrations/` contains integration classes per system type (WhmcsIntegration, MetricscubeIntegration, SlackIntegration, DiscordIntegration, etc.). `IntegrationRegistry` acts as a factory.
+
+---
+
+## ACL / Permissions System
+
+### Overview
+
+The app uses a group-based permission system. Users belong to groups; groups have permission flags. Middleware enforces access at the route level; Blade `@can` gates hide UI elements.
+
+**Permission flags:** `browse_data`, `data_write`, `notes_write`, `configuration`
+
+**Key models:** `App\Models\User`, `App\Models\Group` (pivot: `group_user`)
+**Middleware:** `App\Http\Middleware\CheckPermission` — registered as `permission:{flag}`
+**Gate definitions:** `App\Providers\AppServiceProvider` — defines `data_write`, `notes_write`, `configuration` gates based on authenticated user's group permissions.
+
+### Route Middleware Groups
+
+```
+auth
+└── permission:browse_data          ← all data-reading routes (companies, people, conversations, …)
+    └── permission:data_write       ← write routes (create/store/edit/update/delete for companies, people, notes, filtering, …)
+└── permission:configuration        ← all /configuration/* routes (data-relations, filtering, our-company, synchronizer, team-access, segmentation)
+```
+
+Routes that are **read-only** (index, show) are under `browse_data` only.
+Routes that **mutate data** (create, store, edit, update, destroy) are nested inside `permission:data_write`.
+
+### Blade Gating Rules
+
+**Never show write UI to restricted users — hide completely, never rely on 403.**
+
+- All create/edit/delete buttons and forms → `@can('data_write') … @endcan`
+- All "Add note" / notes forms → `@can('notes_write') … @endcan`
+- Configuration-only pages are route-protected; no extra Blade gating needed there.
+
+Gated elements include (non-exhaustive):
+- "New Company" / "New Person" buttons (index pages + dashboard)
+- Edit links on person/company rows and show pages
+- Filter button, Our Org button, Assign Company button (people/index)
+- Bulk action bar write buttons (Filter, Assign Company, Mark as our company)
+- Per-row Filter button on conversations/index
+- Identity add/destroy, company unlink, domain/alias management (show pages)
+- Brand status edit/remove, account add/destroy (company show)
+- Notes add forms (notes-section and notes-popup components)
+
+### Tests
+
+Test helpers in `tests/TestCase.php`: `actingAsAdmin()`, `actingAsViewer()`, `actingAsAnalyst()`.
+All feature tests call `$this->actingAsAdmin()` in `setUp()`.
+ACL-specific tests: `tests/Feature/AuthAclTest.php` (20 tests).
+
+---
+
+## Blade / Frontend Rules
+
+### Sidebar dot standard
+
+Every sidebar link that can show a status dot **must follow this exact pattern** — no exceptions:
+
+```blade
+<a href="..." class="flex items-center gap-2.5 px-2 py-1.5 ...">
+    <svg ...>...</svg>
+    <span class="flex-1">Label</span>          {{-- flex-1 pushes dot to the right --}}
+    @if($hasDot)
+        <span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+    @endif
+</a>
+```
+
+Rules:
+- Dot size: **`w-1.5 h-1.5`** always — never `w-2 h-2` or other sizes
+- Label must be wrapped in **`<span class="flex-1">`** — never plain text — so the dot is pushed to the right edge
+- No `ml-auto` on the dot — the `flex-1` span handles alignment
+- Dot colors: `bg-red-500` (active), `bg-amber-400` (partially_active), `bg-green-500` (completed)
+
+### No `@php` in Blade views
+
+**Zero `@php` blocks in any view file.** All logic belongs in:
+- Controllers (passed as view data)
+- `App\Providers\AppServiceProvider` View Composer for `layouts.app`
+- Model methods
+
+The only exception: `resources/views/components/isolated-html.blade.php` uses one `@php uniqid()` call (acceptable).
+
+### Layout View Composer
+
+`AppServiceProvider` registers a View Composer for `layouts.app` that provides:
+`$topSections`, `$sidebarItems`, `$syncItems`, `$drItems`, `$isConfigRoute`, `$onMapping`, `$currentMapping`, `$mainMargin`, `$disabledMsg`, `$taActive`, `$segActive`
+
+Do **not** put this logic back into the Blade layout.
+
+### UI Pattern for CRUD sections
+
+**Separate pages for create/edit — never inline forms inside tables.**
+
+Pattern (follow synchronizer servers as the reference implementation):
+- Index page: table with an "Add …" / "Create …" button in the `page-header` div
+- That button links to a dedicated `create` route → separate `*-form.blade.php` view
+- Edit link in each row links to a dedicated `edit` route → same form view with model pre-filled
+- Form page has a page-header with title + "← Back" link, a card with the form, Save/Cancel buttons
+
+---
+
+## Setup Assistant (`/configuration/setup-assistant`)
+
+Checklist page that tracks whether the system is properly configured. Items have dependencies — if a prerequisite isn't done, dependent items are `disabled`.
+
+### Item statuses
+| Status | Color | Meaning |
+|--------|-------|---------|
+| `disabled` | gray | Blocked by incomplete previous step |
+| `active` | red | Needs action to become completed |
+| `partially_active` | yellow | Progress made but not complete |
+| `completed` | green | Automatically verified as done |
+
+### Items (in order, with dependency chain)
+
+1. **System up to date** — always `completed` (versioning not implemented yet)
+2. **Add connector server** — `active` if no `SynchronizerServer` row exists; `completed` otherwise
+3. **Configure connections** — `disabled` if no server; tries HTTP GET to synchronizer `/api/connections` (5s timeout), falls back to `Account::exists()` proxy on failure; `active` if 0 connections; `completed` if ≥1
+4. **Configure mapping** — `disabled` if no server OR `Account::exists()` is false; checks BOTH `accounts.company_id` (linked to companies) AND `identities.person_id` (linked to people, excluding bots), grouped per system_type/system_slug; worst ratio across all groups: <50% → `active`, <80% → `partially_active`, ≥80% → `completed`
+5. **Set your organization contacts** — `disabled` if no server or no data; `active` if no `Person.is_our_org=true` AND no `Identity.is_team_member=true`; `completed` otherwise
+
+### Display layout
+- `active`, `partially_active`, `disabled` items → "Requires Your Attention" section (shown only if non-empty)
+- `completed` items → "Completed" section
+- All cards identical size and structure regardless of status — name, description, status badge, action button
+- If attention section empty → green "fully operational" banner shown
+
+### Dot indicators
+- Any `active` item → **red dot** in sidebar + **red dot** in top "Configuration" menu (`$configNeedsAttention = true`)
+- Only `partially_active` (no active) → **yellow dot** in sidebar only, no top menu dot
+- Nothing in attention (all completed) → **green dot** in sidebar only
+
+### Key implementation notes
+- `$setupStatus` computed in `AppServiceProvider` View Composer, cached under `layout.setup_status` (60s, DB-only — no API call)
+- `$configNeedsAttention` = `$serverNeedsAttention || $mappingNeedsAttention || $setupStatus === 'active'`
+- `$saActive` bool passed to layout for sidebar active state
+- `setup-assistant.*` included in `$isConfigRoute` pattern
+- Controller: `App\Http\Controllers\SetupAssistantController` — passes `$items`, `$attention`, `$completed`, `$statusConfig` to view (no `@php` in Blade)
+- **Cache must be cleared** (`php artisan cache:clear`) after structural changes to mapping data for dot to update immediately
+
+---
+
+## Team Access (`/configuration/team-access`)
+
+Manages users and permission groups. Two tabs: Users / Groups.
+
+- **Index** (`team-access.index`): table of users or groups depending on active tab. "Add User" / "Create Group" button in page-header links to separate create page.
+- **User form** (`team-access.users.create` / `team-access.users.edit`): `resources/views/configuration/team-access/user-form.blade.php`
+- **Group form** (`team-access.groups.create` / `team-access.groups.edit`): `resources/views/configuration/team-access/group-form.blade.php`
+- `GroupsController::permLabels()` is a static method returning the permission labels array — pass it to views as `$permLabels`, do not inline it in Blade.
+- Team Access appears **below General Settings** in the configuration sidebar (order: Setup Checklist → General Settings → Team Access).
+- `team-access.*` routes must be included in the `$isConfigRoute` check in the View Composer so the config sidebar renders correctly.
 
 ---
 

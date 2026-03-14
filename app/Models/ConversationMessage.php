@@ -56,4 +56,55 @@ class ConversationMessage extends Model
     {
         return $this->hasMany(MessageAttachment::class, 'conversation_message_id');
     }
+
+    /**
+     * Chat avatar URL for Slack/Discord messages, or null.
+     */
+    public function chatAvatarUrl(): ?string
+    {
+        if (! $this->identity) {
+            return null;
+        }
+
+        if (in_array($this->identity->type, ['discord_user', 'discord_id']) && ! empty($this->identity->meta_json['avatar'])) {
+            return 'https://cdn.discordapp.com/avatars/'.$this->identity->value_normalized.'/'.$this->identity->meta_json['avatar'].'.webp?size=56';
+        }
+
+        if ($this->identity->type === 'slack_user' && ! empty($this->identity->meta_json['avatar'])) {
+            return $this->identity->meta_json['avatar'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether this message is from a team member.
+     */
+    public function isTeamMessage(): bool
+    {
+        return $this->direction === 'internal' || ($this->identity?->is_team_member ?? false);
+    }
+
+    /**
+     * Gravatar hash for email conversations, or null.
+     */
+    public function gravatarHash(): ?string
+    {
+        $email = $this->identity?->value;
+        if (! $email) {
+            return null;
+        }
+
+        return md5(strtolower(trim($email)));
+    }
+
+    /**
+     * All attachments (from relation or JSON fallback).
+     */
+    public function allAttachments(): \Illuminate\Support\Collection
+    {
+        return $this->attachments->isNotEmpty()
+            ? $this->attachments
+            : collect($this->attachments_json ?? []);
+    }
 }

@@ -165,7 +165,12 @@ class FilteringController extends Controller
         $domains = $domains->unique()->values();
         $contacts = $contacts->unique();
 
-        return view('people.filter-modal', compact('ids', 'emails', 'domains', 'contacts'));
+        $tabs = ['none' => 'No rule', 'domain' => 'Domain', 'email' => 'Email'];
+        if ($contacts->isNotEmpty()) {
+            $tabs['contact'] = 'Contact';
+        }
+
+        return view('people.filter-modal', compact('ids', 'emails', 'domains', 'contacts', 'tabs'));
     }
 
     public function companyFilterModal(Request $request): View
@@ -223,7 +228,9 @@ class FilteringController extends Controller
             }
         }
 
-        return view('filtering.identity-filter-modal', compact('email', 'domain', 'name', 'emails', 'domains'));
+        $tabs = ['none' => 'No rule', 'domain' => 'Domain', 'email' => 'Email'];
+
+        return view('filtering.identity-filter-modal', compact('email', 'domain', 'name', 'emails', 'domains', 'tabs'));
     }
 
     private function addFilterRuleDomain(string $domain): void

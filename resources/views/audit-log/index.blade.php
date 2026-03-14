@@ -26,15 +26,7 @@
                         {{ $log->created_at->format('Y-m-d H:i:s') }}
                     </td>
                     <td class="px-4 py-2">
-                        @php
-                            $actionColors = [
-                                'created' => 'green', 'updated' => 'blue', 'deleted' => 'red',
-                                'added_domain' => 'purple', 'added_alias' => 'purple',
-                                'added_identity' => 'purple', 'added_note' => 'yellow',
-                            ];
-                            $color = $actionColors[$log->action] ?? 'gray';
-                        @endphp
-                        <x-badge :color="$color">{{ $log->action }}</x-badge>
+                        <x-badge :color="['created'=>'green','updated'=>'blue','deleted'=>'red','added_domain'=>'purple','added_alias'=>'purple','added_identity'=>'purple','added_note'=>'yellow'][$log->action] ?? 'gray'">{{ $log->action }}</x-badge>
                     </td>
                     <td class="px-4 py-2 text-xs">
                         <span class="text-gray-600 font-medium">{{ class_basename($log->entity_type) }}</span>

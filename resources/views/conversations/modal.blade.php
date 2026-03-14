@@ -3,28 +3,6 @@
   Returned by GET /conversations/{id}/modal[?date=YYYY-MM-DD] — loaded via fetch() in timeline-items.
   Variables: $conversation, $messages (collection), $replies, $date (optional), $discordMentionMap
 --}}
-@php
-$isEmail  = $conversation->channel_type === 'email';
-$isTicket = $conversation->channel_type === 'ticket';
-
-// Email header fields from first message meta
-$emailFrom        = null;
-$emailTo          = null;
-$emailCc          = null;
-$fromGravatarHash = null;
-$firstMsg         = $messages->first();
-if ($isEmail && $firstMsg) {
-    $msgMeta   = $firstMsg->meta_json ?? [];
-    $fromEmail = $firstMsg->identity?->value ?? null;
-    $fromName  = $firstMsg->author_name;
-    $emailFrom = $fromName ? "{$fromName} <{$fromEmail}>" : $fromEmail;
-    $emailTo   = $msgMeta['to'] ?? null;
-    $emailCc   = $msgMeta['cc'] ?? null;
-    if ($fromEmail) {
-        $fromGravatarHash = md5(strtolower(trim($fromEmail)));
-    }
-}
-@endphp
 <div class="p-5">
 
     {{-- Header --}}

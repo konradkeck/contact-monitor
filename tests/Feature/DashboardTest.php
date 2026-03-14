@@ -10,6 +10,12 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAsAdmin();
+    }
+
     public function test_dashboard_redirects_to_servers_when_no_server(): void
     {
         $response = $this->get('/');

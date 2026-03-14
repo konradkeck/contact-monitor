@@ -5,25 +5,6 @@
       $convCounts  — collection: [{channel_type, system_slug, cnt}]
       $totalConv   — int (total conversation count)
 --}}
-@php
-    $dotColors = [
-        'payment'       => 'bg-green-400',
-        'renewal'       => 'bg-blue-400',
-        'cancellation'  => 'bg-red-400',
-        'ticket'        => 'bg-yellow-400',
-        'note'          => 'bg-gray-400',
-        'status_change' => 'bg-slate-300',
-        'campaign_run'  => 'bg-slate-300',
-        'followup'      => 'bg-slate-300',
-    ];
-    $channelDot = [
-        'email'   => 'bg-purple-400',
-        'ticket'  => 'bg-yellow-400',
-        'discord' => 'bg-indigo-400',
-        'slack'   => 'bg-green-400',
-    ];
-@endphp
-
 @if($totalConv > 0)
 <div class="mb-3">
     <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider px-1 mb-1">Conversations</p>

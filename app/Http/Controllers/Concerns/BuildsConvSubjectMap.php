@@ -39,4 +39,15 @@ trait BuildsConvSubjectMap
 
         return $map;
     }
+
+    /**
+     * Pre-compute display data on each activity for the timeline-items partial.
+     * Attaches a `_display` property to each activity model.
+     */
+    private function prepareTimelineDisplay(array $activities, array $convSubjectMap): void
+    {
+        foreach ($activities as $activity) {
+            $activity->_display = $activity->timelineDisplayData($convSubjectMap);
+        }
+    }
 }

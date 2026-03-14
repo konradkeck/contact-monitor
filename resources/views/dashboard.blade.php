@@ -10,24 +10,9 @@
 
 {{-- Stats --}}
 <div class="grid grid-cols-4 gap-4 mb-8">
-    @php
-        $statItems = [
-            ['label' => 'Companies',     'value' => $stats['companies'],     'url' => route('companies.index'),     'color' => 'blue'],
-            ['label' => 'People',        'value' => $stats['people'],        'url' => route('people.index'),        'color' => 'purple'],
-            ['label' => 'Conversations', 'value' => $stats['conversations'], 'url' => route('conversations.index'), 'color' => 'green'],
-            ['label' => 'Activities',    'value' => $stats['activities'],    'url' => route('activity.index'),    'color' => 'yellow'],
-        ];
-        $colorMap = [
-            'blue'   => 'bg-blue-50 border-blue-100 text-blue-700',
-            'purple' => 'bg-purple-50 border-purple-100 text-purple-700',
-            'green'  => 'bg-green-50 border-green-100 text-green-700',
-            'yellow' => 'bg-yellow-50 border-yellow-100 text-yellow-700',
-        ];
-    @endphp
-
     @foreach($statItems as $item)
         <a href="{{ $item['url'] }}"
-           class="block border rounded-lg p-5 hover:shadow-sm transition {{ $colorMap[$item['color']] }}">
+           class="block border rounded-lg p-5 hover:shadow-sm transition {{ $statColorMap[$item['color']] }}">
             <p class="text-3xl font-bold">{{ $item['value'] }}</p>
             <p class="text-sm font-medium mt-1 opacity-80">{{ $item['label'] }}</p>
         </a>
@@ -75,11 +60,7 @@
             <ul class="divide-y divide-gray-50">
                 @foreach($recentAuditLogs as $log)
                     <li class="px-4 py-2.5 flex items-start gap-3">
-                        @php
-                            $actionColors = ['created'=>'green','updated'=>'blue','deleted'=>'red','added_domain'=>'purple','added_alias'=>'purple','added_identity'=>'purple','added_note'=>'yellow'];
-                            $color = $actionColors[$log->action] ?? 'gray';
-                        @endphp
-                        <x-badge :color="$color">{{ $log->action }}</x-badge>
+                        <x-badge :color="$auditActionColors[$log->action] ?? 'gray'">{{ $log->action }}</x-badge>
                         <span class="text-sm text-gray-600 truncate">{{ $log->message }}</span>
                         <span class="ml-auto text-xs text-gray-400 shrink-0">
                             {{ $log->created_at->diffForHumans(short: true) }}
@@ -93,9 +74,11 @@
 </div>
 
 {{-- Quick links --}}
+@can('data_write')
 <div class="mt-6 flex gap-3">
     <a href="{{ route('companies.create') }}" class="btn btn-primary">+ New Company</a>
     <a href="{{ route('people.create') }}"    class="btn btn-secondary">+ New Person</a>
 </div>
+@endcan
 
 @endsection

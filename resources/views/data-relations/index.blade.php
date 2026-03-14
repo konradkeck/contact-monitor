@@ -11,37 +11,10 @@
     <a href="{{ route('our-company.index') }}" class="btn btn-secondary">Our Organization</a>
 </div>
 
-@php
-if (!function_exists('linkedPctBar')):
-function linkedPctBar(int $pct): string {
-    $color = match(true) {
-        $pct >= 90 => '#22c55e',
-        $pct >= 70 => '#f59e0b',
-        $pct >= 50 => '#f97316',
-        default    => '#ef4444',
-    };
-    return '<div class="flex items-center gap-2">'
-        . '<div class="flex-1 min-w-[80px] bg-gray-100 rounded-full overflow-hidden" style="height:6px">'
-        . '<div style="width:' . $pct . '%;height:6px;background:' . $color . ';border-radius:9999px"></div>'
-        . '</div>'
-        . '<span class="text-xs font-medium w-9 text-right shrink-0" style="color:' . $color . '">' . $pct . '%</span>'
-        . '</div>';
-}
-endif;
-@endphp
-
 {{-- Global stats --}}
 <div class="grid grid-cols-3 gap-4 mb-8">
-    @php
-        $cards = [
-            ['label' => 'Conversations without company', 'value' => $stats['conversations_no_company'], 'total' => $stats['total_conversations']],
-            ['label' => 'Accounts without company',      'value' => $stats['accounts_no_company'],      'total' => $stats['total_accounts']],
-            ['label' => 'Identities without person',     'value' => $stats['identities_no_person'],     'total' => $stats['total_identities']],
-        ];
-    @endphp
     @foreach($cards as $card)
-        @php $clean = $card['value'] === 0; @endphp
-        <div class="rounded-lg border p-4 {{ $clean ? 'border-green-200 bg-green-50' : 'border-amber-300 bg-amber-50' }}">
+        <div class="rounded-lg border p-4 {{ $card['value'] === 0 ? 'border-green-200 bg-green-50' : 'border-amber-300 bg-amber-50' }}">
             <p class="text-sm text-gray-600">{{ $card['label'] }}</p>
             <p class="text-3xl font-bold text-gray-900 mt-1">{{ number_format($card['value']) }}</p>
             <p class="text-xs text-gray-500 mt-0.5">of {{ number_format($card['total']) }} total</p>
@@ -69,9 +42,6 @@ endif;
         </thead>
         <tbody>
             @foreach($accountSystems as $sys)
-                @php
-                    $pct = $sys->total > 0 ? round(($sys->total - $sys->unlinked) / $sys->total * 100) : 100;
-                @endphp
                 <tr class="tbl-row">
                     <td class="px-4 py-2"><x-channel-badge :type="$sys->system_type" /></td>
                     <td class="px-4 py-2 font-mono text-xs text-gray-700">{{ $sys->system_slug }}</td>
@@ -81,7 +51,7 @@ endif;
                     <td class="px-4 py-2 text-right {{ $sys->contacts_unlinked > 0 ? 'text-amber-600 font-semibold' : 'text-green-600' }}">
                         {{ number_format($sys->contacts_unlinked) }}
                     </td>
-                    <td class="px-4 py-2">{!! linkedPctBar($pct) !!}</td>
+                    <td class="px-4 py-2"><x-linked-pct-bar :pct="$sys->total > 0 ? round(($sys->total - $sys->unlinked) / $sys->total * 100) : 100" /></td>
                     <td class="px-4 py-2 text-right">
                         <a href="{{ route('data-relations.mapping', [$sys->system_type, $sys->system_slug]) }}"
                            class="btn btn-sm btn-secondary">
@@ -117,9 +87,6 @@ endif;
         </thead>
         <tbody>
             @foreach($identitySystems as $sys)
-                @php
-                    $pct = $sys->total > 0 ? round(($sys->total - $sys->unlinked) / $sys->total * 100) : 100;
-                @endphp
                 <tr class="tbl-row">
                     <td class="px-4 py-2"><x-channel-badge :type="$sys->type" /></td>
                     <td class="px-4 py-2 font-mono text-xs text-gray-700">{{ $sys->system_slug }}</td>
@@ -128,7 +95,7 @@ endif;
                         {{ number_format($sys->unlinked) }}
                     </td>
                     <td class="px-4 py-2 text-right text-gray-500">{{ number_format($sys->total) }}</td>
-                    <td class="px-4 py-2">{!! linkedPctBar($pct) !!}</td>
+                    <td class="px-4 py-2"><x-linked-pct-bar :pct="$sys->total > 0 ? round(($sys->total - $sys->unlinked) / $sys->total * 100) : 100" /></td>
                     <td class="px-4 py-2 text-right">
                         <a href="{{ route('data-relations.mapping', [$sys->system_type, $sys->system_slug]) }}"
                            class="btn btn-sm btn-secondary">

@@ -128,23 +128,6 @@
     </div>
 @endif
 
-@php
-    $typeColors = [
-        'whmcs'       => ['bg' => 'rgba(88,166,255,.1)',  'color' => '#388bfd', 'border' => 'rgba(88,166,255,.25)'],
-        'gmail'       => ['bg' => 'rgba(248,81,73,.1)',   'color' => '#f85149', 'border' => 'rgba(248,81,73,.25)'],
-        'imap'        => ['bg' => 'rgba(63,185,80,.1)',   'color' => '#3fb950', 'border' => 'rgba(63,185,80,.25)'],
-        'metricscube' => ['bg' => 'rgba(139,92,246,.1)',  'color' => '#7c3aed', 'border' => 'rgba(139,92,246,.25)'],
-        'discord'     => ['bg' => 'rgba(88,101,242,.12)', 'color' => '#5865f2', 'border' => 'rgba(88,101,242,.3)'],
-        'slack'       => ['bg' => 'rgba(74,21,75,.1)',    'color' => '#e01e5a', 'border' => 'rgba(224,30,90,.3)'],
-    ];
-    $statusColors = [
-        'completed' => ['color' => '#3fb950', 'bg' => 'rgba(63,185,80,.1)',  'border' => 'rgba(63,185,80,.25)'],
-        'running'   => ['color' => '#388bfd', 'bg' => 'rgba(88,166,255,.1)', 'border' => 'rgba(88,166,255,.25)'],
-        'pending'   => ['color' => '#b45309', 'bg' => 'rgba(251,191,36,.12)', 'border' => 'rgba(251,191,36,.4)'],
-        'failed'    => ['color' => '#f85149', 'bg' => 'rgba(248,81,73,.1)',  'border' => 'rgba(248,81,73,.25)'],
-    ];
-@endphp
-
 <div class="card overflow-hidden">
     <table class="w-full text-sm">
         <thead class="tbl-header">
@@ -159,13 +142,6 @@
         </thead>
         <tbody>
             @forelse($connections as $conn)
-                @php
-                    $run    = $conn['latest_run'] ?? null;
-                    $status = $run['status'] ?? null;
-                    $tc     = $typeColors[$conn['type']] ?? $typeColors['imap'];
-                    $sc     = $statusColors[$status] ?? $statusColors['pending'];
-                    $active = in_array($status, ['pending', 'running']);
-                @endphp
                 <tr class="tbl-row" id="conn-row-{{ $conn['id'] }}">
                     <td class="px-4 py-3">
                         <a href="{{ route('synchronizer.connections.show', $conn['id']) }}"
@@ -177,15 +153,14 @@
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-1.5">
                             @include('synchronizer._type_icon', ['type' => $conn['type'], 'class' => 'w-4 h-4'])
-                            <span class="badge" style="background:{{ $tc['bg'] }}; color:{{ $tc['color'] }}; border-color:{{ $tc['border'] }}">
+                            <span class="badge" style="background:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['bg'] }}; color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['color'] }}; border-color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['border'] }}">
                                 {{ ['whmcs'=>'WHMCS','gmail'=>'Gmail','imap'=>'IMAP','metricscube'=>'MetricsCube','discord'=>'Discord','slack'=>'Slack'][$conn['type']] ?? ucfirst($conn['type']) }}
                             </span>
                         </div>
                     </td>
                     <td class="px-4 py-3 text-xs text-gray-500">
                         @if($conn['type'] === 'metricscube')
-                            @php $whmcsId = (int)($conn['settings']['whmcs_connection_id'] ?? 0); @endphp
-                            @if($whmcsId)
+                            @if((int)($conn['settings']['whmcs_connection_id'] ?? 0))
                                 <span class="text-gray-400">Runs with WHMCS</span>
                             @else
                                 <span style="color:#cf222e">⚠ Missing linked WHMCS</span>
@@ -198,26 +173,26 @@
                         @endif
                     </td>
                     <td class="px-4 py-3 text-xs text-gray-500">
-                        @if($run)
-                            <span title="{{ $run['created_at'] }}">
-                                {{ \Carbon\Carbon::parse($run['created_at'])->diffForHumans() }}
+                        @if($conn['latest_run'] ?? null)
+                            <span title="{{ $conn['latest_run']['created_at'] }}">
+                                {{ \Carbon\Carbon::parse($conn['latest_run']['created_at'])->diffForHumans() }}
                             </span>
-                            @if($run['duration_seconds'])
-                                <span class="text-gray-400"> &middot; {{ $run['duration_seconds'] }}s</span>
+                            @if($conn['latest_run']['duration_seconds'])
+                                <span class="text-gray-400"> &middot; {{ $conn['latest_run']['duration_seconds'] }}s</span>
                             @endif
                         @else
                             <span class="text-gray-300">Never</span>
                         @endif
                     </td>
                     <td class="px-4 py-3" id="status-{{ $conn['id'] }}">
-                        @if($status)
-                            <span class="badge" style="background:{{ $sc['bg'] }}; color:{{ $sc['color'] }}; border-color:{{ $sc['border'] }}">
-                                @if($status === 'running')
-                                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse" style="background:{{ $sc['color'] }}"></span>
-                                @elseif($status === 'pending')
+                        @if(($conn['latest_run'] ?? null) && ($conn['latest_run']['status'] ?? null))
+                            <span class="badge" style="background:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['bg'] }}; color:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['color'] }}; border-color:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['border'] }}">
+                                @if($conn['latest_run']['status'] === 'running')
+                                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse" style="background:{{ ($statusColors['running'])['color'] }}"></span>
+                                @elseif($conn['latest_run']['status'] === 'pending')
                                     <svg class="inline w-3 h-3 mr-0.5 -mt-px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
                                 @endif
-                                {{ $status }}
+                                {{ $conn['latest_run']['status'] }}
                             </span>
                         @else
                             <span class="text-gray-300 text-xs">&mdash;</span>
@@ -227,7 +202,7 @@
                         <div class="flex items-center justify-end gap-1.5">
                             <span id="run-btn-{{ $conn['id'] }}">
                             @if($conn['type'] === 'metricscube')
-                            @elseif($active)
+                            @elseif(in_array(($conn['latest_run']['status'] ?? null), ['pending', 'running']))
                                 <button onclick="stopRun({{ $conn['id'] }}, this)" class="btn btn-danger btn-sm">
                                     <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-linejoin="round"/></svg>
                                     Stop

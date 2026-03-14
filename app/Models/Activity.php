@@ -134,4 +134,114 @@ class Activity extends Model
             default => 'bg-slate-300 ring-slate-200',
         };
     }
+
+    /**
+     * Compute all display variables needed by the timeline-items partial.
+     * Returns an object with: url, isCustomer, chType, sysType, sysSlug, badgeTitle,
+     * sourceLabel, titleText, modalUrl, rowClickable, ticketNotFound, useBadge, hoverText.
+     */
+    public function timelineDisplayData(array $convSubjectMap = []): object
+    {
+        $meta       = $this->meta_json ?? [];
+        $url        = $this->targetUrl();
+        $isCustomer = $this->direction() === 'customer';
+        $chType     = $this->conversationChannelType();
+        $sysType    = $meta['system_type'] ?? '';
+        $sysSlug    = $meta['system_slug'] ?? '';
+        $badgeTitle = $chType ? (ucfirst($chType) . ': ' . $sysSlug) : null;
+
+        $mcType    = $meta['mc_type'] ?? '';
+        $isMcTicket = in_array($mcType, ['Opened Ticket', 'Closed Ticket', 'Ticket Replied'], true);
+
+        // WHMCS-native ticket lookup
+        $convExtId    = $meta['conversation_external_id'] ?? '';
+        $convMapEntry = $convSubjectMap[$convExtId] ?? null;
+        if (! $url && $convMapEntry) {
+            $url = '/conversations/' . $convMapEntry['id'];
+        }
+
+        // MetricsCube ticket lookup
+        $mcRelId    = $meta['relation_id'] ?? null;
+        $mcMapEntry = ($isMcTicket && $mcRelId) ? ($convSubjectMap['ticket_' . $mcRelId] ?? null) : null;
+        if ($isMcTicket && ! $url && $mcMapEntry) {
+            $url = '/conversations/' . $mcMapEntry['id'];
+        }
+
+        // Source label
+        $sourceLabel = null;
+        $ticketNum   = null;
+        if ($chType === 'email') {
+            $sourceLabel = $meta['contact_email'] ?? null;
+        } elseif ($chType === 'discord' || $chType === 'slack') {
+            $sourceLabel = $meta['description'] ?? null;
+        } elseif ($chType === 'ticket') {
+            preg_match('/ticket_(\d+)/', $convExtId, $_tm);
+            $ticketNum = $_tm[1] ?? null;
+        }
+
+        // Title text
+        $titleText = null;
+        if ($chType === 'email') {
+            $titleText = $meta['subject'] ?? $meta['description'] ?? null;
+        } elseif ($chType === 'ticket') {
+            if ($isMcTicket) {
+                if ($mcMapEntry) {
+                    $titleText = $mcMapEntry['subject'];
+                } else {
+                    $desc     = $meta['description'] ?? null;
+                    $customer = trim($meta['customer'] ?? '');
+                    if ($desc && $customer && mb_stripos($desc, $customer) === 0) {
+                        $desc = trim(mb_substr($desc, mb_strlen($customer)));
+                        $desc = preg_replace('/^[\s\-\x{2013}\x{2014}]+/u', '', $desc);
+                    }
+                    $titleText = $desc;
+                }
+            } else {
+                $subject   = $meta['subject'] ?? ($convMapEntry ? $convMapEntry['subject'] : null);
+                $titleText = $ticketNum
+                    ? ('#' . $ticketNum . ($subject ? " \xE2\x80\x94 " . $subject : ''))
+                    : ($subject ?? $meta['description'] ?? null);
+            }
+        } elseif ($chType === 'discord' || $chType === 'slack') {
+            $titleText = null;
+        } else {
+            $titleText = $meta['description'] ?? $meta['text'] ?? $meta['subject'] ?? $meta['title'] ?? null;
+        }
+
+        // Modal URL
+        $modalDate = null;
+        if (in_array($chType, ['discord', 'slack'], true)) {
+            $modalDate = $this->occurred_at->format('Y-m-d');
+        }
+        $modalUrl = ($url && preg_match('#^/conversations/(\d+)$#', $url))
+            ? $url . '/modal' . ($modalDate ? '?date=' . $modalDate : '')
+            : null;
+
+        $rowClickable = in_array($chType, ['discord', 'slack'], true) && $modalUrl;
+
+        // Ticket not found indicator
+        $ticketNotFound = null;
+        if ($isMcTicket && ! $url) {
+            $ticketNotFound = $mcRelId;
+        } elseif ($chType === 'ticket' && ! $url) {
+            preg_match('/ticket_(\d+)/', $convExtId, $_tm3);
+            $ticketNotFound = $_tm3[1] ?? null;
+        }
+
+        $useBadge = ($chType === null && $sysType !== 'metricscube')
+                 || ($chType === null && $sysType === 'metricscube' && ! $isMcTicket);
+
+        // Hover text
+        $hoverText = $titleText ?? '';
+        if ($ticketNotFound !== null) {
+            $notFoundMsg = 'Cannot find corresponding ticket in WHMCS' . ($sysSlug ? ' ' . $sysSlug : '');
+            $hoverText   = ($hoverText !== '' ? $hoverText . "\n" : '') . $notFoundMsg;
+        }
+
+        return (object) compact(
+            'url', 'isCustomer', 'chType', 'sysType', 'sysSlug', 'badgeTitle',
+            'sourceLabel', 'titleText', 'modalUrl', 'rowClickable', 'ticketNotFound',
+            'useBadge', 'hoverText'
+        );
+    }
 }

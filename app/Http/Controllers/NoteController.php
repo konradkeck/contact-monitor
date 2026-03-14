@@ -14,6 +14,8 @@ class NoteController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
+        abort_if(! auth()->user()->can('notes_write'), 403);
+
         $data = $request->validate([
             'content' => 'required|string',
             'linkable_type' => 'required|in:company,person,conversation',

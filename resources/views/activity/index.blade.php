@@ -1,20 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Activities')
 
-@php
-    $typeColors = [
-        'payment'       => 'bg-green-400',
-        'renewal'       => 'bg-blue-400',
-        'cancellation'  => 'bg-red-500',
-        'ticket'        => 'bg-yellow-400',
-        'conversation'  => 'bg-purple-400',
-        'note'          => 'bg-gray-400',
-        'status_change' => 'bg-slate-300',
-        'campaign_run'  => 'bg-slate-300',
-        'followup'      => 'bg-slate-300',
-    ];
-@endphp
-
 @section('content')
 
 <div class="page-header">
@@ -67,17 +53,12 @@
                 </label>
                 <div class="border-t border-gray-100 my-1"></div>
                 @foreach($convSystems as $sys)
-                    @php
-                        $sysIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type ?? ''));
-                        $chnIntCls = get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type));
-                        $showSysLogo = $sys->system_type && $sysIntCls !== $chnIntCls;
-                    @endphp
                     <label class="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
                         <input type="checkbox" class="tl-conv-item rounded border-gray-300"
                                value="{{ $sys->channel_type }}|{{ $sys->system_slug }}" onchange="tlConvItem(this)">
                         <span class="inline-flex items-center gap-1">
                             <x-channel-badge :type="$sys->channel_type" :label="false" />
-                            @if($showSysLogo)
+                            @if($sys->system_type && get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type)) !== get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type)))
                                 {!! \App\Integrations\IntegrationRegistry::get($sys->system_type)->iconHtml('w-4 h-4', false) !!}
                             @endif
                         </span>

@@ -12,6 +12,12 @@ class ConversationsTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAsAdmin();
+    }
+
     private function createServer(): void
     {
         SynchronizerServer::create([

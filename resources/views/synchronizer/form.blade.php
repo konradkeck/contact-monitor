@@ -3,20 +3,6 @@
 
 @section('content')
 
-@php
-    $isEdit   = !is_null($conn);
-    $action   = $isEdit
-        ? route('synchronizer.connections.update', $conn['id'])
-        : route('synchronizer.connections.store');
-    $s        = $conn['settings'] ?? [];
-    $type     = old('type', $conn['type'] ?? 'whmcs');
-
-    // Helper: get old-or-existing value
-    $v = fn(string $key, mixed $default = '') => old($key, data_get($conn, $key, $default));
-    $sv = fn(string $key, mixed $default = '') => old("settings.$key", $s[$key] ?? $default);
-    $arr = fn(string $key) => implode("\n", (array)(old("settings.$key", $s[$key] ?? [])));
-@endphp
-
 <div class="page-header">
     <div class="flex items-center gap-3">
         <a href="{{ route('synchronizer.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">← Connections</a>
@@ -58,16 +44,6 @@
                 </div>
             @else
                 <input type="hidden" name="type" x-bind:value="type">
-                @php
-                    $integrations = [
-                        'whmcs'       => 'WHMCS',
-                        'gmail'       => 'Gmail',
-                        'imap'        => 'IMAP Email',
-                        'metricscube' => 'MetricsCube',
-                        'discord'     => 'Discord',
-                        'slack'       => 'Slack',
-                    ];
-                @endphp
                 <div class="grid grid-cols-3 gap-3">
                     @foreach($integrations as $t => $label)
                         <button type="button"

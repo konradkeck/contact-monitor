@@ -15,12 +15,6 @@
 
         {{-- Rule type tabs --}}
         <div class="flex flex-wrap gap-1.5 mb-4">
-            @php
-                $tabs = ['none' => 'No rule'];
-                if ($domains->isNotEmpty() || true) $tabs['domain']  = 'Domain';
-                if ($emails->isNotEmpty()  || true) $tabs['email']   = 'Email';
-                if ($contacts->isNotEmpty())        $tabs['contact']  = 'Contact';
-            @endphp
             @foreach($tabs as $type => $label)
                 <button type="button"
                         onclick="pfmSetType('{{ $type }}')"

@@ -169,12 +169,21 @@ class ConversationController extends Controller
                     }
                 }
 
+                $person = $identity?->person;
+                $displayName = $identity?->meta_json['display_name'] ?? $row->author_name;
+                $gravatarHash = $gravatarEmail ? md5(strtolower(trim($gravatarEmail))) : null;
+
                 $entry = [
                     'identity' => $identity,
                     'author_name' => $row->author_name,
-                    'display_name' => $identity?->meta_json['display_name'] ?? $row->author_name,
-                    'gravatar_hash' => $gravatarEmail ? md5(strtolower(trim($gravatarEmail))) : null,
+                    'display_name' => $displayName,
+                    'gravatar_hash' => $gravatarHash,
                     'avatar_url' => $avatarUrl,
+                    // Pre-computed display fields
+                    '_person' => $person,
+                    '_label' => $person ? $person->initials() : mb_strtoupper(mb_substr($displayName ?? '?', 0, 2)),
+                    '_title' => $person ? trim($person->first_name . ' ' . $person->last_name) : ($displayName ?? ''),
+                    '_imgSrc' => $avatarUrl ?? ($gravatarHash ? 'https://www.gravatar.com/avatar/' . $gravatarHash . '?d=identicon&s=56' : null),
                 ];
                 if ($identity?->is_team_member || $row->direction === 'internal') {
                     $team[] = $entry;
@@ -234,8 +243,25 @@ class ConversationController extends Controller
 
         $backLink = $this->resolveBackLink($request);
 
+        $showSysLogo = $conversation->system_type
+            && get_class(\App\Integrations\IntegrationRegistry::get($conversation->system_type))
+               !== get_class(\App\Integrations\IntegrationRegistry::get($conversation->channel_type));
+
+        $debugInfo = array_filter([
+            'conversation_id'    => $conversation->id,
+            'channel_type'       => $conversation->channel_type,
+            'system_type'        => $conversation->system_type,
+            'system_slug'        => $conversation->system_slug,
+            'external_thread_id' => $conversation->external_thread_id,
+            'company_id'         => $conversation->company_id,
+            'message_count'      => $conversation->message_count,
+            'started_at'         => $conversation->started_at?->toIso8601String(),
+            'last_message_at'    => $conversation->last_message_at?->toIso8601String(),
+        ], fn ($v) => $v !== null && $v !== '');
+
         return view('conversations.show', compact(
-            'conversation', 'notes', 'allIdentities', 'threads', 'replies', 'backLink', 'discordMentionMap'
+            'conversation', 'notes', 'allIdentities', 'threads', 'replies', 'backLink',
+            'discordMentionMap', 'showSysLogo', 'debugInfo'
         ));
     }
 
@@ -270,7 +296,27 @@ class ConversationController extends Controller
                 ->all();
         }
 
-        return view('conversations.modal', compact('conversation', 'messages', 'replies', 'date', 'discordMentionMap'));
+        $isEmail  = $conversation->channel_type === 'email';
+        $isTicket = $conversation->channel_type === 'ticket';
+
+        $emailFrom = $emailTo = $emailCc = $fromGravatarHash = null;
+        $firstMsg = $messages->first();
+        if ($isEmail && $firstMsg) {
+            $msgMeta   = $firstMsg->meta_json ?? [];
+            $fromEmail = $firstMsg->identity?->value ?? null;
+            $fromName  = $firstMsg->author_name;
+            $emailFrom = $fromName ? "{$fromName} <{$fromEmail}>" : $fromEmail;
+            $emailTo   = $msgMeta['to'] ?? null;
+            $emailCc   = $msgMeta['cc'] ?? null;
+            if ($fromEmail) {
+                $fromGravatarHash = md5(strtolower(trim($fromEmail)));
+            }
+        }
+
+        return view('conversations.modal', compact(
+            'conversation', 'messages', 'replies', 'date', 'discordMentionMap',
+            'isEmail', 'isTicket', 'emailFrom', 'emailTo', 'emailCc', 'fromGravatarHash'
+        ));
     }
 
     /**
@@ -317,8 +363,16 @@ class ConversationController extends Controller
         $contacts = $contacts->unique();
         $subjects = $subjects->unique()->values();
 
+        $tabs = ['none' => 'No rule', 'domain' => 'Domain', 'email' => 'Email'];
+        if ($contacts->isNotEmpty()) {
+            $tabs['contact'] = 'Contact';
+        }
+        if ($subjects->isNotEmpty()) {
+            $tabs['subject'] = 'Subject';
+        }
+
         return view('conversations.filter-modal', compact(
-            'conversations', 'ids', 'emails', 'domains', 'contacts', 'subjects'
+            'conversations', 'ids', 'emails', 'domains', 'contacts', 'subjects', 'tabs'
         ));
     }
 

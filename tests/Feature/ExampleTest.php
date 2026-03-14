@@ -10,8 +10,17 @@ class ExampleTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_unauthenticated_redirects_to_login(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertRedirect(route('login'));
+    }
+
     public function test_dashboard_redirects_to_setup_when_no_server_configured(): void
     {
+        $this->actingAsAdmin();
+
         $response = $this->get('/');
 
         $response->assertRedirect(route('synchronizer.servers.index'));
@@ -19,6 +28,8 @@ class ExampleTest extends TestCase
 
     public function test_dashboard_loads_when_server_is_configured(): void
     {
+        $this->actingAsAdmin();
+
         SynchronizerServer::create([
             'name' => 'Test Server',
             'url' => 'http://localhost',
