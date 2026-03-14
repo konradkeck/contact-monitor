@@ -9,6 +9,7 @@ class AuditLog extends Model
     // No soft deletes — audit logs are immutable
     // Keep both timestamps but never write updated_at to the table
     public $timestamps = true;
+
     const UPDATED_AT = null;
 
     protected $fillable = [

@@ -171,6 +171,7 @@
                                     i
                                 </span>
                             @endif
+                            <div class="flex-1"></div>
                             <x-notes-popup :notes="$person->notes" linkable-type="person" :linkable-id="$person->id" :entity-name="$person->full_name" />
                         </div>
                     </td>
@@ -222,7 +223,7 @@
                             @endif
                             <button type="button"
                                     onclick="peopleOpenAssignCompanyModal([{{ $person->id }}])"
-                                    class="text-[10px] text-gray-400 hover:text-brand-600 transition border border-gray-200 hover:border-brand-300 rounded px-1 py-0 leading-4">
+                                    class="text-[10px] text-gray-400 hover:text-brand-600 transition border border-gray-200 hover:border-brand-300 rounded px-1 py-0 leading-4 cursor-pointer">
                                 Assign
                             </button>
                         </div>
@@ -265,16 +266,29 @@
                     </td>
 
                     <td class="px-4 py-3 text-right">
-                        <div class="flex items-center justify-end gap-3">
+                        <div class="flex items-center justify-end gap-1.5">
                             <button type="button"
                                     onclick="peopleOpenFilterModal([{{ $person->id }}])"
-                                    class="text-xs text-gray-300 hover:text-red-400 transition"
-                                    title="Filtered">🚫</button>
-                            <button type="button"
-                                    onclick="peopleMarkOurOrg({{ $person->id }}, this)"
-                                    class="text-xs text-gray-300 hover:text-blue-500 transition"
-                                    title="Mark as our company">🏢</button>
-                            <a href="{{ route('people.edit', $person) }}" class="text-xs text-gray-400 hover:text-gray-700">Edit</a>
+                                    class="btn btn-sm btn-danger"
+                                    title="Filter">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
+                                Filter
+                            </button>
+                            @if($person->is_our_org)
+                                <span class="btn btn-sm bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                    Our Org
+                                </span>
+                            @else
+                                <button type="button"
+                                        onclick="peopleMarkOurOrg({{ $person->id }}, this)"
+                                        class="btn btn-sm btn-muted"
+                                        title="Mark as Our Organization">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                    Our Org
+                                </button>
+                            @endif
+                            <a href="{{ route('people.edit', $person) }}" class="text-xs text-gray-400 hover:text-gray-700 ml-1">Edit</a>
                         </div>
                     </td>
                 </tr>
@@ -287,7 +301,7 @@
     </table>
 
     @if($people->hasPages())
-        <div class="px-4 py-3 card-inner">
+        <div class="px-4 py-3 border-t border-gray-100">
             {{ $people->links() }}
         </div>
     @endif
@@ -340,7 +354,8 @@ function peopleBulkMarkOurOrg() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({ ids }),
-    }).then(r => r.json()).then(d => { if (d.ok) { peopleClearSelection(); } });
+    }).then(r => r.json()).then(d => { if (d.ok) { peopleClearSelection(); } })
+    .catch(() => {});
 }
 function peopleMarkOurOrg(id, btn) {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -349,7 +364,8 @@ function peopleMarkOurOrg(id, btn) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({}),
-    }).then(r => r.json()).then(d => { if (d.ok) btn.style.color = '#3b82f6'; else btn.disabled = false; });
+    }).then(r => r.json()).then(d => { if (d.ok) btn.style.color = '#3b82f6'; else btn.disabled = false; })
+    .catch(() => { btn.disabled = false; });
 }
 </script>
 @endsection

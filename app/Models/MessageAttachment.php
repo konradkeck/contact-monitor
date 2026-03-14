@@ -20,7 +20,7 @@ class MessageAttachment extends Model
 
     protected $casts = [
         'meta_json' => 'array',
-        'size'      => 'integer',
+        'size' => 'integer',
     ];
 
     public function message(): BelongsTo

@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class CompanyBrandStatus extends Model
+class CompanyBrandStatus extends Pivot
 {
     use SoftDeletes;
+
+    protected $table = 'company_brand_statuses';
+
+    public $incrementing = true;
 
     protected $fillable = [
         'company_id',

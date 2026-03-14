@@ -10,7 +10,13 @@ return new class extends Migration
     public function up(): void
     {
         // Make company_id nullable (conversations may arrive before company is resolved)
-        DB::statement('ALTER TABLE conversations ALTER COLUMN company_id DROP NOT NULL');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE conversations ALTER COLUMN company_id DROP NOT NULL');
+        } else {
+            Schema::table('conversations', function (Blueprint $table) {
+                $table->unsignedBigInteger('company_id')->nullable()->change();
+            });
+        }
 
         Schema::table('conversations', function (Blueprint $table) {
             $table->string('system_type')->nullable()->after('channel_type')
@@ -28,6 +34,13 @@ return new class extends Migration
         Schema::table('conversations', function (Blueprint $table) {
             $table->dropColumn(['system_type', 'subject', 'is_archived', 'archived_at', 'sync_protected']);
         });
-        DB::statement('ALTER TABLE conversations ALTER COLUMN company_id SET NOT NULL');
+
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('ALTER TABLE conversations ALTER COLUMN company_id SET NOT NULL');
+        } else {
+            Schema::table('conversations', function (Blueprint $table) {
+                $table->unsignedBigInteger('company_id')->nullable(false)->change();
+            });
+        }
     }
 };

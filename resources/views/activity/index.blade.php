@@ -17,8 +17,8 @@
 
 @section('content')
 
-<div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-bold text-gray-900">Activities</h1>
+<div class="page-header">
+    <span class="page-title">Activities</span>
 </div>
 
 <div class="flex gap-5 items-start">
@@ -28,9 +28,12 @@
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
     {{-- Tab bar --}}
-    <div class="flex items-center border-b border-gray-100 px-4 pt-1">
+    <div class="flex items-center border-b border-gray-100 px-4 pt-1" role="tablist" aria-label="Activity view">
         @foreach(['all' => 'All', 'conversations' => 'Conversations', 'activity' => 'Activity'] as $tabKey => $tabLabel)
             <button id="tl-tab-{{ $tabKey }}" onclick="setTab('{{ $tabKey }}')"
+                    role="tab"
+                    aria-selected="{{ $tabKey === 'all' ? 'true' : 'false' }}"
+                    aria-controls="timeline-container"
                     class="px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap mr-1
                            {{ $tabKey === 'all' ? 'border-brand-500 text-brand-700' : 'border-transparent text-gray-400 hover:text-gray-700' }}">
                 {{ $tabLabel }}
@@ -46,6 +49,7 @@
         @if($convSystems->isNotEmpty())
         <div class="relative" id="tl-conv-wrapper">
             <button onclick="tlToggleDropdown('conv', event)"
+                    aria-haspopup="listbox" aria-expanded="false" aria-label="Filter by channel"
                     class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white
                            text-xs text-gray-600 hover:border-gray-300 transition min-w-[130px]">
                 <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,6 +92,7 @@
         @if($activityTypes->isNotEmpty())
         <div class="relative" id="tl-act-wrapper">
             <button onclick="tlToggleDropdown('act', event)"
+                    aria-haspopup="listbox" aria-expanded="false" aria-label="Filter by activity type"
                     class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white
                            text-xs text-gray-600 hover:border-gray-300 transition min-w-[130px]">
                 <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,7 +203,9 @@
         ['all', 'conversations', 'activity'].forEach(k => {
             const btn = document.getElementById('tl-tab-' + k);
             if (!btn) return;
-            if (k === tab) {
+            const active = k === tab;
+            btn.setAttribute('aria-selected', String(active));
+            if (active) {
                 btn.classList.add('border-brand-500', 'text-brand-700');
                 btn.classList.remove('border-transparent', 'text-gray-400', 'hover:text-gray-700');
             } else {
@@ -291,11 +298,20 @@
     window.tlToggleDropdown = function (which, e) {
         e.stopPropagation();
         const menuId = which === 'conv' ? 'tl-conv-menu' : 'tl-act-menu';
-        document.getElementById(menuId)?.classList.toggle('hidden');
+        const btnId  = which === 'conv' ? 'tl-conv-wrapper' : 'tl-act-wrapper';
+        const menu   = document.getElementById(menuId);
+        const btn    = document.querySelector('#' + btnId + ' > button');
+        if (!menu) return;
+        const isOpen = !menu.classList.contains('hidden');
+        menu.classList.toggle('hidden');
+        if (btn) btn.setAttribute('aria-expanded', String(!isOpen));
     };
     document.addEventListener('click', () => {
-        document.getElementById('tl-conv-menu')?.classList.add('hidden');
-        document.getElementById('tl-act-menu')?.classList.add('hidden');
+        ['tl-conv-menu', 'tl-act-menu'].forEach(id => {
+            document.getElementById(id)?.classList.add('hidden');
+        });
+        document.querySelector('#tl-conv-wrapper > button')?.setAttribute('aria-expanded', 'false');
+        document.querySelector('#tl-act-wrapper > button')?.setAttribute('aria-expanded', 'false');
     });
 
     document.addEventListener('DOMContentLoaded', () => {

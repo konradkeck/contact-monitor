@@ -112,7 +112,10 @@
                             @include('data-relations._ac-company', ['action' => route('data-relations.accounts.link', $account)])
                             <button type="button"
                                     onclick="openActivityModal({ dataset: { modalSrc: '{{ $acFmUrl }}' } })"
-                                    class="text-xs text-red-400 hover:text-red-600 shrink-0 whitespace-nowrap transition">Filter…</button>
+                                    class="btn btn-sm btn-danger shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
+                                Filter
+                            </button>
                         </td>
                     </tr>
                     @if($acContacts->isNotEmpty())
@@ -135,11 +138,14 @@
                                                 @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
                                             @endif
                                         </td>
-                                        <td class="py-1.5 text-center">
+                                        <td class="py-1.5">
                                             <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
                                                 @csrf
-                                                <button type="submit" title="{{ $contact->is_team_member ? 'Team member' : 'Mark as team member' }}"
-                                                        class="text-base leading-none transition {{ $contact->is_team_member ? 'opacity-100' : 'opacity-20 hover:opacity-60' }}">🏢</button>
+                                                <button type="submit" title="{{ $contact->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
+                                                        class="btn btn-sm {{ $contact->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                                    Our Org
+                                                </button>
                                             </form>
                                         </td>
                                     </tr>
@@ -207,11 +213,14 @@
                                                 @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
                                             @endif
                                         </td>
-                                        <td class="py-1.5 text-center">
+                                        <td class="py-1.5">
                                             <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
                                                 @csrf
-                                                <button type="submit" title="{{ $contact->is_team_member ? 'Team member' : 'Mark as team member' }}"
-                                                        class="text-base leading-none transition {{ $contact->is_team_member ? 'opacity-100' : 'opacity-20 hover:opacity-60' }}">🏢</button>
+                                                <button type="submit" title="{{ $contact->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
+                                                        class="btn btn-sm {{ $contact->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                                    Our Org
+                                                </button>
                                             </form>
                                         </td>
                                     </tr>
@@ -246,7 +255,7 @@
                 <th class="px-4 py-2 text-left font-medium">Email address</th>
                 <th class="px-4 py-2 text-left font-medium">Display name</th>
                 <th class="px-4 py-2 text-left font-medium w-72">Person in Contact Monitor</th>
-                <th class="px-4 py-2 text-center font-medium">Team</th>
+                <th class="px-4 py-2 text-left font-medium">Actions</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -277,17 +286,27 @@
                         </form>
                     @else
                         @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $identity)])
-                        <button type="button"
-                                onclick="openActivityModal({ dataset: { modalSrc: '{{ $idFmUrl }}' } })"
-                                class="text-xs text-red-400 hover:text-red-600 shrink-0 whitespace-nowrap transition">Filter…</button>
                     @endif
                 </td>
-                <td class="px-4 py-2.5 text-center">
-                    <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
-                        @csrf
-                        <button type="submit" title="{{ $identity->is_team_member ? 'Team member' : 'Mark as team member' }}"
-                                class="text-base leading-none transition {{ $identity->is_team_member ? 'opacity-100' : 'opacity-20 hover:opacity-60' }}">🏢</button>
-                    </form>
+                <td class="px-4 py-2.5">
+                    <div class="flex items-center gap-1.5">
+                        <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" title="{{ $identity->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
+                                    class="btn btn-sm {{ $identity->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                Our Org
+                            </button>
+                        </form>
+                        @if(!$identity->person)
+                            <button type="button"
+                                    onclick="openActivityModal({ dataset: { modalSrc: '{{ $idFmUrl }}' } })"
+                                    class="btn btn-sm btn-danger">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
+                                Filter
+                            </button>
+                        @endif
+                    </div>
                 </td>
             </tr>
             @endforeach
@@ -325,7 +344,7 @@
                         <th class="px-4 py-2 text-left font-medium">Display name</th>
                     @endif
                     <th class="px-4 py-2 text-left font-medium w-72">Link to person</th>
-                    <th class="px-4 py-2 text-center font-medium">Team</th>
+                    <th class="px-4 py-2 text-left font-medium">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -363,20 +382,38 @@
                         @if($systemType === 'slack')
                             <td class="px-4 py-2.5 text-gray-500 text-xs">{{ $identity->meta_json['email_hint'] ?? '—' }}</td>
                         @endif
-                        <td class="px-4 py-2.5 flex items-center gap-2">
+                        <td class="px-4 py-2.5">
                             @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $identity)])
-                            @if($idFmEmail || $idFmDomain)
-                                <button type="button"
-                                        onclick="openActivityModal({ dataset: { modalSrc: '{{ $idFmUrl }}' } })"
-                                        class="text-xs text-red-400 hover:text-red-600 shrink-0 whitespace-nowrap transition">Filter…</button>
-                            @endif
                         </td>
-                        <td class="px-4 py-2.5 text-center">
-                            <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
-                                @csrf
-                                <button type="submit" title="{{ $identity->is_team_member ? 'Our team member — click to remove' : 'Click to mark as team member' }}"
-                                        class="text-lg leading-none transition {{ $identity->is_team_member ? 'opacity-100' : 'opacity-20 hover:opacity-60' }}">🏢</button>
-                            </form>
+                        <td class="px-4 py-2.5">
+                            <div class="flex items-center gap-1.5">
+                                <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" title="{{ $identity->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
+                                            class="btn btn-sm {{ $identity->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                        Our Org
+                                    </button>
+                                </form>
+                                @if($idFmEmail || $idFmDomain)
+                                    <button type="button"
+                                            onclick="openActivityModal({ dataset: { modalSrc: '{{ $idFmUrl }}' } })"
+                                            class="btn btn-sm btn-danger">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
+                                        Filter
+                                    </button>
+                                @endif
+                                @if(in_array($systemType, ['discord', 'slack']))
+                                    <form action="{{ route('data-relations.identities.toggle-bot', $identity) }}" method="POST" class="inline">
+                                        @csrf
+                                        <button type="submit" title="Mark as bot — hides from this list"
+                                                class="btn btn-sm btn-muted">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path stroke-linecap="round" d="M12 7v4M8 15h.01M16 15h.01"/></svg>
+                                            Bot
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -398,8 +435,7 @@
                     <th class="px-4 py-2 text-left font-medium">Display name</th>
                     @if($systemType === 'slack')<th class="px-4 py-2 text-left font-medium">Email</th>@endif
                     <th class="px-4 py-2 text-left font-medium">Person in Contact Monitor</th>
-                    <th class="px-4 py-2 text-center font-medium">Team</th>
-                    <th class="px-4 py-2"></th>
+                    <th class="px-4 py-2 text-left font-medium">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -432,18 +468,24 @@
                         </td>
                         @if($systemType === 'slack')<td class="px-4 py-2.5 text-gray-500 text-xs">{{ $identity->meta_json['email_hint'] ?? '—' }}</td>@endif
                         <td class="px-4 py-2.5"><a href="{{ route('people.show', $identity->person) }}" class="text-brand-700 hover:underline font-medium">{{ $identity->person->first_name }} {{ $identity->person->last_name }}</a></td>
-                        <td class="px-4 py-2.5 text-center">
-                            <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
-                                @csrf
-                                <button type="submit" title="{{ $identity->is_team_member ? 'Our team member — click to remove' : 'Click to mark as team member' }}"
-                                        class="text-lg leading-none transition {{ $identity->is_team_member ? 'opacity-100' : 'opacity-20 hover:opacity-60' }}">🏢</button>
-                            </form>
-                        </td>
-                        <td class="px-4 py-2.5 text-right">
-                            <form action="{{ route('data-relations.identities.unlink', $identity) }}" method="POST" class="inline">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
-                            </form>
+                        <td class="px-4 py-2.5">
+                            <div class="flex items-center gap-1.5">
+                                <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" title="{{ $identity->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
+                                            class="btn btn-sm {{ $identity->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
+                                        Our Org
+                                    </button>
+                                </form>
+                                <form action="{{ route('data-relations.identities.unlink', $identity) }}" method="POST" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        Unlink
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -460,14 +502,26 @@
 
 {{-- ─── TAB: CHANNELS (Discord / Slack) ─── --}}
 @if($activeTab === 'channels' && $conversationStats !== null)
-<div class="bg-white rounded-lg border border-gray-200">
-    <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span class="text-sm font-semibold text-gray-700">
-            Unlinked <span class="text-amber-600 font-bold">{{ $conversationStats['unlinked'] }}</span>
-            <span class="text-gray-400 font-normal ml-2">/ {{ $conversationStats['total'] }} total</span>
-        </span>
+<div class="flex items-center gap-3 mb-4">
+    <div class="flex-1 flex gap-2 items-center">
+        <input type="text" id="ch-search" placeholder="Search…"
+               class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-72 focus:outline-none focus:border-brand-400">
+        <button type="button" onclick="filterChannels()"
+                class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition">Search</button>
     </div>
-    <table class="w-full text-sm">
+    <div class="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+        <button type="button" id="ch-btn-unlinked" onclick="setChannelView('unlinked')"
+                class="px-4 py-1.5 font-medium transition border-r border-gray-200 bg-amber-50 text-amber-700">
+            Unlinked <span class="font-bold">{{ $conversationStats['unlinked'] }}</span>
+        </button>
+        <button type="button" id="ch-btn-linked" onclick="setChannelView('linked')"
+                class="px-4 py-1.5 font-medium transition bg-white text-gray-500 hover:bg-gray-50">
+            Linked <span class="font-bold">{{ $conversationStats['linked'] }}</span>
+        </button>
+    </div>
+</div>
+<div class="bg-white rounded-lg border border-gray-200">
+    <table id="ch-table" class="w-full text-sm">
         <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
             <tr>
                 <th class="px-4 py-2 text-left font-medium">Channel</th>
@@ -478,7 +532,7 @@
         </thead>
         <tbody class="divide-y divide-gray-100">
             @foreach($conversations as $conv)
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-50" data-linked="{{ $conv->company_id ? '1' : '0' }}">
                     <td class="px-4 py-2.5 font-medium text-gray-800">{{ $conv->subject ?: $conv->external_thread_id }}</td>
                     <td class="px-4 py-2.5">
                         @if($conv->company)
@@ -507,6 +561,44 @@
 
 @push('scripts')
 <script>
+// ── Channels tab: search + linked/unlinked filter ──────────────────────────
+(function () {
+    let chView = 'unlinked';
+
+    function filterChannels() {
+        const q = (document.getElementById('ch-search')?.value ?? '').toLowerCase();
+        document.querySelectorAll('#ch-table tbody tr').forEach(tr => {
+            const text = (tr.querySelector('td')?.textContent ?? '').toLowerCase();
+            const linked = tr.dataset.linked === '1';
+            const matchView = chView === 'unlinked' ? !linked : linked;
+            tr.style.display = (!q || text.includes(q)) && matchView ? '' : 'none';
+        });
+    }
+
+    function setChannelView(view) {
+        chView = view;
+        const btnU = document.getElementById('ch-btn-unlinked');
+        const btnL = document.getElementById('ch-btn-linked');
+        if (!btnU || !btnL) return;
+        btnU.className = view === 'unlinked'
+            ? 'px-4 py-1.5 font-medium transition border-r border-gray-200 bg-amber-50 text-amber-700'
+            : 'px-4 py-1.5 font-medium transition border-r border-gray-200 bg-white text-gray-500 hover:bg-gray-50';
+        btnL.className = view === 'linked'
+            ? 'px-4 py-1.5 font-medium transition bg-green-50 text-green-700'
+            : 'px-4 py-1.5 font-medium transition bg-white text-gray-500 hover:bg-gray-50';
+        filterChannels();
+    }
+
+    window.setChannelView = setChannelView;
+    window.filterChannels = filterChannels;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('ch-search')?.addEventListener('input', filterChannels);
+        setChannelView('unlinked');
+    });
+})();
+
+// ── Autocomplete ───────────────────────────────────────────────────────────
 (function () {
     let debounceTimer = null;
 

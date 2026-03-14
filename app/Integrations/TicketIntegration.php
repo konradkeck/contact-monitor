@@ -4,8 +4,15 @@ namespace App\Integrations;
 
 class TicketIntegration extends BaseIntegration
 {
-    public function label(): string { return 'ticket'; }
-    public function badgeCls(): string { return 'bg-amber-100 text-amber-700'; }
+    public function label(): string
+    {
+        return 'ticket';
+    }
+
+    public function badgeCls(): string
+    {
+        return 'bg-amber-100 text-amber-700';
+    }
 
     public function badgeIconSvg(string $sizeClass = 'w-full h-full'): string
     {

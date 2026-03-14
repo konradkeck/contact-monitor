@@ -4,9 +4,20 @@ namespace App\Integrations;
 
 class SlackIntegration extends BaseIntegration
 {
-    public function label(): string { return 'Slack'; }
-    public function badgeCls(): string { return ''; }
-    public function badgeStyle(): ?string { return 'background:#4A154B'; }
+    public function label(): string
+    {
+        return 'Slack';
+    }
+
+    public function badgeCls(): string
+    {
+        return '';
+    }
+
+    public function badgeStyle(): ?string
+    {
+        return 'background:#4A154B';
+    }
 
     public function badgeIconSvg(string $sizeClass = 'w-full h-full'): string
     {

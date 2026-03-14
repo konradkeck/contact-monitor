@@ -7,14 +7,77 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+    --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 
-    --color-brand-50:  #f0f9ff;
-    --color-brand-100: #e0f2fe;
-    --color-brand-500: #0ea5e9;
-    --color-brand-600: #0284c7;
-    --color-brand-700: #0369a1;
+    --color-brand-50:  #eff6ff;
+    --color-brand-100: #dbeafe;
+    --color-brand-200: #bfdbfe;
+    --color-brand-300: #93c5fd;
+    --color-brand-400: #60a5fa;
+    --color-brand-500: #3b82f6;
+    --color-brand-600: #2563eb;
+    --color-brand-700: #1d4ed8;
+    --color-brand-800: #1e40af;
+    --color-brand-900: #1e3a8a;
 }
 
-[x-cloak] { display: none; }
+[x-cloak] { display: none !important; }
+
+/* ── Cards ── */
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; }
+.card-header { padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+.card-inner { border-top: 1px solid #e5e7eb; }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 6px;
+       padding: 0.4rem 0.85rem; font-size: 0.8rem; font-weight: 500;
+       transition: background .12s, border-color .12s; cursor: pointer; border: 1px solid transparent;
+       text-decoration: none; white-space: nowrap; }
+.btn-sm { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
+.btn-primary   { background: #2563eb; border-color: #1d4ed8; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: #fff; border-color: #d1d5db; color: #374151; }
+.btn-secondary:hover { background: #f9fafb; border-color: #9ca3af; }
+.btn-danger    { background: transparent; border-color: rgba(220,38,38,.3); color: #dc2626; }
+.btn-danger:hover { background: rgba(220,38,38,.05); border-color: rgba(220,38,38,.5); }
+.btn-muted     { background: #f3f4f6; border-color: #e5e7eb; color: #6b7280; }
+.btn-muted:hover { background: #e5e7eb; color: #374151; }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,.2); border-color: #3b82f6; }
+
+/* ── Inputs ── */
+.input { background: #fff; border: 1px solid #d1d5db; color: #111827;
+         border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.875rem; width: 100%; }
+.input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+.input::placeholder { color: #9ca3af; }
+.label { display: block; font-size: 0.75rem; font-weight: 600;
+         color: #6b7280; text-transform: uppercase; letter-spacing: .04em; margin-bottom: .3rem; }
+
+/* ── Badges ── */
+.badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.7rem;
+         font-weight: 600; padding: 0.2rem 0.55rem; border-radius: 999px; }
+.badge-gray    { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+.badge-blue    { background: rgba(37,99,235,.1); color: #1d4ed8; border: 1px solid rgba(37,99,235,.2); }
+.badge-green   { background: rgba(22,163,74,.1); color: #15803d; border: 1px solid rgba(22,163,74,.2); }
+.badge-red     { background: rgba(220,38,38,.1); color: #dc2626; border: 1px solid rgba(220,38,38,.2); }
+.badge-yellow  { background: rgba(202,138,4,.1); color: #a16207; border: 1px solid rgba(202,138,4,.2); }
+
+/* ── Table rows ── */
+.tbl-header { background: #f9fafb; border-bottom: 1px solid #e5e7eb;
+              font-size: 0.7rem; font-weight: 500; color: #9ca3af;
+              text-transform: uppercase; letter-spacing: .06em; }
+.tbl-row { border-top: 1px solid #f3f4f6; }
+.tbl-row:hover { background: #f9fafb; }
+
+/* ── Page header ── */
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+.page-title  { font-size: 1.125rem; font-weight: 700; color: #111827; }
+
+/* ── Motion sensitivity ── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

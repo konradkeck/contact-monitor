@@ -52,7 +52,7 @@ class Activity extends Model
      */
     public function direction(): string
     {
-        if (!empty($this->meta_json['direction'])) {
+        if (! empty($this->meta_json['direction'])) {
             return $this->meta_json['direction'];
         }
 
@@ -76,16 +76,16 @@ class Activity extends Model
             return null;
         }
 
-        if (!empty($this->meta_json['channel_type'])) {
+        if (! empty($this->meta_json['channel_type'])) {
             return $this->meta_json['channel_type'];
         }
 
         return match ($this->meta_json['system_type'] ?? '') {
             'metricscube', 'whmcs' => 'ticket',
-            'discord'              => 'discord',
-            'slack'                => 'slack',
-            'imap', 'gmail'        => 'email',
-            default                => null,
+            'discord' => 'discord',
+            'slack' => 'slack',
+            'imap', 'gmail' => 'email',
+            default => null,
         };
     }
 
@@ -93,17 +93,17 @@ class Activity extends Model
     public function timelineLabel(): string
     {
         return match ($this->type) {
-            'payment'       => 'Payment received',
-            'renewal'       => 'Subscription renewed',
-            'cancellation'  => 'Cancellation request',
-            'ticket'        => 'Support ticket',
-            'conversation'  => ucfirst($this->conversationChannelType() ?? 'Conversation'),
-            'note'          => 'Other',
+            'payment' => 'Payment received',
+            'renewal' => 'Subscription renewed',
+            'cancellation' => 'Cancellation request',
+            'ticket' => 'Support ticket',
+            'conversation' => ucfirst($this->conversationChannelType() ?? 'Conversation'),
+            'note' => 'Other',
             'status_change' => 'Status changed',
-            'campaign_run'  => 'Campaign run',
-            'ai_summary'    => 'AI summary generated',
-            'followup'      => 'Follow-up',
-            default         => ucfirst(str_replace('_', ' ', $this->type)),
+            'campaign_run' => 'Campaign run',
+            'ai_summary' => 'AI summary generated',
+            'followup' => 'Follow-up',
+            default => ucfirst(str_replace('_', ' ', $this->type)),
         };
     }
 
@@ -111,13 +111,13 @@ class Activity extends Model
     public function timelineColor(): string
     {
         return match ($this->type) {
-            'payment'       => 'bg-green-50 text-green-800 border-green-200',
-            'renewal'       => 'bg-blue-50 text-blue-800 border-blue-200',
-            'cancellation'  => 'bg-red-50 text-red-800 border-red-200',
-            'ticket'        => 'bg-yellow-50 text-yellow-800 border-yellow-200',
-            'conversation'  => 'bg-purple-50 text-purple-800 border-purple-200',
-            'note'          => 'bg-gray-50 text-gray-700 border-gray-200',
-            default         => 'bg-slate-50 text-slate-700 border-slate-200',
+            'payment' => 'bg-green-50 text-green-800 border-green-200',
+            'renewal' => 'bg-blue-50 text-blue-800 border-blue-200',
+            'cancellation' => 'bg-red-50 text-red-800 border-red-200',
+            'ticket' => 'bg-yellow-50 text-yellow-800 border-yellow-200',
+            'conversation' => 'bg-purple-50 text-purple-800 border-purple-200',
+            'note' => 'bg-gray-50 text-gray-700 border-gray-200',
+            default => 'bg-slate-50 text-slate-700 border-slate-200',
         };
     }
 
@@ -125,13 +125,13 @@ class Activity extends Model
     public function dotColor(): string
     {
         return match ($this->type) {
-            'payment'       => 'bg-green-400 ring-green-200',
-            'renewal'       => 'bg-blue-400 ring-blue-200',
-            'cancellation'  => 'bg-red-400 ring-red-200',
-            'ticket'        => 'bg-yellow-400 ring-yellow-200',
-            'conversation'  => 'bg-purple-400 ring-purple-200',
-            'note'          => 'bg-gray-400 ring-gray-200',
-            default         => 'bg-slate-300 ring-slate-200',
+            'payment' => 'bg-green-400 ring-green-200',
+            'renewal' => 'bg-blue-400 ring-blue-200',
+            'cancellation' => 'bg-red-400 ring-red-200',
+            'ticket' => 'bg-yellow-400 ring-yellow-200',
+            'conversation' => 'bg-purple-400 ring-purple-200',
+            'note' => 'bg-gray-400 ring-gray-200',
+            default => 'bg-slate-300 ring-slate-200',
         };
     }
 }

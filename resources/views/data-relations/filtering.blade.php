@@ -3,10 +3,11 @@
 
 @section('content')
 
-<div class="flex items-center gap-3 mb-6">
-    <a href="{{ route('data-relations.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">← Data Relations</a>
-    <span class="text-gray-300">/</span>
-    <h1 class="text-xl font-bold text-gray-900">Filtering</h1>
+<div class="page-header">
+    <div>
+        <span class="page-title">Filtering</span>
+        <p class="text-xs text-gray-400 mt-0.5">Block unwanted email addresses, domains, and companies from appearing in your data. Add filters here to suppress noise from automated senders, internal tools, and known spam sources.</p>
+    </div>
 </div>
 
 @if(session('success'))

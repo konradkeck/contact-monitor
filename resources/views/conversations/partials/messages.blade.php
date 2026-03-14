@@ -265,7 +265,7 @@
                         @endif
                         <div class="rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm
                                     {{ $isInternal
-                                        ? 'bg-brand-600 text-white rounded-tr-none'
+                                        ? 'bg-gray-100 text-gray-800 rounded-tr-none'
                                         : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none' }}">
                             @if($msg->body_html)
                                 <x-isolated-html :content="$msg->body_html" />

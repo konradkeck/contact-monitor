@@ -10,7 +10,7 @@ class RequireSetup
 {
     public function handle(Request $request, Closure $next)
     {
-        if (!SynchronizerServer::exists()) {
+        if (! SynchronizerServer::exists()) {
             return redirect()->route('synchronizer.servers.index');
         }
 

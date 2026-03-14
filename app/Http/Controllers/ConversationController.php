@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Identity;
 use App\Models\Note;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,14 +16,14 @@ class ConversationController extends Controller
 {
     public function index(Request $request): View
     {
-        $tab         = $request->input('tab', 'assigned');
-        $search      = trim($request->input('q', ''));
-        $companyId   = $request->input('company_id');
+        $tab = $request->input('tab', 'assigned');
+        $search = trim($request->input('q', ''));
+        $companyId = $request->input('company_id');
         $channelType = $request->input('channel_type');
-        $systemSlug  = $request->input('system_slug');
-        $personId    = $request->input('person_id');
+        $systemSlug = $request->input('system_slug');
+        $personId = $request->input('person_id');
         // Multi-system filter: each element is "channel_type|system_slug"
-        $systems     = array_filter((array) $request->input('systems', []));
+        $systems = array_filter((array) $request->input('systems', []));
 
         $convSystems = DB::table('conversations')
             ->whereNotNull('channel_type')
@@ -31,12 +32,12 @@ class ConversationController extends Controller
 
         $query = Conversation::with(['company'])->orderByDesc('last_message_at');
 
-        if (!empty($systems)) {
-            $pairs = array_map(fn($s) => explode('|', $s, 2), $systems);
+        if (! empty($systems)) {
+            $pairs = array_map(fn ($s) => explode('|', $s, 2), $systems);
             $query->where(function ($q) use ($pairs) {
                 foreach ($pairs as $pair) {
                     if (count($pair) === 2) {
-                        $q->orWhere(fn($q2) => $q2
+                        $q->orWhere(fn ($q2) => $q2
                             ->where('channel_type', $pair[0])
                             ->where('system_slug', $pair[1]));
                     }
@@ -74,38 +75,17 @@ class ConversationController extends Controller
         } elseif ($personId) {
             // person filter spans all companies — no tab restriction
         } elseif ($tab === 'filtered') {
-            $filterDomains   = \App\Models\SystemSetting::get('filter_domains', []);
-            $filterEmails    = \App\Models\SystemSetting::get('filter_emails', []);
-            $filterSubjects  = \App\Models\SystemSetting::get('filter_subjects', []);
+            $filterDomains = \App\Models\SystemSetting::get('filter_domains', []);
+            $filterEmails = \App\Models\SystemSetting::get('filter_emails', []);
+            $filterSubjects = \App\Models\SystemSetting::get('filter_subjects', []);
 
             $query->where(function ($q) use ($filterDomains, $filterEmails, $filterSubjects) {
                 $q->where('is_archived', true);
-
-                if (!empty($filterDomains) || !empty($filterEmails)) {
-                    $q->orWhereExists(function ($sub) use ($filterDomains, $filterEmails) {
-                        $sub->select(DB::raw(1))
-                            ->from('conversation_messages as cm_f')
-                            ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
-                            ->whereColumn('cm_f.conversation_id', 'conversations.id')
-                            ->where('i_f.type', 'email')
-                            ->where(function ($q2) use ($filterDomains, $filterEmails) {
-                                foreach ($filterDomains as $domain) {
-                                    $q2->orWhereRaw('LOWER(i_f.value) LIKE ?', ['%@' . strtolower($domain)]);
-                                }
-                                if (!empty($filterEmails)) {
-                                    $q2->orWhereIn(DB::raw('LOWER(i_f.value)'), array_map('strtolower', $filterEmails));
-                                }
-                            });
-                    });
-                }
-
-                foreach ($filterSubjects as $subject) {
-                    $q->orWhereRaw('LOWER(subject) LIKE ?', ['%' . strtolower($subject) . '%']);
-                }
+                $this->applySystemFilters($q, $filterDomains, $filterEmails, $filterSubjects, 'include');
             });
         } else {
             // unassigned / assigned tabs exclude filtered conversations
-            $query->where(fn($q) => $q->where('is_archived', false)->orWhereNull('is_archived'));
+            $query->where(fn ($q) => $q->where('is_archived', false)->orWhereNull('is_archived'));
             if ($tab === 'assigned') {
                 $query->whereNotNull('company_id');
             } else {
@@ -113,74 +93,35 @@ class ConversationController extends Controller
             }
 
             // Dynamically exclude conversations matching domain/email/subject filter rules
-            $filterDomains   = \App\Models\SystemSetting::get('filter_domains', []);
-            $filterEmails    = \App\Models\SystemSetting::get('filter_emails', []);
-            $filterSubjects  = \App\Models\SystemSetting::get('filter_subjects', []);
+            $filterDomains = \App\Models\SystemSetting::get('filter_domains', []);
+            $filterEmails = \App\Models\SystemSetting::get('filter_emails', []);
+            $filterSubjects = \App\Models\SystemSetting::get('filter_subjects', []);
 
-            if (!empty($filterDomains) || !empty($filterEmails)) {
-                $query->whereNotExists(function ($sub) use ($filterDomains, $filterEmails) {
-                    $sub->select(DB::raw(1))
-                        ->from('conversation_messages as cm_f')
-                        ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
-                        ->whereColumn('cm_f.conversation_id', 'conversations.id')
-                        ->where('i_f.type', 'email')
-                        ->where(function ($q2) use ($filterDomains, $filterEmails) {
-                            foreach ($filterDomains as $domain) {
-                                $q2->orWhereRaw('LOWER(i_f.value) LIKE ?', ['%@' . strtolower($domain)]);
-                            }
-                            if (!empty($filterEmails)) {
-                                $q2->orWhereIn(DB::raw('LOWER(i_f.value)'), array_map('strtolower', $filterEmails));
-                            }
-                        });
-                });
-            }
-
-            foreach ($filterSubjects as $subject) {
-                $query->whereRaw('LOWER(subject) NOT LIKE ?', ['%' . strtolower($subject) . '%']);
-            }
+            $this->applySystemFilters($query, $filterDomains, $filterEmails, $filterSubjects, 'exclude');
         }
 
         if ($search !== '') {
             $query->where(function ($q2) use ($search) {
                 $q2->where('subject', 'ilike', "%{$search}%")
-                   ->orWhereHas('company', fn($c) => $c->where('name', 'ilike', "%{$search}%"));
+                    ->orWhereHas('company', fn ($c) => $c->where('name', 'ilike', "%{$search}%"));
             });
         }
 
         $conversations = $query->paginate(50)->withQueryString();
-        $convIds       = $conversations->pluck('id');
+        $convIds = $conversations->pluck('id');
 
-        $active = fn($q) => $q->where(fn($q) => $q->where('is_archived', false)->orWhereNull('is_archived'));
-        $filterDomains  = \App\Models\SystemSetting::get('filter_domains', []);
-        $filterEmails   = \App\Models\SystemSetting::get('filter_emails', []);
+        $active = fn ($q) => $q->where(fn ($q) => $q->where('is_archived', false)->orWhereNull('is_archived'));
+        $filterDomains = \App\Models\SystemSetting::get('filter_domains', []);
+        $filterEmails = \App\Models\SystemSetting::get('filter_emails', []);
         $filterSubjectsCount = \App\Models\SystemSetting::get('filter_subjects', []);
         $filteredQuery = Conversation::where(function ($q) use ($filterDomains, $filterEmails, $filterSubjectsCount) {
             $q->where('is_archived', true);
-            if (!empty($filterDomains) || !empty($filterEmails)) {
-                $q->orWhereExists(function ($sub) use ($filterDomains, $filterEmails) {
-                    $sub->select(DB::raw(1))
-                        ->from('conversation_messages as cm_f')
-                        ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
-                        ->whereColumn('cm_f.conversation_id', 'conversations.id')
-                        ->where('i_f.type', 'email')
-                        ->where(function ($q2) use ($filterDomains, $filterEmails) {
-                            foreach ($filterDomains as $domain) {
-                                $q2->orWhereRaw('LOWER(i_f.value) LIKE ?', ['%@' . strtolower($domain)]);
-                            }
-                            if (!empty($filterEmails)) {
-                                $q2->orWhereIn(DB::raw('LOWER(i_f.value)'), array_map('strtolower', $filterEmails));
-                            }
-                        });
-                });
-            }
-            foreach ($filterSubjectsCount as $subject) {
-                $q->orWhereRaw('LOWER(subject) LIKE ?', ['%' . strtolower($subject) . '%']);
-            }
+            $this->applySystemFilters($q, $filterDomains, $filterEmails, $filterSubjectsCount, 'include');
         });
         $tabCounts = [
             'unassigned' => Conversation::whereNull('company_id')->tap($active)->count(),
-            'assigned'   => Conversation::whereNotNull('company_id')->tap($active)->count(),
-            'filtered'   => (clone $filteredQuery)->count(),
+            'assigned' => Conversation::whereNotNull('company_id')->tap($active)->count(),
+            'filtered' => (clone $filteredQuery)->count(),
         ];
 
         // Single query: distinct (conversation_id, identity_id) per direction
@@ -190,12 +131,12 @@ class ConversationController extends Controller
             ->where('direction', '!=', 'system')
             ->select('conversation_id', 'identity_id', 'direction', 'author_name')
             ->get()
-            ->unique(fn ($r) => $r->conversation_id . '|' . $r->identity_id)
+            ->unique(fn ($r) => $r->conversation_id.'|'.$r->identity_id)
             ->groupBy('conversation_id');
 
         // Load all identities with person in one query
         $allIdentityIds = $msgIdentities->flatten()->pluck('identity_id')->unique();
-        $identities     = Identity::with('person')
+        $identities = Identity::with('person')
             ->whereIn('id', $allIdentityIds)
             ->get()
             ->keyBy('id');
@@ -204,7 +145,7 @@ class ConversationController extends Controller
         $convParticipants = [];
         foreach ($msgIdentities as $convId => $rows) {
             $customer = [];
-            $team     = [];
+            $team = [];
             foreach ($rows as $row) {
                 $identity = $identities->get($row->identity_id);
 
@@ -218,22 +159,22 @@ class ConversationController extends Controller
 
                 // Avatar URL (Discord CDN hash → URL; Slack stores direct URL)
                 $avatarUrl = null;
-                if ($identity && !empty($identity->meta_json['avatar'])) {
+                if ($identity && ! empty($identity->meta_json['avatar'])) {
                     if (in_array($identity->type, ['discord_user', 'discord_id'])) {
                         $avatarUrl = 'https://cdn.discordapp.com/avatars/'
-                            . $identity->value_normalized . '/'
-                            . $identity->meta_json['avatar'] . '.webp?size=56';
+                            .$identity->value_normalized.'/'
+                            .$identity->meta_json['avatar'].'.webp?size=56';
                     } elseif ($identity->type === 'slack_user') {
                         $avatarUrl = $identity->meta_json['avatar'];
                     }
                 }
 
                 $entry = [
-                    'identity'      => $identity,
-                    'author_name'   => $row->author_name,
-                    'display_name'  => $identity?->meta_json['display_name'] ?? $row->author_name,
+                    'identity' => $identity,
+                    'author_name' => $row->author_name,
+                    'display_name' => $identity?->meta_json['display_name'] ?? $row->author_name,
                     'gravatar_hash' => $gravatarEmail ? md5(strtolower(trim($gravatarEmail))) : null,
-                    'avatar_url'    => $avatarUrl,
+                    'avatar_url' => $avatarUrl,
                 ];
                 if ($identity?->is_team_member || $row->direction === 'internal') {
                     $team[] = $entry;
@@ -245,6 +186,7 @@ class ConversationController extends Controller
         }
 
         $q = $search;
+
         return view('conversations.index', compact(
             'conversations', 'convParticipants', 'tab', 'tabCounts',
             'companyId', 'channelType', 'systemSlug', 'personId', 'q',
@@ -271,8 +213,7 @@ class ConversationController extends Controller
             ->where('thread_key', '!=', null)
             ->groupBy('thread_key');
 
-        $notes = Note::whereHas('links', fn ($q) =>
-            $q->where('linkable_type', Conversation::class)->where('linkable_id', $conversation->id)
+        $notes = Note::whereHas('links', fn ($q) => $q->where('linkable_type', Conversation::class)->where('linkable_id', $conversation->id)
         )->orderByDesc('created_at')->get();
 
         $allIdentities = Identity::with('person')->orderBy('value')->get()
@@ -285,7 +226,7 @@ class ConversationController extends Controller
                 ->where('type', 'discord_user')
                 ->where('system_slug', $conversation->system_slug)
                 ->get(['value_normalized', 'meta_json'])
-                ->mapWithKeys(fn($row) => [
+                ->mapWithKeys(fn ($row) => [
                     $row->value_normalized => json_decode($row->meta_json ?? '{}', true)['display_name'] ?? $row->value_normalized,
                 ])
                 ->all();
@@ -323,7 +264,7 @@ class ConversationController extends Controller
                 ->where('type', 'discord_user')
                 ->where('system_slug', $conversation->system_slug)
                 ->get(['value_normalized', 'meta_json'])
-                ->mapWithKeys(fn($row) => [
+                ->mapWithKeys(fn ($row) => [
                     $row->value_normalized => json_decode($row->meta_json ?? '{}', true)['display_name'] ?? $row->value_normalized,
                 ])
                 ->all();
@@ -344,8 +285,8 @@ class ConversationController extends Controller
             ->get();
 
         // Collect suggestions per rule type
-        $emails   = collect();
-        $domains  = collect();
+        $emails = collect();
+        $domains = collect();
         $contacts = collect(); // [person_id => full_name]
         $subjects = collect();
 
@@ -355,11 +296,15 @@ class ConversationController extends Controller
             }
             foreach ($conv->participants as $p) {
                 $identity = $p->identity;
-                if (!$identity) continue;
+                if (! $identity) {
+                    continue;
+                }
                 if ($identity->type === 'email') {
                     $emails->push($identity->value);
                     $domain = substr(strrchr($identity->value, '@'), 1);
-                    if ($domain) $domains->push($domain);
+                    if ($domain) {
+                        $domains->push($domain);
+                    }
                 }
                 if ($identity->person) {
                     $contacts->put($identity->person->id, $identity->person->full_name);
@@ -367,8 +312,8 @@ class ConversationController extends Controller
             }
         }
 
-        $emails   = $emails->unique()->values();
-        $domains  = $domains->unique()->values();
+        $emails = $emails->unique()->values();
+        $domains = $domains->unique()->values();
         $contacts = $contacts->unique();
         $subjects = $subjects->unique()->values();
 
@@ -382,38 +327,38 @@ class ConversationController extends Controller
      */
     public function archiveWithRule(Request $request): RedirectResponse
     {
-        $ids      = array_filter(array_map('intval', (array) $request->input('ids', [])));
+        $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
         $ruleType = $request->input('rule_type', 'none');
         $ruleValue = trim($request->input('rule_value', ''));
 
-        if (!empty($ids)) {
+        if (! empty($ids)) {
             Conversation::whereIn('id', $ids)->update(['is_archived' => true]);
         }
 
         if ($ruleType !== 'none' && $ruleValue !== '') {
             match ($ruleType) {
                 'domain' => $this->addFilterDomain($ruleValue),
-                'email'  => $this->addFilterEmail($ruleValue),
+                'email' => $this->addFilterEmail($ruleValue),
                 'contact' => $this->addFilterContact((int) $ruleValue),
                 'subject' => $this->addFilterSubject($ruleValue),
-                default  => null,
+                default => null,
             };
         }
 
         $n = count($ids);
-        $msg = $n . ' conversation(s) filtered';
+        $msg = $n.' conversation(s) filtered';
         if ($ruleType !== 'none' && $ruleValue !== '') {
             $msg .= " + filter rule added ({$ruleType}: {$ruleValue})";
         }
 
-        return back()->with('success', $msg . '.');
+        return back()->with('success', $msg.'.');
     }
 
     private function addFilterDomain(string $domain): void
     {
-        $domains   = \App\Models\SystemSetting::get('filter_domains', []);
-        $domain    = strtolower(trim($domain));
-        if (!in_array($domain, $domains, true)) {
+        $domains = \App\Models\SystemSetting::get('filter_domains', []);
+        $domain = strtolower(trim($domain));
+        if (! in_array($domain, $domains, true)) {
             $domains[] = $domain;
             \App\Models\SystemSetting::set('filter_domains', $domains);
         }
@@ -422,8 +367,8 @@ class ConversationController extends Controller
     private function addFilterEmail(string $email): void
     {
         $emails = \App\Models\SystemSetting::get('filter_emails', []);
-        $email  = strtolower(trim($email));
-        if (!in_array($email, $emails, true)) {
+        $email = strtolower(trim($email));
+        if (! in_array($email, $emails, true)) {
             $emails[] = $email;
             \App\Models\SystemSetting::set('filter_emails', $emails);
         }
@@ -433,7 +378,7 @@ class ConversationController extends Controller
     {
         if ($personId) {
             DB::table('filter_contacts')->insertOrIgnore([
-                'person_id'  => $personId,
+                'person_id' => $personId,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -443,20 +388,76 @@ class ConversationController extends Controller
     private function addFilterSubject(string $subject): void
     {
         $subjects = \App\Models\SystemSetting::get('filter_subjects', []);
-        $subject  = trim($subject);
-        if ($subject !== '' && !in_array($subject, $subjects, true)) {
+        $subject = trim($subject);
+        if ($subject !== '' && ! in_array($subject, $subjects, true)) {
             $subjects[] = $subject;
             \App\Models\SystemSetting::set('filter_subjects', $subjects);
         }
     }
 
+    /**
+     * Apply domain/email/subject filter rules to a query.
+     *
+     * Mode 'include': add orWhere conditions (for the "filtered" tab — show matching conversations).
+     * Mode 'exclude': add whereNotExists/whereRaw NOT LIKE (for assigned/unassigned tabs — hide matching conversations).
+     */
+    private function applySystemFilters(Builder $query, array $filterDomains, array $filterEmails, array $filterSubjects, string $mode): Builder
+    {
+        if ($mode === 'include') {
+            if (! empty($filterDomains) || ! empty($filterEmails)) {
+                $query->orWhereExists(function ($sub) use ($filterDomains, $filterEmails) {
+                    $sub->select(DB::raw(1))
+                        ->from('conversation_messages as cm_f')
+                        ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
+                        ->whereColumn('cm_f.conversation_id', 'conversations.id')
+                        ->where('i_f.type', 'email')
+                        ->where(function ($q2) use ($filterDomains, $filterEmails) {
+                            foreach ($filterDomains as $domain) {
+                                $q2->orWhereRaw('LOWER(i_f.value) LIKE ?', ['%@'.strtolower($domain)]);
+                            }
+                            if (! empty($filterEmails)) {
+                                $q2->orWhereIn(DB::raw('LOWER(i_f.value)'), array_map('strtolower', $filterEmails));
+                            }
+                        });
+                });
+            }
+            foreach ($filterSubjects as $subject) {
+                $query->orWhereRaw('LOWER(subject) LIKE ?', ['%'.strtolower($subject).'%']);
+            }
+        } else {
+            if (! empty($filterDomains) || ! empty($filterEmails)) {
+                $query->whereNotExists(function ($sub) use ($filterDomains, $filterEmails) {
+                    $sub->select(DB::raw(1))
+                        ->from('conversation_messages as cm_f')
+                        ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
+                        ->whereColumn('cm_f.conversation_id', 'conversations.id')
+                        ->where('i_f.type', 'email')
+                        ->where(function ($q2) use ($filterDomains, $filterEmails) {
+                            foreach ($filterDomains as $domain) {
+                                $q2->orWhereRaw('LOWER(i_f.value) LIKE ?', ['%@'.strtolower($domain)]);
+                            }
+                            if (! empty($filterEmails)) {
+                                $q2->orWhereIn(DB::raw('LOWER(i_f.value)'), array_map('strtolower', $filterEmails));
+                            }
+                        });
+                });
+            }
+            foreach ($filterSubjects as $subject) {
+                $query->whereRaw('LOWER(subject) NOT LIKE ?', ['%'.strtolower($subject).'%']);
+            }
+        }
+
+        return $query;
+    }
+
     public function bulkArchive(Request $request): RedirectResponse
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
-        if (!empty($ids)) {
+        if (! empty($ids)) {
             Conversation::whereIn('id', $ids)->update(['is_archived' => true]);
         }
-        return back()->with('success', count($ids) . ' conversation(s) filtered.');
+
+        return back()->with('success', count($ids).' conversation(s) filtered.');
     }
 
     public function storeParticipant(Request $request, Conversation $conversation): RedirectResponse

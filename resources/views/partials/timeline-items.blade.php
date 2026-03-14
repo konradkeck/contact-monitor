@@ -154,7 +154,7 @@
                         <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $hoverText }}">{{ $titleText }}</span>
                     @endif
                 @elseif($ticketNotFound)
-                    <span class="text-xs text-red-400 italic truncate max-w-[180px]" title="{{ $hoverText }}">?</span>
+                    <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $hoverText }}">#{{ $ticketNotFound }}</span>
                 @endif
 
                 <div class="flex-1 min-w-0"></div>
@@ -176,7 +176,7 @@
                 </span>
                 @if(!$modalUrl && $url)
                     <a href="{{ $url }}"
-                       class="opacity-0 group-hover:opacity-60 hover:!opacity-100 shrink-0 transition-opacity">
+                       class="opacity-20 group-hover:opacity-60 hover:!opacity-100 shrink-0 transition-opacity">
                         <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -231,7 +231,7 @@
                         <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $hoverText }}">{{ $titleText }}</span>
                     @endif
                 @elseif($ticketNotFound)
-                    <span class="text-xs text-red-400 italic truncate max-w-[180px]" title="{{ $hoverText }}">?</span>
+                    <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $hoverText }}">#{{ $ticketNotFound }}</span>
                 @endif
 
                 <div class="flex-1 min-w-0"></div>
@@ -253,7 +253,7 @@
                 </span>
                 @if(!$modalUrl && $url)
                     <a href="{{ $url }}"
-                       class="opacity-0 group-hover:opacity-60 hover:!opacity-100 shrink-0 transition-opacity">
+                       class="opacity-20 group-hover:opacity-60 hover:!opacity-100 shrink-0 transition-opacity">
                         <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                   d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -270,5 +270,7 @@
 @if(isset($nextCursor) && $nextCursor)
     <div id="timeline-sentinel" data-next-cursor="{{ $nextCursor }}" class="col-span-3 h-2"></div>
 @else
-    <div class="col-span-3 py-6 text-center text-xs text-gray-300">— end —</div>
+    <div class="col-span-3 py-6 flex items-center px-8">
+        <div class="flex-1 h-px bg-gray-100"></div>
+    </div>
 @endif

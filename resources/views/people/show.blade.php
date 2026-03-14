@@ -145,7 +145,7 @@
             @endif
             <a href="{{ route('people.index') }}" class="hover:text-gray-700">{{ ($backLink ?? null) ? 'People' : '← People' }}</a>
         </div>
-        <h1 class="text-2xl font-bold text-gray-900 mt-1">{{ $person->full_name }}</h1>
+        <h1 class="text-xl font-bold text-gray-900 mt-1">{{ $person->full_name }}</h1>
     </div>
     <div class="flex items-center gap-2">
         <button type="button"
@@ -155,8 +155,8 @@
         @if(!$person->is_our_org)
         <button type="button" id="mark-our-org-btn"
                 onclick="markPersonOurOrg()"
-                class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-blue-600 transition">
-            🏢 Our company</button>
+                class="px-3 py-1.5 border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm rounded hover:bg-indigo-100 transition">
+            Our Org</button>
         @endif
         <button type="button"
                 onclick="showPersonAssignCompany()"
@@ -178,17 +178,38 @@
             <div class="{{ $person->is_our_org ? 'bg-gradient-to-br from-indigo-900 to-indigo-700' : 'bg-gradient-to-br from-gray-900 to-gray-700' }} px-5 pt-5 pb-10 flex flex-col items-center text-center">
                 @if($person->is_our_org)
                     <span class="mb-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-400/30 text-indigo-100 border border-indigo-400/40">
-                        🏢 Our Organization
+                        Our Org
                     </span>
                 @endif
-                <x-person-avatar :person="$person" size="20"
+                <x-person-avatar :person="$person" size="14"
                      class="border-2 {{ $person->is_our_org ? 'border-indigo-300/40' : 'border-white/20' }} bg-gray-600 mb-3" />
                 <p class="font-bold text-white text-base leading-snug">{{ $person->full_name }}</p>
                 <p class="text-xs {{ $person->is_our_org ? 'text-indigo-300' : 'text-gray-400' }} mt-1">Since {{ $person->created_at->format('d M Y') }}</p>
             </div>
 
             {{-- Companies lifted card --}}
-            <div class="-mt-4 mx-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div class="-mt-4 mx-4 mb-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                {{-- Card header --}}
+                <div class="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned Companies</span>
+                    <div class="relative" id="assign-co-wrapper">
+                        <button type="button" onclick="toggleAssignCoMenu()"
+                                class="text-xs font-medium text-brand-600 hover:text-brand-700 border border-brand-200 hover:border-brand-400 px-2 py-0.5 rounded transition flex items-center gap-1">
+                            + Assign
+                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div id="assign-co-menu" class="hidden absolute right-0 top-full mt-1 bg-white rounded-lg border border-gray-200 shadow-lg py-1 min-w-max z-20">
+                            @if($allCompanies->isNotEmpty())
+                                <button type="button"
+                                        onclick="document.getElementById('popup-link-company').classList.remove('hidden'); document.getElementById('assign-co-menu').classList.add('hidden')"
+                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Link existing</button>
+                            @endif
+                            <button type="button"
+                                    onclick="showPersonAssignCompany(); document.getElementById('assign-co-menu').classList.add('hidden')"
+                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Create &amp; assign</button>
+                        </div>
+                    </div>
+                </div>
                 @if($person->companies->isEmpty())
                     <p class="px-4 py-3 text-xs text-gray-400 italic">Not linked to any company.</p>
                 @else
@@ -212,22 +233,6 @@
                         @endforeach
                     </ul>
                 @endif
-            </div>
-
-            {{-- Company actions --}}
-            <div class="px-4 py-3 flex items-center justify-center gap-2">
-                @if($allCompanies->isNotEmpty())
-                    <button onclick="document.getElementById('popup-link-company').classList.remove('hidden')"
-                            class="text-xs font-medium text-brand-600 hover:text-brand-700 border border-brand-200
-                                   hover:border-brand-400 px-3 py-1.5 rounded-full transition">
-                        + Link existing
-                    </button>
-                @endif
-                <button onclick="showPersonAssignCompany()"
-                        class="text-xs font-medium text-gray-500 hover:text-brand-600 border border-gray-200
-                               hover:border-brand-300 px-3 py-1.5 rounded-full transition">
-                    + Create &amp; assign
-                </button>
             </div>
 
         </div>
@@ -798,5 +803,14 @@ function markPersonOurOrg() {
         body: JSON.stringify({}),
     }).then(r => r.json()).then(d => { if (d.ok) window.location.reload(); else if (btn) btn.disabled = false; });
 }
+function toggleAssignCoMenu() {
+    document.getElementById('assign-co-menu').classList.toggle('hidden');
+}
+document.addEventListener('click', function(e) {
+    const wrapper = document.getElementById('assign-co-wrapper');
+    if (wrapper && !wrapper.contains(e.target)) {
+        document.getElementById('assign-co-menu')?.classList.add('hidden');
+    }
+});
 </script>
 @endsection

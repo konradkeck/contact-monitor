@@ -40,7 +40,7 @@
     ]));
     $sortIcon = fn($col) => $sort === $col
         ? ($dir === 'asc' ? ' ↑' : ' ↓')
-        : ' ↕';
+        : '';
 
     // Full date formatter for title attributes
     $fmtDate = fn($dt) => $dt?->format('D, j M Y \a\t H:i') ?? '';
@@ -199,21 +199,25 @@
             <button type="button" onclick="companiesOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
             <button type="button" onclick="companiesClearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
         </div>
-        <table class="w-full text-sm table-fixed">
+        @php
+            $tableWidth = 36 + 220 + 160 + 150 + ($brandProducts->isEmpty() ? 320 : $brandProducts->count() * 160) + 110 + 120;
+        @endphp
+        <div class="overflow-x-auto">
+        <table class="text-sm table-fixed" style="width:{{ $tableWidth }}px; min-width:100%">
             <colgroup>
-                <col style="width:32px">{{-- checkbox --}}
-                <col style="width:220px">{{-- Company: fixed --}}
-                <col style="width:190px">{{-- Domain --}}
-                <col style="width:185px">{{-- Contacts --}}
+                <col style="width:36px">
+                <col style="width:220px">
+                <col style="width:160px">
+                <col style="width:150px">
                 @if($brandProducts->isEmpty())
-                    <col>{{-- spacer: takes remaining space --}}
+                    <col style="width:320px">{{-- placeholder col --}}
                 @else
                     @foreach($brandProducts as $bp)
-                        <col style="width:120px">
+                        <col style="width:160px">
                     @endforeach
                 @endif
                 <col style="width:110px">
-                <col style="width:120px">{{-- conv channels --}}
+                <col style="width:120px">
             </colgroup>
             <thead class="tbl-header">
                 <tr>
@@ -238,9 +242,9 @@
                     </th>
                     @if($brandProducts->isEmpty())
                         <th class="px-4 py-2.5 text-left">
-                            <span class="text-xs text-gray-400 font-normal italic">
-                                Configure <a href="{{ route('brand-products.index') }}"
-                                             class="underline hover:text-gray-600 transition">Segmentation</a> to evaluate
+                            <span class="text-xs text-gray-500 font-normal italic">
+                                Configure <a href="{{ route('segmentation.index') }}"
+                                             class="underline hover:text-gray-700 transition">Segmentation</a> to evaluate
                             </span>
                         </th>
                     @else
@@ -248,7 +252,7 @@
                             <th class="px-2 py-2.5 text-left">
                                 <a href="{{ $sortUrl('bp_score_'.$bp->id) }}"
                                    class="flex items-center justify-between gap-1 hover:text-gray-900 text-xs">
-                                    <span class="leading-tight">{{ $bp->name }}{{ $bp->variant ? ' · '.$bp->variant : '' }}</span>
+                                    <span class="leading-tight truncate">{{ $bp->name }}{{ $bp->variant ? ' · '.$bp->variant : '' }}</span>
                                     <span class="shrink-0 opacity-60">{{ $sortIcon('bp_score_'.$bp->id) }}</span>
                                 </a>
                             </th>
@@ -261,7 +265,7 @@
                     </th>
                     <th class="px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('last_conv') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
-                            <span>Conv</span><span class="shrink-0 opacity-60">{{ $sortIcon('last_conv') }}</span>
+                            <span>Channels</span><span class="shrink-0 opacity-60">{{ $sortIcon('last_conv') }}</span>
                         </a>
                     </th>
                 </tr>
@@ -287,9 +291,10 @@
                         </td>
 
                         {{-- Company name + alias count + note icon --}}
-                        <td class="px-4 py-3 min-w-0">
+                        <td class="px-4 py-3 overflow-hidden">
                             <div class="flex items-center gap-1.5 min-w-0">
                                 <a href="{{ route('companies.show', $company) }}"
+                                   title="{{ $company->name }}"
                                    class="font-semibold text-gray-900 hover:text-brand-700 transition truncate">
                                     {{ $company->name }}
                                 </a>
@@ -327,10 +332,10 @@
                         </td>
 
                         {{-- Domain: primary + hover tooltip for extra domains --}}
-                        <td class="px-4 py-3">
+                        <td class="px-4 py-3 overflow-hidden">
                             @if($primaryDomain)
                                 <div class="flex items-center gap-1.5 min-w-0">
-                                    <span class="font-mono text-xs text-gray-600 truncate">{{ $primaryDomain->domain }}</span>
+                                    <span class="font-mono text-xs text-gray-600 truncate" title="{{ $primaryDomain->domain }}">{{ $primaryDomain->domain }}</span>
                                     @if($extraDomains->isNotEmpty())
                                         <div class="relative group inline-block shrink-0">
                                             <span class="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded font-medium leading-none cursor-default">
@@ -463,7 +468,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ 6 + $brandProducts->count() }}"
+                        <td colspan="{{ 6 + max(1, $brandProducts->count()) }}"
                             class="px-4 py-10 text-center text-gray-400 italic">
                             No companies found.
                         </td>
@@ -471,6 +476,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>{{-- /overflow-x-auto --}}
 
         @if($companies->hasPages())
             <div class="px-4 py-3 border-t border-gray-100">

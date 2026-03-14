@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\BuildsConvSubjectMap;
 use App\Models\Account;
 use App\Models\AuditLog;
 use App\Models\BrandProduct;
@@ -10,7 +11,6 @@ use App\Models\CompanyAlias;
 use App\Models\CompanyBrandStatus;
 use App\Models\CompanyDomain;
 use App\Models\Note;
-use App\Models\NoteLink;
 use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -20,64 +20,63 @@ use Illuminate\View\View;
 
 class CompanyController extends Controller
 {
+    use BuildsConvSubjectMap;
+
     public function index(Request $request): View
     {
         $search = $request->get('q');
-        $sort   = $request->get('sort', 'updated_at');
-        $dir    = $request->get('dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $sort = $request->get('sort', 'updated_at');
+        $dir = $request->get('dir', 'desc') === 'asc' ? 'asc' : 'desc';
 
         $brandProducts = BrandProduct::orderBy('name')->get();
-        $channelTypes  = \App\Models\Conversation::distinct()->orderBy('channel_type')->pluck('channel_type');
+        $channelTypes = \App\Models\Conversation::distinct()->orderBy('channel_type')->pluck('channel_type');
 
         $allowedSorts = ['name', 'domain', 'contacts', 'updated_at', 'last_conv'];
         foreach ($brandProducts as $bp) {
-            $allowedSorts[] = 'bp_score_' . $bp->id;
-            $allowedSorts[] = 'bp_stage_' . $bp->id;
+            $allowedSorts[] = 'bp_score_'.$bp->id;
+            $allowedSorts[] = 'bp_stage_'.$bp->id;
         }
-        if (!in_array($sort, $allowedSorts)) $sort = 'updated_at';
+        if (! in_array($sort, $allowedSorts)) {
+            $sort = 'updated_at';
+        }
 
         $query = Company::query()
             ->when($search, function ($q) use ($search) {
-                $term = '%' . strtolower($search) . '%';
+                $term = '%'.strtolower($search).'%';
                 $q->where(function ($sub) use ($term) {
                     $sub->whereRaw('LOWER(companies.name) LIKE ?', [$term])
                         ->orWhereHas('aliases', fn ($a) => $a->whereRaw('LOWER(alias_normalized) LIKE ?', [$term]))
                         ->orWhereHas('domains', fn ($d) => $d->whereRaw('LOWER(domain) LIKE ?', [$term]));
                 });
             })
-            ->when($request->get('f_domain'), fn ($q, $v) =>
-                $q->whereHas('domains', fn ($d) => $d->whereRaw('LOWER(domain) LIKE ?', ['%'.strtolower($v).'%']))
+            ->when($request->get('f_domain'), fn ($q, $v) => $q->whereHas('domains', fn ($d) => $d->whereRaw('LOWER(domain) LIKE ?', ['%'.strtolower($v).'%']))
             )
             ->when($request->get('f_people_min'), fn ($q, $v) => $q->has('people', '>=', (int) $v))
-            ->when($request->get('f_conv_type'), fn ($q, $v) =>
-                $q->whereHas('conversations', fn ($c) => $c->where('channel_type', $v))
+            ->when($request->get('f_conv_type'), fn ($q, $v) => $q->whereHas('conversations', fn ($c) => $c->where('channel_type', $v))
             )
             ->when($request->get('f_updated_from'), fn ($q, $v) => $q->whereDate('updated_at', '>=', $v))
-            ->when($request->get('f_updated_to'),   fn ($q, $v) => $q->whereDate('updated_at', '<=', $v))
+            ->when($request->get('f_updated_to'), fn ($q, $v) => $q->whereDate('updated_at', '<=', $v))
             ->with([
                 'domains',
                 'aliases',
                 'people.identities',
                 'brandStatuses.brandProduct',
                 'conversations' => fn ($q) => $q->orderByDesc('last_message_at'),
-                'notes'         => fn ($q) => $q->orderByDesc('created_at'),
+                'notes' => fn ($q) => $q->orderByDesc('created_at'),
             ]);
 
         // Brand product filters
         foreach ($brandProducts as $bp) {
             if ($stage = $request->get("f_bp_{$bp->id}_stage")) {
-                $query->whereHas('brandStatuses', fn ($q) =>
-                    $q->where('brand_product_id', $bp->id)->where('stage', $stage)
+                $query->whereHas('brandStatuses', fn ($q) => $q->where('brand_product_id', $bp->id)->where('stage', $stage)
                 );
             }
             if ($min = $request->get("f_bp_{$bp->id}_score_min")) {
-                $query->whereHas('brandStatuses', fn ($q) =>
-                    $q->where('brand_product_id', $bp->id)->where('evaluation_score', '>=', (int) $min)
+                $query->whereHas('brandStatuses', fn ($q) => $q->where('brand_product_id', $bp->id)->where('evaluation_score', '>=', (int) $min)
                 );
             }
             if ($max = $request->get("f_bp_{$bp->id}_score_max")) {
-                $query->whereHas('brandStatuses', fn ($q) =>
-                    $q->where('brand_product_id', $bp->id)->where('evaluation_score', '<=', (int) $max)
+                $query->whereHas('brandStatuses', fn ($q) => $q->where('brand_product_id', $bp->id)->where('evaluation_score', '<=', (int) $max)
                 );
             }
         }
@@ -105,15 +104,15 @@ class CompanyController extends Controller
         };
 
         // ── Filtered companies ─────────────────────────────────
-        $filterDomains  = SystemSetting::get('filter_domains', []);
-        $filterEmails   = SystemSetting::get('filter_emails', []);
+        $filterDomains = SystemSetting::get('filter_domains', []);
+        $filterEmails = SystemSetting::get('filter_emails', []);
         $filterContacts = DB::table('filter_contacts')->pluck('person_id')->all();
 
-        $filteredIds     = [];
+        $filteredIds = [];
         $filteredReasons = [];
 
         // By domain: companies whose any domain matches a filter_domains entry
-        if (!empty($filterDomains)) {
+        if (! empty($filterDomains)) {
             $domainMatches = DB::table('company_domains')
                 ->whereIn(DB::raw('LOWER(domain)'), array_map('strtolower', $filterDomains))
                 ->select('company_id', 'domain')
@@ -125,23 +124,23 @@ class CompanyController extends Controller
         }
 
         // By filter_contacts: companies linked via company_person to any filtered person
-        if (!empty($filterContacts)) {
+        if (! empty($filterContacts)) {
             $contactCompanies = DB::table('company_person')
                 ->whereIn('person_id', $filterContacts)
                 ->pluck('company_id')
                 ->unique()
                 ->all();
             foreach ($contactCompanies as $companyId) {
-                if (!isset($filteredReasons[$companyId])) {
-                    $filteredIds[]                = $companyId;
+                if (! isset($filteredReasons[$companyId])) {
+                    $filteredIds[] = $companyId;
                     $filteredReasons[$companyId] = 'Filtered contact';
                 }
             }
         }
 
-        $filteredIds  = array_unique($filteredIds);
+        $filteredIds = array_unique($filteredIds);
         $filteredCount = count($filteredIds);
-        $showFiltered  = (bool) $request->get('show_filtered');
+        $showFiltered = (bool) $request->get('show_filtered');
 
         if ($showFiltered) {
             if (empty($filteredIds)) {
@@ -169,9 +168,9 @@ class CompanyController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'name'           => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'primary_domain' => 'nullable|string|max:255',
-            'timezone'       => 'nullable|string|max:100',
+            'timezone' => 'nullable|string|max:100',
         ]);
 
         $company = Company::create($data);
@@ -179,7 +178,7 @@ class CompanyController extends Controller
         if ($company->primary_domain) {
             CompanyDomain::create([
                 'company_id' => $company->id,
-                'domain'     => $company->primary_domain,
+                'domain' => $company->primary_domain,
                 'is_primary' => true,
             ]);
         }
@@ -200,12 +199,11 @@ class CompanyController extends Controller
             'brandStatuses.brandProduct',
         ]);
 
-        $notes = Note::whereHas('links', fn ($q) =>
-            $q->where('linkable_type', Company::class)->where('linkable_id', $company->id)
+        $notes = Note::whereHas('links', fn ($q) => $q->where('linkable_type', Company::class)->where('linkable_id', $company->id)
         )->orderByDesc('created_at')->limit(10)->get();
 
         // Group conversations by (channel_type, system_slug) — one row per source
-        $convGroups = collect(DB::select("
+        $convGroups = collect(DB::select('
             SELECT DISTINCT ON (channel_type, system_slug)
                 channel_type, system_slug, id AS last_conv_id,
                 subject AS last_subject, last_message_at,
@@ -213,7 +211,7 @@ class CompanyController extends Controller
             FROM conversations
             WHERE company_id = ?
             ORDER BY channel_type, system_slug, last_message_at DESC
-        ", [$company->id]))->sortByDesc('last_message_at');
+        ', [$company->id]))->sortByDesc('last_message_at');
 
         $conversationCount = $convGroups->sum('conv_count');
 
@@ -277,13 +275,13 @@ class CompanyController extends Controller
         }
         if ($systems = $request->get('systems')) {
             $pairs = array_filter((array) $systems);
-            if (!empty($pairs)) {
+            if (! empty($pairs)) {
                 $query->where(function ($q) use ($pairs) {
                     foreach ($pairs as $pair) {
                         [$ch, $slug] = array_pad(explode('|', $pair, 2), 2, '');
                         $q->orWhere(function ($sq) use ($ch, $slug) {
                             $sq->whereRaw("meta_json->>'channel_type' = ?", [$ch])
-                               ->whereRaw("meta_json->>'system_slug' = ?", [$slug]);
+                                ->whereRaw("meta_json->>'system_slug' = ?", [$slug]);
                         });
                     }
                 });
@@ -310,8 +308,8 @@ class CompanyController extends Controller
         $page = $query->cursorPaginate(25, ['*'], 'cursor', $request->get('cursor'));
 
         return view('companies.partials.timeline-items', [
-            'activities'     => $page->items(),
-            'nextCursor'     => $page->nextCursor()?->encode(),
+            'activities' => $page->items(),
+            'nextCursor' => $page->nextCursor()?->encode(),
             'convSubjectMap' => $this->buildConvSubjectMap($page->items()),
         ]);
     }
@@ -324,9 +322,9 @@ class CompanyController extends Controller
     public function update(Request $request, Company $company): RedirectResponse
     {
         $data = $request->validate([
-            'name'           => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'primary_domain' => 'nullable|string|max:255',
-            'timezone'       => 'nullable|string|max:100',
+            'timezone' => 'nullable|string|max:100',
         ]);
 
         $company->update($data);
@@ -420,10 +418,10 @@ class CompanyController extends Controller
     public function storeBrandStatus(Request $request, Company $company): RedirectResponse
     {
         $data = $request->validate([
-            'brand_product_id'  => 'required|exists:brand_products,id',
-            'stage'             => 'required|string|max:100',
-            'evaluation_score'  => 'nullable|integer|min:1|max:10',
-            'evaluation_notes'  => 'nullable|string',
+            'brand_product_id' => 'required|exists:brand_products,id',
+            'stage' => 'required|string|max:100',
+            'evaluation_score' => 'nullable|integer|min:1|max:10',
+            'evaluation_notes' => 'nullable|string',
         ]);
 
         $company->brandStatuses()->create($data);
@@ -446,6 +444,7 @@ class CompanyController extends Controller
         try {
             $company->accounts()->create($data);
             AuditLog::record('added_account', $company, "Added {$data['system_type']} account to {$company->name}", $data);
+
             return back()->with('success', 'Account added.');
         } catch (\Illuminate\Database\UniqueConstraintViolationException) {
             return back()->withErrors(['external_id' => 'This account already exists.']);
@@ -463,7 +462,7 @@ class CompanyController extends Controller
     public function updateBrandStatus(Request $request, Company $company, CompanyBrandStatus $status): RedirectResponse
     {
         $data = $request->validate([
-            'stage'            => 'required|string|max:100',
+            'stage' => 'required|string|max:100',
             'evaluation_score' => 'nullable|integer|min:1|max:10',
             'evaluation_notes' => 'nullable|string',
         ]);
@@ -476,40 +475,8 @@ class CompanyController extends Controller
     public function destroyBrandStatus(Company $company, CompanyBrandStatus $status): RedirectResponse
     {
         $status->delete();
+
         return back()->with('success', 'Brand status removed.');
     }
 
-    private function buildConvSubjectMap(array $activities): array
-    {
-        $extIds = [];
-        foreach ($activities as $activity) {
-            $m = $activity->meta_json ?? [];
-            // Resolve effective channel type — meta_json may store channel_type directly,
-            // or only system_type (e.g. WHMCS activities store system_type='whmcs', no channel_type key)
-            $effectiveChannelType = $m['channel_type'] ?? match($m['system_type'] ?? '') {
-                'whmcs', 'metricscube' => 'ticket',
-                default => null,
-            };
-            if ($effectiveChannelType === 'ticket' && !empty($m['conversation_external_id'])) {
-                $extIds[] = $m['conversation_external_id'];
-            }
-            // MetricsCube ticket activities (relation_id = raw ticket number)
-            $mcType = $m['mc_type'] ?? '';
-            if (in_array($mcType, ['Opened Ticket', 'Closed Ticket', 'Ticket Replied'], true) && !empty($m['relation_id'])) {
-                $extIds[] = 'ticket_' . $m['relation_id'];
-            }
-        }
-        if (empty($extIds)) {
-            return [];
-        }
-        $map = [];
-        DB::table('conversations')
-            ->whereIn('external_thread_id', array_unique($extIds))
-            ->select('id', 'external_thread_id', 'subject')
-            ->get()
-            ->each(function ($c) use (&$map) {
-                $map[$c->external_thread_id] = ['id' => $c->id, 'subject' => $c->subject];
-            });
-        return $map;
-    }
 }

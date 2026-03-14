@@ -25,7 +25,7 @@ class IngestItem extends Model
     ];
 
     protected $casts = [
-        'payload'      => 'array',
+        'payload' => 'array',
         'processed_at' => 'datetime',
     ];
 

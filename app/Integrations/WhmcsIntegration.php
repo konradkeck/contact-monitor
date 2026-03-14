@@ -4,9 +4,20 @@ namespace App\Integrations;
 
 class WhmcsIntegration extends BaseIntegration
 {
-    public function label(): string { return 'WHMCS'; }
-    public function badgeCls(): string { return 'bg-white'; }
-    public function badgePadding(): string { return ''; }
+    public function label(): string
+    {
+        return 'WHMCS';
+    }
+
+    public function badgeCls(): string
+    {
+        return 'bg-white';
+    }
+
+    public function badgePadding(): string
+    {
+        return '';
+    }
 
     public function badgeIconSvg(string $sizeClass = 'w-full h-full'): string
     {

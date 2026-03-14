@@ -33,13 +33,13 @@ class ConversationMessage extends Model
 
     protected $casts = [
         'attachments_json' => 'array',
-        'meta_json'        => 'array',
+        'meta_json' => 'array',
         'is_system_message' => 'boolean',
-        'occurred_at'      => 'datetime',
-        'edited_at'        => 'datetime',
-        'archived_at'      => 'datetime',
-        'is_archived'      => 'boolean',
-        'sync_protected'   => 'boolean',
+        'occurred_at' => 'datetime',
+        'edited_at' => 'datetime',
+        'archived_at' => 'datetime',
+        'is_archived' => 'boolean',
+        'sync_protected' => 'boolean',
     ];
 
     public function conversation(): BelongsTo

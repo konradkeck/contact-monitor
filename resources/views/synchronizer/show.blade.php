@@ -238,6 +238,9 @@
 
 @push('scripts')
 <script>
+const CONNS_URL = '{{ rtrim(url('/configuration/connections/connections'), '/') }}';
+const RUNS_URL  = '{{ rtrim(url('/configuration/connections/runs'), '/') }}';
+
 function showPage(connId, initialRunId, initialStatus) {
     return {
         connId:      connId,
@@ -276,7 +279,7 @@ function showPage(connId, initialRunId, initialStatus) {
         async loadLogs(runId, initial = false) {
             if (initial) this.loading = true;
             try {
-                const r = await fetch(`/synchronization/runs/${runId}/logs`);
+                const r = await fetch(`${RUNS_URL}/${runId}/logs`);
                 const d = await r.json();
                 const lines = d.log_lines ?? [];
                 if (lines.length > this._seenCount) {
@@ -351,14 +354,14 @@ async function doRun(mode) {
     closeRunModal();
     if (!connId) return;
     try {
-        const res = await fetch(`/synchronization/connections/${connId}/run`, {
+        const res = await fetch(`${CONNS_URL}/${connId}/run`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRF-TOKEN': '{{ csrf_token() }}'},
             body: JSON.stringify({mode})
         });
         const data = await res.json();
         if (data.run_id) {
-            window.location = `/synchronization/connections/${connId}?run_id=${data.run_id}`;
+            window.location = `${CONNS_URL}/${connId}?run_id=${data.run_id}`;
         }
     } catch(e) {
         alert('Error: ' + e.message);
@@ -369,7 +372,7 @@ async function stopRun(id, btn) {
     btn.disabled = true;
     btn.textContent = '...';
     try {
-        await fetch(`/synchronization/connections/${id}/stop`, {
+        await fetch(`${CONNS_URL}/${id}/stop`, {
             method: 'POST',
             headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
         });

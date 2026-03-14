@@ -27,11 +27,11 @@ class ActivityProcessor
         $payload = $item->payload;
 
         // Resolve company via account
-        $companyId         = null;
-        $personId          = null;
+        $companyId = null;
+        $personId = null;
         $accountSystemSlug = $payload['account_system_slug'] ?? $item->system_slug;
 
-        if (!empty($payload['account_external_id'])) {
+        if (! empty($payload['account_external_id'])) {
             $accountSystemType = $payload['account_system_type'] ?? $item->system_type;
 
             $account = Account::where('system_type', $accountSystemType)
@@ -48,6 +48,7 @@ class ActivityProcessor
         if ($item->action === 'delete') {
             $activity?->delete();
             $item->update(['status' => 'done', 'processed_at' => now()]);
+
             return;
         }
 
@@ -56,18 +57,18 @@ class ActivityProcessor
         $meta = array_merge(
             $payload['meta'] ?? [],
             [
-                'ingest_key'   => $item->idempotency_key,
-                'system_type'  => $item->system_type,
-                'system_slug'  => $item->system_slug,
-                'external_id'  => $item->external_id,
-                'description'  => $payload['description'] ?? null,
+                'ingest_key' => $item->idempotency_key,
+                'system_type' => $item->system_type,
+                'system_slug' => $item->system_slug,
+                'external_id' => $item->external_id,
+                'description' => $payload['description'] ?? null,
             ]
         );
 
         // For ticket-type MetricsCube activities, try to link to the conversation
         $targetUrl = $payload['target_url'] ?? null;
-        $mcType    = $meta['mc_type'] ?? '';
-        if (!$targetUrl && in_array($mcType, ['Opened Ticket', 'Closed Ticket', 'Ticket Replied'], true)) {
+        $mcType = $meta['mc_type'] ?? '';
+        if (! $targetUrl && in_array($mcType, ['Opened Ticket', 'Closed Ticket', 'Ticket Replied'], true)) {
             // For "Ticket Replied": relation_id is the reply log ID, not ticket ID.
             // Extract the actual WHMCS ticket ID from the description.
             if ($mcType === 'Ticket Replied') {
@@ -78,29 +79,29 @@ class ActivityProcessor
             }
             if ($ticketId) {
                 $conv = Conversation::where('channel_type', 'ticket')
-                    ->where('external_thread_id', 'ticket_' . $ticketId)
+                    ->where('external_thread_id', 'ticket_'.$ticketId)
                     ->first();
                 if ($conv) {
-                    $targetUrl = '/conversations/' . $conv->id;
+                    $targetUrl = '/conversations/'.$conv->id;
                 }
             }
         }
 
         // For discord/slack/imap activities, link to the conversation via conversation_external_id
-        if (!empty($meta['conversation_external_id'])) {
+        if (! empty($meta['conversation_external_id'])) {
             $convQuery = Conversation::where('system_type', $item->system_type)
                 ->where('system_slug', $item->system_slug)
                 ->where('external_thread_id', $meta['conversation_external_id']);
-            if (!empty($meta['channel_type'])) {
+            if (! empty($meta['channel_type'])) {
                 $convQuery->where('channel_type', $meta['channel_type']);
             }
             $conv = $convQuery->first();
             if ($conv) {
-                if (!$targetUrl) {
-                    $targetUrl = '/conversations/' . $conv->id;
+                if (! $targetUrl) {
+                    $targetUrl = '/conversations/'.$conv->id;
                 }
                 // Inherit company_id from conversation if not already resolved via account
-                if (!$companyId) {
+                if (! $companyId) {
                     $companyId = $conv->company_id;
                 }
             }
@@ -108,26 +109,26 @@ class ActivityProcessor
 
         if ($activity === null) {
             $activity = Activity::create([
-                'company_id'     => $companyId,
-                'person_id'      => $personId,
-                'type'           => $payload['activity_type'] ?? 'note',
-                'occurred_at'    => $occurredAt,
-                'target_url'     => $targetUrl,
-                'meta_json'      => $meta,
+                'company_id' => $companyId,
+                'person_id' => $personId,
+                'type' => $payload['activity_type'] ?? 'note',
+                'occurred_at' => $occurredAt,
+                'target_url' => $targetUrl,
+                'meta_json' => $meta,
             ]);
         } else {
             $activity->update([
-                'company_id'  => $companyId ?? $activity->company_id,
+                'company_id' => $companyId ?? $activity->company_id,
                 'occurred_at' => $occurredAt,
-                'target_url'  => $targetUrl ?? $activity->target_url,
-                'meta_json'   => $meta,
+                'target_url' => $targetUrl ?? $activity->target_url,
+                'meta_json' => $meta,
             ]);
         }
 
         $item->update([
-            'status'      => 'done',
+            'status' => 'done',
             'entity_type' => Activity::class,
-            'entity_id'   => $activity->id,
+            'entity_id' => $activity->id,
             'processed_at' => now(),
         ]);
     }

@@ -5,10 +5,11 @@
 
 @php $activeTab = request('tab', 'members'); @endphp
 
-<div class="flex items-center gap-3 mb-6">
-    <a href="{{ route('data-relations.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">← Data Relations</a>
-    <span class="text-gray-300">/</span>
-    <h1 class="text-xl font-bold text-gray-900">Our Organization</h1>
+<div class="page-header">
+    <div>
+        <span class="page-title">Our Organization</span>
+        <p class="text-xs text-gray-400 mt-0.5">Define which people and domains belong to your own team. This separates internal activity from customer interactions so timelines and statistics only reflect external communications.</p>
+    </div>
 </div>
 
 @if(session('success'))

@@ -24,26 +24,28 @@ class SynchronizerController extends Controller
             } else {
                 $server = $servers->first();
             }
+
             return [
-                'url'   => rtrim($this->normalizeUrl($server->url), '/') . '/api',
+                'url' => rtrim($this->normalizeUrl($server->url), '/').'/api',
                 'token' => $server->api_token,
-                'servers'   => $servers,
+                'servers' => $servers,
                 'activeServer' => $server,
             ];
         }
 
         return [
-            'url'          => rtrim($this->normalizeUrl(env('SYNCHRONIZER_URL', 'http://127.0.0.1:8011')), '/') . '/api',
-            'token'        => env('SYNCHRONIZER_API_TOKEN'),
-            'servers'      => collect(),
+            'url' => rtrim($this->normalizeUrl(config('services.synchronizer.url')), '/').'/api',
+            'token' => config('services.synchronizer.token'),
+            'servers' => collect(),
             'activeServer' => null,
         ];
     }
 
     private function api(?int $serverId = null): \Illuminate\Http\Client\PendingRequest
     {
-        $id  = $serverId ?? (request()->integer('server') ?: null);
+        $id = $serverId ?? (request()->integer('server') ?: null);
         $cfg = $this->resolveServer($id);
+
         return Http::withToken($cfg['token'])
             ->baseUrl($cfg['url'])
             ->timeout(10)
@@ -56,18 +58,18 @@ class SynchronizerController extends Controller
         $cfg = $this->resolveServer($serverId);
 
         try {
-            $response    = $this->api($serverId)->get('/connections');
+            $response = $this->api($serverId)->get('/connections');
             $connections = $response->json('connections', []);
-            $error       = $response->failed() ? 'Could not reach Synchronizer.' : null;
+            $error = $response->failed() ? 'Could not reach Synchronizer.' : null;
         } catch (\Exception $e) {
             $connections = [];
-            $error       = 'Could not connect to Synchronizer: ' . $e->getMessage();
+            $error = 'Could not connect to Synchronizer: '.$e->getMessage();
         }
 
         return view('synchronizer.index', [
-            'connections'  => $connections,
-            'error'        => $error,
-            'servers'      => $cfg['servers'],
+            'connections' => $connections,
+            'error' => $error,
+            'servers' => $cfg['servers'],
             'activeServer' => $cfg['activeServer'],
         ]);
     }
@@ -83,8 +85,8 @@ class SynchronizerController extends Controller
         }
 
         return view('synchronizer.form', [
-            'conn'            => null,
-            'whmcsConnections'=> $whmcsConnections,
+            'conn' => null,
+            'whmcsConnections' => $whmcsConnections,
         ]);
     }
 
@@ -92,13 +94,14 @@ class SynchronizerController extends Controller
     {
         try {
             $payload = $this->buildPayload($request);
-            $res     = $this->api()->post('/connections', $payload);
+            $res = $this->api()->post('/connections', $payload);
 
             if ($res->status() === 422) {
                 return back()->withErrors($res->json('errors', []))->withInput();
             }
 
             $conn = $res->json('connection');
+
             return redirect()->route('synchronizer.index')
                 ->with('success', 'Connection created.');
         } catch (\Exception $e) {
@@ -109,14 +112,16 @@ class SynchronizerController extends Controller
     public function edit(string $id)
     {
         try {
-            $conn             = $this->api()->get("/connections/{$id}")->json('connection');
+            $conn = $this->api()->get("/connections/{$id}")->json('connection');
             $whmcsConnections = collect($this->api()->get('/connections')->json('connections', []))
                 ->where('type', 'whmcs')->values();
         } catch (\Exception $e) {
-            abort(503, 'Could not connect to Synchronizer: ' . $e->getMessage());
+            abort(503, 'Could not connect to Synchronizer: '.$e->getMessage());
         }
 
-        if (!$conn) abort(404);
+        if (! $conn) {
+            abort(404);
+        }
 
         return view('synchronizer.form', compact('conn', 'whmcsConnections'));
     }
@@ -125,7 +130,7 @@ class SynchronizerController extends Controller
     {
         try {
             $payload = $this->buildPayload($request);
-            $res     = $this->api()->put("/connections/{$id}", $payload);
+            $res = $this->api()->put("/connections/{$id}", $payload);
 
             if ($res->status() === 422) {
                 return back()->withErrors($res->json('errors', []))->withInput();
@@ -152,8 +157,9 @@ class SynchronizerController extends Controller
     public function duplicate(string $id)
     {
         try {
-            $res  = $this->api()->post("/connections/{$id}/duplicate");
+            $res = $this->api()->post("/connections/{$id}/duplicate");
             $conn = $res->json('connection');
+
             return redirect()->route('synchronizer.connections.edit', $conn['id']);
         } catch (\Exception $e) {
             return back()->withErrors(['api' => $e->getMessage()]);
@@ -165,13 +171,13 @@ class SynchronizerController extends Controller
         $data = $request->all();
 
         // Convert checkbox booleans
-        $data['is_active']             = $request->boolean('is_active');
-        $data['schedule_enabled']      = $request->boolean('schedule_enabled');
+        $data['is_active'] = $request->boolean('is_active');
+        $data['schedule_enabled'] = $request->boolean('schedule_enabled');
         $data['schedule_full_enabled'] = $request->boolean('schedule_full_enabled');
 
         // Array fields that may come as textarea (newline-separated)
         foreach (['settings.entities', 'settings.excluded_labels', 'settings.excluded_mailboxes',
-                  'settings.guild_allowlist', 'settings.channel_allowlist'] as $path) {
+            'settings.guild_allowlist', 'settings.channel_allowlist'] as $path) {
             $val = data_get($data, $path, '');
             if (is_string($val)) {
                 data_set($data, $path, array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $val)))));
@@ -187,10 +193,12 @@ class SynchronizerController extends Controller
             $conn = $this->api()->get("/connections/{$id}")->json('connection');
             $runs = $this->api()->get("/connections/{$id}/runs")->json('runs', []);
         } catch (\Exception $e) {
-            abort(503, 'Could not connect to Synchronizer: ' . $e->getMessage());
+            abort(503, 'Could not connect to Synchronizer: '.$e->getMessage());
         }
 
-        if (!$conn) abort(404);
+        if (! $conn) {
+            abort(404);
+        }
 
         return view('synchronizer.show', compact('conn', 'runs'));
     }
@@ -199,6 +207,7 @@ class SynchronizerController extends Controller
     {
         try {
             $res = $this->api()->post('/connections/test', $request->all());
+
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['ok' => false, 'error' => $e->getMessage()], 503);
@@ -209,7 +218,8 @@ class SynchronizerController extends Controller
     {
         try {
             $mode = in_array($request->input('mode'), ['partial', 'full']) ? $request->input('mode') : 'partial';
-            $res  = $this->api()->post("/connections/{$id}/run", ['mode' => $mode]);
+            $res = $this->api()->post("/connections/{$id}/run", ['mode' => $mode]);
+
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);
@@ -220,6 +230,7 @@ class SynchronizerController extends Controller
     {
         try {
             $res = $this->api()->post("/connections/{$id}/stop");
+
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);
@@ -230,7 +241,8 @@ class SynchronizerController extends Controller
     {
         try {
             $mode = in_array($request->input('mode'), ['partial', 'full']) ? $request->input('mode') : 'partial';
-            $res  = $this->api()->post('/run-all', ['mode' => $mode]);
+            $res = $this->api()->post('/run-all', ['mode' => $mode]);
+
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);
@@ -241,6 +253,7 @@ class SynchronizerController extends Controller
     {
         try {
             $res = $this->api()->post('/kill-all');
+
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);
@@ -251,6 +264,7 @@ class SynchronizerController extends Controller
     {
         try {
             $res = $this->api()->get("/runs/{$runId}");
+
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);
@@ -261,6 +275,7 @@ class SynchronizerController extends Controller
     {
         try {
             $res = $this->api()->get("/runs/{$runId}/logs");
+
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);
@@ -271,6 +286,7 @@ class SynchronizerController extends Controller
     {
         try {
             $res = $this->api()->get('/runs', $request->only(['status', 'since', 'page']));
+
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);
@@ -291,6 +307,7 @@ class SynchronizerController extends Controller
                     'run_id' => $run['id'] ?? null,
                 ];
             }
+
             return response()->json(['statuses' => $statuses]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 503);

@@ -82,11 +82,12 @@
 </div>
 
 <div class="page-header">
-    <div class="flex items-center gap-4">
-        <span class="page-title">Connections</span>
+    <div>
+        <div class="flex items-center gap-4">
+            <span class="page-title">Connections</span>
         @if($servers->count() > 1)
             <form method="GET" action="{{ route('synchronizer.index') }}" id="server-form">
-                <select name="server" class="input" style="width:auto;padding:.3rem .6rem;font-size:.8rem"
+                <select name="server" class="input text-xs py-1 px-2 w-auto"
                         onchange="document.getElementById('server-form').submit()">
                     @foreach($servers as $srv)
                         <option value="{{ $srv->id }}" {{ $activeServer?->id === $srv->id ? 'selected' : '' }}>
@@ -98,6 +99,8 @@
         @elseif($activeServer)
             <span class="text-xs text-gray-400">{{ $activeServer->name }}</span>
         @endif
+        </div>
+        <p class="text-xs text-gray-400 mt-0.5">Manage the integrations that feed data into Contact Monitor — WHMCS, MetricsCube, email accounts, Slack, Discord, and more. Each connection is synced regularly by the Synchronizer.</p>
     </div>
     <div class="flex items-center gap-2">
         <button onclick="openRunAllModal()" class="btn btn-secondary btn-sm" id="run-all-btn">
@@ -274,9 +277,13 @@
 
 @push('scripts')
 <script>
-const CSRF   = '{{ csrf_token() }}';
-const SERVER = {{ $activeServer?->id ?? 'null' }};
-const serverParam = SERVER ? `?server=${SERVER}` : '';
+const CSRF         = '{{ csrf_token() }}';
+const SERVER       = {{ $activeServer?->id ?? 'null' }};
+const serverParam  = SERVER ? `?server=${SERVER}` : '';
+const STATUSES_URL = '{{ route('synchronizer.connections.statuses') }}';
+const RUN_ALL_URL  = '{{ route('synchronizer.run-all') }}';
+const KILL_ALL_URL = '{{ route('synchronizer.kill-all') }}';
+const CONNS_URL    = '{{ rtrim(url('/configuration/connections/connections'), '/') }}';
 
 // ── Status badge rendering ────────────────────────────────────────────────────
 const STATUS_STYLES = {
@@ -310,7 +317,7 @@ let _pollTimer = null;
 
 async function pollStatuses() {
     try {
-        const res  = await fetch(`/synchronization/connections/statuses${serverParam}`);
+        const res  = await fetch(`${STATUSES_URL}${serverParam}`);
         const data = await res.json();
         if (!data.statuses) return;
 
@@ -358,7 +365,7 @@ async function doRunAll(mode) {
     btn.disabled = true;
     btn.innerHTML = '…';
     try {
-        await fetch(`/synchronization/run-all${serverParam}`, {
+        await fetch(`${RUN_ALL_URL}${serverParam}`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRF-TOKEN': CSRF},
             body: JSON.stringify({mode})
@@ -377,14 +384,14 @@ async function doRun(mode) {
     closeRunModal();
     if (!connId) return;
     try {
-        const res  = await fetch(`/synchronization/connections/${connId}/run`, {
+        const res  = await fetch(`${CONNS_URL}/${connId}/run`, {
             method: 'POST',
             headers: {'Content-Type':'application/json','X-CSRF-TOKEN': CSRF},
             body: JSON.stringify({mode})
         });
         const data = await res.json();
         if (data.run_id) {
-            window.location = `/synchronization/connections/${connId}?run_id=${data.run_id}`;
+            window.location = `${CONNS_URL}/${connId}?run_id=${data.run_id}`;
         } else {
             alert('Run failed: ' + (data.error || data.message || JSON.stringify(data)));
         }
@@ -397,7 +404,7 @@ async function stopRun(connId, btn) {
     btn.disabled = true;
     btn.innerHTML = '...';
     try {
-        await fetch(`/synchronization/connections/${connId}/stop`, {
+        await fetch(`${CONNS_URL}/${connId}/stop`, {
             method: 'POST',
             headers: {'X-CSRF-TOKEN': CSRF}
         });
@@ -414,7 +421,7 @@ async function killAll() {
     btn.disabled = true;
     btn.innerHTML = '...';
     try {
-        await fetch('/synchronization/kill-all', {
+        await fetch(KILL_ALL_URL, {
             method: 'POST',
             headers: {'X-CSRF-TOKEN': CSRF}
         });

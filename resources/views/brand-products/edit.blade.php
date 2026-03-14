@@ -4,11 +4,11 @@
 @section('content')
 <div class="max-w-xl">
     <div class="mb-5">
-        <a href="{{ route('brand-products.show', $brandProduct) }}" class="text-sm text-gray-500 hover:text-gray-700">← {{ $brandProduct->name }}</a>
+        <a href="{{ route('segmentation.index') }}" class="text-sm text-gray-500 hover:text-gray-700">← Segmentation</a>
         <h1 class="text-xl font-bold text-gray-900 mt-1">Edit Segmentation</h1>
     </div>
 
-    <form action="{{ route('brand-products.update', $brandProduct) }}" method="POST" class="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
+    <form action="{{ route('segmentation.update', $brandProduct) }}" method="POST" class="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
         @csrf @method('PUT')
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
@@ -27,14 +27,14 @@
             @error('slug') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
         <div class="flex justify-end gap-2 pt-2">
-            <a href="{{ route('brand-products.show', $brandProduct) }}" class="px-4 py-2 text-sm text-gray-600">Cancel</a>
+            <a href="{{ route('segmentation.index') }}" class="px-4 py-2 text-sm text-gray-600">Cancel</a>
             <button type="submit" class="px-4 py-2 bg-brand-600 text-white text-sm rounded hover:bg-brand-700 transition">Save</button>
         </div>
     </form>
     <div class="mt-4 pt-4 border-t border-gray-100">
-        <form action="{{ route('brand-products.destroy', $brandProduct) }}" method="POST" onsubmit="return confirm('Delete?')">
+        <form action="{{ route('segmentation.destroy', $brandProduct) }}" method="POST" onsubmit="return confirm('Delete?')">
             @csrf @method('DELETE')
-            <button type="submit" class="text-sm text-red-500 hover:text-red-700">Delete this product</button>
+            <button type="submit" class="text-sm text-red-500 hover:text-red-700">Delete this segmentation</button>
         </form>
     </div>
 </div>

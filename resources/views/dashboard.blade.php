@@ -5,8 +5,7 @@
 
 {{-- Header --}}
 <div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-900">Welcome to Contact Monitor</h1>
-    <p class="text-gray-500 mt-1 text-sm">Your CRM and data interpretation layer. Work in progress.</p>
+    <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
 </div>
 
 {{-- Stats --}}
@@ -95,14 +94,8 @@
 
 {{-- Quick links --}}
 <div class="mt-6 flex gap-3">
-    <a href="{{ route('companies.create') }}"
-       class="px-4 py-2 bg-brand-600 text-white text-sm rounded hover:bg-brand-700 transition">
-        + New Company
-    </a>
-    <a href="{{ route('people.create') }}"
-       class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition">
-        + New Person
-    </a>
+    <a href="{{ route('companies.create') }}" class="btn btn-primary">+ New Company</a>
+    <a href="{{ route('people.create') }}"    class="btn btn-secondary">+ New Person</a>
 </div>
 
 @endsection

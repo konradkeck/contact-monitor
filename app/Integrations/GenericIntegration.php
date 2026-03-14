@@ -6,8 +6,15 @@ class GenericIntegration extends BaseIntegration
 {
     public function __construct(private readonly string $systemType = 'generic') {}
 
-    public function label(): string { return ucfirst($this->systemType); }
-    public function badgeCls(): string { return 'bg-gray-100 text-gray-600'; }
+    public function label(): string
+    {
+        return ucfirst($this->systemType);
+    }
+
+    public function badgeCls(): string
+    {
+        return 'bg-gray-100 text-gray-600';
+    }
 
     public function badgeIconSvg(string $sizeClass = 'w-full h-full'): string
     {

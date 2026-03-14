@@ -12,33 +12,33 @@ class IntegrationRegistry
 {
     private static array $map = [
         // Email integrations
-        'email'        => EmailIntegration::class,
-        'imap'         => EmailIntegration::class,
-        'gmail'        => GmailIntegration::class,
+        'email' => EmailIntegration::class,
+        'imap' => EmailIntegration::class,
+        'gmail' => GmailIntegration::class,
 
         // Ticket channel type (generic, used in timeline)
-        'ticket'       => TicketIntegration::class,
+        'ticket' => TicketIntegration::class,
 
         // WHMCS billing system (has own "W" brand icon + services widget)
-        'whmcs'        => WhmcsIntegration::class,
+        'whmcs' => WhmcsIntegration::class,
 
         // Discord
-        'discord'      => DiscordIntegration::class,
+        'discord' => DiscordIntegration::class,
         'discord_user' => DiscordIntegration::class,
 
         // Slack
-        'slack'        => SlackIntegration::class,
-        'slack_user'   => SlackIntegration::class,
+        'slack' => SlackIntegration::class,
+        'slack_user' => SlackIntegration::class,
 
         // MetricsCube analytics
-        'metricscube'  => MetricscubeIntegration::class,
+        'metricscube' => MetricscubeIntegration::class,
     ];
 
     public static function get(string $type): BaseIntegration
     {
         $class = self::$map[strtolower($type)] ?? null;
 
-        return $class ? new $class() : new GenericIntegration($type);
+        return $class ? new $class : new GenericIntegration($type);
     }
 
     /** Register additional integrations (e.g. from a service provider). */

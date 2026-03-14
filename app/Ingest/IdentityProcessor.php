@@ -22,11 +22,12 @@ class IdentityProcessor
     public function process(IngestItem $item): void
     {
         $payload = $item->payload;
-        $type    = $payload['identity_type'] ?? 'email';
-        $value   = trim($payload['value'] ?? '');
+        $type = $payload['identity_type'] ?? 'email';
+        $value = trim($payload['value'] ?? '');
 
         if ($value === '') {
             $item->update(['status' => 'skipped', 'error_message' => 'Empty value', 'processed_at' => now()]);
+
             return;
         }
 
@@ -40,10 +41,11 @@ class IdentityProcessor
             ->first();
 
         if ($item->action === 'delete') {
-            if ($identity && !$identity->sync_protected) {
+            if ($identity && ! $identity->sync_protected) {
                 $identity->delete();
             }
             $item->update(['status' => 'done', 'processed_at' => now()]);
+
             return;
         }
 
@@ -55,21 +57,22 @@ class IdentityProcessor
             }
 
             // If we have an email_hint and still no person, try that too
-            if ($personId === null && !empty($payload['email_hint'])) {
+            if ($personId === null && ! empty($payload['email_hint'])) {
                 $personId = $this->findPersonByEmail(strtolower(trim($payload['email_hint'])));
             }
 
             $identity = Identity::create([
-                'person_id'        => $personId,
-                'type'             => $type,
-                'system_slug'      => $item->system_slug,
-                'value'            => $value,
+                'person_id' => $personId,
+                'type' => $type,
+                'system_slug' => $item->system_slug,
+                'value' => $value,
                 'value_normalized' => $valueNorm,
-                'meta_json'        => [
-                    'display_name'        => $payload['display_name'] ?? null,
-                    'email_hint'          => $payload['email_hint'] ?? null,
-                    'avatar'              => $payload['avatar'] ?? null,
-                    'system_type'         => $item->system_type,
+                'is_bot' => (bool) ($payload['is_bot'] ?? false),
+                'meta_json' => [
+                    'display_name' => $payload['display_name'] ?? null,
+                    'email_hint' => $payload['email_hint'] ?? null,
+                    'avatar' => $payload['avatar'] ?? null,
+                    'system_type' => $item->system_type,
                     'account_external_id' => isset($payload['account_external_id'])
                         ? (string) $payload['account_external_id'] : null,
                 ],
@@ -81,11 +84,11 @@ class IdentityProcessor
 
             // Update meta_json fields that may have changed
             $existingMeta = $identity->meta_json ?? [];
-            $newMeta      = $existingMeta;
-            if (!empty($payload['display_name'])) {
+            $newMeta = $existingMeta;
+            if (isset($payload['display_name'])) {
                 $newMeta['display_name'] = $payload['display_name'];
             }
-            if (!empty($payload['email_hint'])) {
+            if (isset($payload['email_hint'])) {
                 $newMeta['email_hint'] = $payload['email_hint'];
             }
             if (array_key_exists('avatar', $payload)) {
@@ -97,12 +100,15 @@ class IdentityProcessor
             if ($newMeta !== $existingMeta) {
                 $identity->update(['meta_json' => $newMeta]);
             }
+            if (isset($payload['is_bot'])) {
+                $identity->update(['is_bot' => (bool) $payload['is_bot']]);
+            }
         }
 
         $item->update([
-            'status'      => 'done',
+            'status' => 'done',
             'entity_type' => Identity::class,
-            'entity_id'   => $identity->id,
+            'entity_id' => $identity->id,
             'processed_at' => now(),
         ]);
 
@@ -114,27 +120,33 @@ class IdentityProcessor
 
     private function autoLinkPersonToCompany(Identity $identity, IngestItem $item): void
     {
-        if (!$identity->person_id) return;
+        if (! $identity->person_id) {
+            return;
+        }
 
         $accountExtId = $identity->meta_json['account_external_id'] ?? null;
-        if (!$accountExtId) return;
+        if (! $accountExtId) {
+            return;
+        }
 
         $account = Account::where('system_slug', $item->system_slug)
             ->where('external_id', (string) $accountExtId)
             ->whereNotNull('company_id')
             ->first();
 
-        if (!$account) return;
+        if (! $account) {
+            return;
+        }
 
         $alreadyLinked = DB::table('company_person')
             ->where('company_id', $account->company_id)
             ->where('person_id', $identity->person_id)
             ->exists();
 
-        if (!$alreadyLinked) {
+        if (! $alreadyLinked) {
             DB::table('company_person')->insert([
                 'company_id' => $account->company_id,
-                'person_id'  => $identity->person_id,
+                'person_id' => $identity->person_id,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

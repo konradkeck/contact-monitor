@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SynchronizerServer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class SynchronizerServerController extends Controller
@@ -16,26 +17,27 @@ class SynchronizerServerController extends Controller
     /** Test connection using raw url+token from request body (for the form) */
     public function test(Request $request)
     {
-        $url   = rtrim($this->resolveUrl($request->input('url', '')), '/');
+        $url = rtrim($this->resolveUrl($request->input('url', '')), '/');
         $token = $request->input('api_token', '');
 
-        if (!$url || !$token) {
+        if (! $url || ! $token) {
             return response()->json(['ok' => false, 'error' => 'URL and API token are required.']);
         }
 
         try {
             $res = Http::withToken($token)
-                ->baseUrl($url . '/api')
+                ->baseUrl($url.'/api')
                 ->timeout(5)
                 ->acceptJson()
                 ->get('/connections');
 
             if ($res->successful()) {
                 $count = count($res->json('connections', []));
+
                 return response()->json(['ok' => true, 'message' => "Connected. {$count} integration(s) found."]);
             }
 
-            return response()->json(['ok' => false, 'error' => "HTTP {$res->status()}: " . $res->body()]);
+            return response()->json(['ok' => false, 'error' => "HTTP {$res->status()}: ".$res->body()]);
         } catch (\Exception $e) {
             return response()->json(['ok' => false, 'error' => $e->getMessage()]);
         }
@@ -46,18 +48,25 @@ class SynchronizerServerController extends Controller
     {
         try {
             $res = Http::withToken($server->api_token)
-                ->baseUrl(rtrim($this->resolveUrl($server->url), '/') . '/api')
+                ->baseUrl(rtrim($this->resolveUrl($server->url), '/').'/api')
                 ->timeout(5)
                 ->acceptJson()
                 ->get('/connections');
 
             if ($res->successful()) {
                 $count = count($res->json('connections', []));
+                Cache::put('server.ping.'.$server->id, true, 600);
+                Cache::forget('layout.server_ids');
+
                 return response()->json(['ok' => true, 'connections' => $count]);
             }
 
+            Cache::put('server.ping.'.$server->id, false, 600);
+
             return response()->json(['ok' => false, 'error' => "HTTP {$res->status()}"]);
         } catch (\Exception $e) {
+            Cache::put('server.ping.'.$server->id, false, 600);
+
             return response()->json(['ok' => false, 'error' => $e->getMessage()]);
         }
     }
@@ -65,6 +74,7 @@ class SynchronizerServerController extends Controller
     public function index()
     {
         $servers = SynchronizerServer::orderBy('name')->get();
+
         return view('synchronizer.servers.index', compact('servers'));
     }
 
@@ -76,8 +86,8 @@ class SynchronizerServerController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'      => 'required|string|max:255',
-            'url'       => 'required|url|max:500',
+            'name' => 'required|string|max:255',
+            'url' => 'required|url|max:500',
             'api_token' => 'required|string|max:500',
         ]);
 
@@ -95,8 +105,8 @@ class SynchronizerServerController extends Controller
     public function update(Request $request, SynchronizerServer $server)
     {
         $data = $request->validate([
-            'name'      => 'required|string|max:255',
-            'url'       => 'required|url|max:500',
+            'name' => 'required|string|max:255',
+            'url' => 'required|url|max:500',
             'api_token' => 'required|string|max:500',
         ]);
 

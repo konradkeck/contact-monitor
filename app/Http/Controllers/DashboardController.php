@@ -14,10 +14,10 @@ class DashboardController extends Controller
     public function index(): View
     {
         $stats = [
-            'companies'     => Company::count(),
-            'people'        => Person::count(),
+            'companies' => Company::count(),
+            'people' => Person::count(),
             'conversations' => Conversation::count(),
-            'activities'    => Activity::count(),
+            'activities' => Activity::count(),
         ];
 
         $recentActivities = Activity::with(['company', 'person'])

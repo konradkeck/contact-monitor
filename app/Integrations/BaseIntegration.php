@@ -36,8 +36,8 @@ abstract class BaseIntegration
     public function iconHtml(string $size = 'w-5 h-5', bool $label = false): string
     {
         $style = $this->badgeStyle() ? ' style="'.e($this->badgeStyle()).'"' : '';
-        $pad   = $this->badgePadding() ? $this->badgePadding().' ' : '';
-        $cls   = 'inline-flex items-center justify-center shrink-0 rounded overflow-hidden '.$pad.$this->badgeCls();
+        $pad = $this->badgePadding() ? $this->badgePadding().' ' : '';
+        $cls = 'inline-flex items-center justify-center shrink-0 rounded overflow-hidden '.$pad.$this->badgeCls();
 
         $badge = '<span class="'.trim($cls).' '.$size.'"'.$style.'>'
             .$this->badgeIconSvg('w-full h-full')

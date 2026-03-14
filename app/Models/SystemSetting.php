@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class SystemSetting extends Model
 {
     protected $fillable = ['key', 'value_json'];
-    protected $casts    = ['value_json' => 'array'];
+
+    protected $casts = ['value_json' => 'array'];
 
     public static function get(string $key, mixed $default = null): mixed
     {

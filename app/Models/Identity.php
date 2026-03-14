@@ -19,11 +19,13 @@ class Identity extends Model
         'value_normalized',
         'meta_json',
         'is_team_member',
+        'is_bot',
     ];
 
     protected $casts = [
-        'meta_json'      => 'array',
+        'meta_json' => 'array',
         'is_team_member' => 'boolean',
+        'is_bot' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -33,6 +35,7 @@ class Identity extends Model
         });
     }
 
+    /** @return BelongsTo<Person, $this> */
     public function person(): BelongsTo
     {
         return $this->belongsTo(Person::class);

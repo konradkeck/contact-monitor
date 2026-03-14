@@ -29,13 +29,13 @@ class Conversation extends Model
     ];
 
     protected $casts = [
-        'started_at'      => 'datetime',
+        'started_at' => 'datetime',
         'last_message_at' => 'datetime',
-        'archived_at'     => 'datetime',
-        'message_count'   => 'integer',
-        'is_archived'     => 'boolean',
-        'sync_protected'  => 'boolean',
-        'meta_json'       => 'array',
+        'archived_at' => 'datetime',
+        'message_count' => 'integer',
+        'is_archived' => 'boolean',
+        'sync_protected' => 'boolean',
+        'meta_json' => 'array',
     ];
 
     public function company(): BelongsTo

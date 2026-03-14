@@ -26,10 +26,11 @@
         <span class="text-sm text-gray-500 ml-2">Filtered by company</span>
     </div>
 @else
-    <div class="flex gap-0 border-b border-gray-200 mb-5">
+    <div class="flex gap-0 border-b border-gray-200 mb-5" role="tablist" aria-label="Conversation status">
         @foreach(['unassigned' => 'Unassigned', 'assigned' => 'Assigned', 'filtered' => 'Filtered'] as $tabKey => $tabLabel)
             @php $isActive = $tab === $tabKey; @endphp
             <a href="{{ request()->fullUrlWithQuery(['tab' => $tabKey, 'page' => null]) }}"
+               role="tab" aria-selected="{{ $isActive ? 'true' : 'false' }}"
                class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
                       {{ $isActive ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
                 {{ $tabLabel }}

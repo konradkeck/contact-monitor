@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'synchronizer' => [
+        'url' => env('SYNCHRONIZER_URL', 'http://127.0.0.1:8011'),
+        'token' => env('SYNCHRONIZER_API_TOKEN'),
+    ],
+
 ];

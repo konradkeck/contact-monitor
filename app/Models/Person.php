@@ -21,7 +21,7 @@ class Person extends Model
     ];
 
     protected $casts = [
-        'meta_json'  => 'array',
+        'meta_json' => 'array',
         'is_our_org' => 'boolean',
     ];
 
@@ -79,7 +79,8 @@ class Person extends Model
     public function gravatarUrl(int $size = 80): string
     {
         $email = $this->identities->where('type', 'email')->first()?->value ?? '';
-        $hash  = md5(strtolower(trim($email)));
+        $hash = md5(strtolower(trim($email)));
+
         return "https://www.gravatar.com/avatar/{$hash}?d=identicon&s={$size}";
     }
 
@@ -87,7 +88,8 @@ class Person extends Model
     public function initials(): string
     {
         $f = mb_substr($this->first_name, 0, 1);
-        $l = mb_substr($this->last_name  ?? '', 0, 1);
-        return strtoupper($f . $l);
+        $l = mb_substr($this->last_name ?? '', 0, 1);
+
+        return strtoupper($f.$l);
     }
 }

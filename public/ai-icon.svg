@@ -1,0 +1,40 @@
+<svg viewBox="0 0 200 200" width="320" height="320" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <linearGradient id="starGrad" x1="0%" y1="0%" x2="30%" y2="100%">
+      <stop offset="0%" stop-color="#90FCF9"/>
+      <stop offset="38%" stop-color="#bdfefd"/>
+      <stop offset="68%" stop-color="#eaffff"/>
+      <stop offset="100%" stop-color="#eb007d"/>
+    </linearGradient>
+
+    <filter id="starShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#062b38" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <g transform="translate(100 100) scale(2.1) translate(-100 -44)">
+    <path
+      d="M97 11
+         Q100 4 103 11
+         L109 25
+         Q112 32 119 35
+         L133 41
+         Q140 44 133 47
+         L119 53
+         Q112 56 109 63
+         L103 77
+         Q100 84 97 77
+         L91 63
+         Q88 56 81 53
+         L67 47
+         Q60 44 67 41
+         L81 35
+         Q88 32 91 25
+         Z"
+      fill="url(#starGrad)"
+      filter="url(#starShadow)"
+    />
+  </g>
+
+</svg>

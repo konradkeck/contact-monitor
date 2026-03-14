@@ -39,12 +39,12 @@
 @endphp
 
 {{-- Breadcrumb --}}
-<div class="flex items-center gap-3 mb-6">
+<div class="flex items-center gap-2 text-sm text-gray-500 mb-5">
     @if($backLink ?? null)
-        <a href="{{ $backLink['url'] }}" class="text-gray-400 hover:text-gray-600 text-sm">← {{ $backLink['label'] }}</a>
+        <a href="{{ $backLink['url'] }}" class="hover:text-gray-700">← {{ $backLink['label'] }}</a>
         <span class="text-gray-300">/</span>
     @endif
-    <a href="{{ route('companies.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">{{ ($backLink ?? null) ? 'Companies' : '← Companies' }}</a>
+    <a href="{{ route('companies.index') }}" class="hover:text-gray-700">{{ ($backLink ?? null) ? 'Companies' : '← Companies' }}</a>
     <span class="text-gray-300">/</span>
     <h1 class="text-xl font-bold text-gray-900">{{ $company->name }}</h1>
     <div class="flex-1"></div>
@@ -120,7 +120,7 @@
                         <a href="{{ route('people.show', $person) }}"
                            class="flex items-center gap-3 bg-white rounded-xl border border-gray-200 px-4 py-3
                                   hover:border-brand-300 hover:shadow-sm transition group">
-                            <x-person-avatar :person="$person" size="10" class="border border-gray-100 bg-gray-100 shrink-0" />
+                            <x-person-avatar :person="$person" size="8" class="border border-gray-100 bg-gray-100 shrink-0" />
                             <div class="flex-1 min-w-0">
                                 <p class="font-semibold text-gray-800 text-sm truncate group-hover:text-brand-700 transition">
                                     {{ $person->full_name }}
@@ -218,7 +218,7 @@
                     <button onclick="openPopup('popup-add-brand')"
                             class="text-xs font-medium text-brand-600 hover:text-brand-700 border border-brand-200
                                    hover:border-brand-400 px-3 py-1 rounded-full transition">
-                        + Add brand
+                        + Add Segmentation
                     </button>
                 @endif
             </div>

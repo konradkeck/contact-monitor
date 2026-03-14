@@ -17,15 +17,15 @@ class DataRelationsController extends Controller
 {
     // Identity type → routing system type
     private const IDENTITY_SYSTEM = [
-        'email'        => 'imap',
-        'slack_user'   => 'slack',
+        'email' => 'imap',
+        'slack_user' => 'slack',
         'discord_user' => 'discord',
     ];
 
     // Routing system type → identity type stored in DB
     private const SYSTEM_IDENTITY = [
-        'imap'    => 'email',
-        'slack'   => 'slack_user',
+        'imap' => 'email',
+        'slack' => 'slack_user',
         'discord' => 'discord_user',
     ];
 
@@ -35,20 +35,20 @@ class DataRelationsController extends Controller
     {
         $stats = [
             'conversations_no_company' => Conversation::whereNull('company_id')->count(),
-            'accounts_no_company'      => Account::whereNull('company_id')->count(),
-            'identities_no_person'     => Identity::whereNull('person_id')->count(),
-            'total_conversations'      => Conversation::count(),
-            'total_accounts'           => Account::count(),
-            'total_identities'         => Identity::count(),
+            'accounts_no_company' => Account::whereNull('company_id')->count(),
+            'identities_no_person' => Identity::whereNull('person_id')->count(),
+            'total_conversations' => Conversation::count(),
+            'total_accounts' => Account::count(),
+            'total_identities' => Identity::count(),
         ];
 
         // Per-system breakdown for account-based systems
         // Also count unlinked email identities per slug (contacts imported alongside WHMCS clients)
         $accountSystems = Account::select(
-                'system_type', 'system_slug',
-                DB::raw('COUNT(*) as total'),
-                DB::raw('COUNT(CASE WHEN company_id IS NULL THEN 1 END) as unlinked')
-            )
+            'system_type', 'system_slug',
+            DB::raw('COUNT(*) as total'),
+            DB::raw('COUNT(CASE WHEN company_id IS NULL THEN 1 END) as unlinked')
+        )
             ->groupBy('system_type', 'system_slug')
             ->orderBy('system_type')
             ->orderBy('system_slug')
@@ -58,18 +58,18 @@ class DataRelationsController extends Controller
         $accountBasedSlugs = $accountSystems->pluck('system_slug')->unique()->toArray();
 
         $contactCountsBySlug = [];
-        if (!empty($accountBasedSlugs)) {
+        if (! empty($accountBasedSlugs)) {
             $rows = Identity::select('system_slug',
-                        DB::raw('COUNT(*) as total'),
-                        DB::raw('COUNT(CASE WHEN person_id IS NULL THEN 1 END) as unlinked')
-                    )
-                    ->where('type', 'email')
-                    ->whereIn('system_slug', $accountBasedSlugs)
-                    ->groupBy('system_slug')
-                    ->get();
+                DB::raw('COUNT(*) as total'),
+                DB::raw('COUNT(CASE WHEN person_id IS NULL THEN 1 END) as unlinked')
+            )
+                ->where('type', 'email')
+                ->whereIn('system_slug', $accountBasedSlugs)
+                ->groupBy('system_slug')
+                ->get();
             foreach ($rows as $row) {
                 $contactCountsBySlug[$row->system_slug] = [
-                    'total'    => $row->total,
+                    'total' => $row->total,
                     'unlinked' => $row->unlinked,
                 ];
             }
@@ -78,7 +78,7 @@ class DataRelationsController extends Controller
         // Attach contact counts to each account system row
         $accountSystems->each(function ($sys) use ($contactCountsBySlug) {
             $counts = $contactCountsBySlug[$sys->system_slug] ?? ['total' => 0, 'unlinked' => 0];
-            $sys->contacts_total    = $counts['total'];
+            $sys->contacts_total = $counts['total'];
             $sys->contacts_unlinked = $counts['unlinked'];
         });
 
@@ -89,19 +89,19 @@ class DataRelationsController extends Controller
             ->distinct()->pluck('system_slug')->toArray();
 
         $identitySystems = Identity::select(
-                'system_slug', 'type',
-                DB::raw('COUNT(*) as total'),
-                DB::raw('COUNT(CASE WHEN person_id IS NULL THEN 1 END) as unlinked')
-            )
+            'system_slug', 'type',
+            DB::raw('COUNT(*) as total'),
+            DB::raw('COUNT(CASE WHEN person_id IS NULL THEN 1 END) as unlinked')
+        )
             // Never show email identities that belong to WHMCS/MetricsCube systems.
             // Two guards: by slug list AND by system_type stored in meta_json — so new slugs
             // are automatically excluded without any code changes.
             ->where(function ($q) use ($whmcsSlugs) {
                 $q->where('type', '!=', 'email')
-                  ->orWhere(function ($q2) use ($whmcsSlugs) {
-                      $q2->whereNotIn('system_slug', $whmcsSlugs)
-                         ->whereRaw("COALESCE(meta_json->>'system_type', '') NOT IN ('whmcs', 'metricscube')");
-                  });
+                    ->orWhere(function ($q2) use ($whmcsSlugs) {
+                        $q2->whereNotIn('system_slug', $whmcsSlugs)
+                            ->whereRaw("COALESCE(meta_json->>'system_type', '') NOT IN ('whmcs', 'metricscube')");
+                    });
             })
             ->groupBy('system_slug', 'type')
             ->orderBy('type')
@@ -109,10 +109,18 @@ class DataRelationsController extends Controller
             ->get()
             ->map(function ($row) {
                 $row->system_type = self::IDENTITY_SYSTEM[$row->type] ?? $row->type;
+
                 return $row;
             });
 
         return view('data-relations.index', compact('stats', 'accountSystems', 'identitySystems'));
+    }
+
+    // ─── Mapping overview (configuration/mapping) ────────────────────────────
+
+    public function mappingIndex(): View
+    {
+        return $this->index();
     }
 
     // ─── Per-system mapping ───────────────────────────────────────────────────
@@ -120,18 +128,19 @@ class DataRelationsController extends Controller
     public function mapping(Request $request, string $systemType, string $systemSlug): View
     {
         $isAccountSystem = in_array($systemType, ['whmcs', 'metricscube'], true);
+        $identitiesByExtId = collect();
 
         // Guard: if someone tries to access an identity-based mapping for a slug
         // that belongs to an account-based system (WHMCS/MetricsCube), abort.
         // WHMCS contacts are shown inline under account rows — not as a separate identity section.
-        if (!$isAccountSystem) {
+        if (! $isAccountSystem) {
             $accountBasedSlugs = Account::whereIn('system_type', ['whmcs', 'metricscube'])
                 ->distinct()->pluck('system_slug')->toArray();
             if (in_array($systemSlug, $accountBasedSlugs, true)) {
                 abort(404);
             }
         }
-        $q    = trim($request->input('q', ''));
+        $q = trim($request->input('q', ''));
         $view = $request->input('view', 'unlinked'); // 'unlinked' or 'linked'
 
         if ($isAccountSystem) {
@@ -140,20 +149,20 @@ class DataRelationsController extends Controller
             if ($q !== '') {
                 $base->where(function ($query) use ($q) {
                     $query->where('external_id', 'ilike', "%{$q}%")
-                          ->orWhereRaw("meta_json->>'company_name' ilike ?", ["%{$q}%"])
-                          ->orWhereRaw("meta_json->>'email' ilike ?", ["%{$q}%"]);
+                        ->orWhereRaw("meta_json->>'company_name' ilike ?", ["%{$q}%"])
+                        ->orWhereRaw("meta_json->>'email' ilike ?", ["%{$q}%"]);
                 });
             }
 
             $unlinked = (clone $base)->whereNull('company_id')->orderBy('id')
                 ->paginate(50, ['*'], 'page')->withQueryString();
-            $linked   = (clone $base)->whereNotNull('company_id')->with('company')->orderBy('id')
+            $linked = (clone $base)->whereNotNull('company_id')->with('company')->orderBy('id')
                 ->paginate(50, ['*'], 'page')->withQueryString();
 
             $stats = [
                 'unlinked' => Account::whereNull('company_id')->where('system_type', $systemType)->where('system_slug', $systemSlug)->count(),
-                'linked'   => Account::whereNotNull('company_id')->where('system_type', $systemType)->where('system_slug', $systemSlug)->count(),
-                'total'    => Account::where('system_type', $systemType)->where('system_slug', $systemSlug)->count(),
+                'linked' => Account::whereNotNull('company_id')->where('system_type', $systemType)->where('system_slug', $systemSlug)->count(),
+                'total' => Account::where('system_type', $systemType)->where('system_slug', $systemSlug)->count(),
             ];
 
             // Build primary-email → external_id map from ALL accounts (not paginated)
@@ -163,9 +172,9 @@ class DataRelationsController extends Controller
                 ->get(['external_id', 'meta_json']);
 
             $primaryEmailToExtId = $allAccounts
-                ->filter(fn($a) => !empty($a->meta_json['email']))
-                ->keyBy(fn($a) => strtolower(trim($a->meta_json['email'])))
-                ->map(fn($a) => (string) $a->external_id);
+                ->filter(fn ($a) => ! empty($a->meta_json['email']))
+                ->keyBy(fn ($a) => strtolower(trim($a->meta_json['email'])))
+                ->map(fn ($a) => (string) $a->external_id);
 
             // Load ALL email identities for this slug and group by account external_id.
             $allIdentities = Identity::where('system_slug', $systemSlug)
@@ -176,39 +185,42 @@ class DataRelationsController extends Controller
             $identitiesByExtId = $allIdentities->groupBy(function ($i) use ($primaryEmailToExtId) {
                 // 1. Explicit account_external_id stored during ingest
                 $extId = $i->meta_json['account_external_id'] ?? null;
-                if ($extId) return (string) $extId;
+                if ($extId) {
+                    return (string) $extId;
+                }
+
                 // 2. Fallback: primary email match across all accounts
                 return $primaryEmailToExtId->get($i->value_normalized, '');
-            })->reject(fn($group, $key) => $key === ''); // '' = truly unmatched
+            })->reject(fn ($group, $key) => $key === ''); // '' = truly unmatched
 
         } else {
             $identityType = self::SYSTEM_IDENTITY[$systemType] ?? 'email';
 
-            $base = Identity::where('system_slug', $systemSlug)->where('type', $identityType);
+            $base = Identity::where('system_slug', $systemSlug)->where('type', $identityType)->where('is_bot', false);
 
             if ($q !== '') {
                 $base->where(function ($query) use ($q) {
                     $query->where('value', 'ilike', "%{$q}%")
-                          ->orWhereRaw("meta_json->>'display_name' ilike ?", ["%{$q}%"])
-                          ->orWhereRaw("meta_json->>'email_hint' ilike ?", ["%{$q}%"]);
+                        ->orWhereRaw("meta_json->>'display_name' ilike ?", ["%{$q}%"])
+                        ->orWhereRaw("meta_json->>'email_hint' ilike ?", ["%{$q}%"]);
                 });
             }
 
             $unlinked = (clone $base)->whereNull('person_id')->orderBy('id')
                 ->paginate(50, ['*'], 'page')->withQueryString();
-            $linked   = (clone $base)->whereNotNull('person_id')->with('person')->orderBy('id')
+            $linked = (clone $base)->whereNotNull('person_id')->with('person')->orderBy('id')
                 ->paginate(50, ['*'], 'page')->withQueryString();
 
             $stats = [
                 'unlinked' => Identity::whereNull('person_id')->where('system_slug', $systemSlug)->where('type', $identityType)->count(),
-                'linked'   => Identity::whereNotNull('person_id')->where('system_slug', $systemSlug)->where('type', $identityType)->count(),
-                'total'    => Identity::where('system_slug', $systemSlug)->where('type', $identityType)->count(),
+                'linked' => Identity::whereNotNull('person_id')->where('system_slug', $systemSlug)->where('type', $identityType)->count(),
+                'total' => Identity::where('system_slug', $systemSlug)->where('type', $identityType)->count(),
             ];
         }
 
         // For Discord/Slack: also load channel→company mapping data
-        $conversations      = collect();
-        $conversationStats  = null;
+        $conversations = collect();
+        $conversationStats = null;
         if (in_array($systemType, ['discord', 'slack'], true)) {
             $conversations = Conversation::where('channel_type', $systemType)
                 ->where('system_slug', $systemSlug)
@@ -218,14 +230,14 @@ class DataRelationsController extends Controller
                 ->get();
 
             $conversationStats = [
-                'total'    => $conversations->count(),
+                'total' => $conversations->count(),
                 'unlinked' => $conversations->whereNull('company_id')->count(),
-                'linked'   => $conversations->whereNotNull('company_id')->count(),
+                'linked' => $conversations->whereNotNull('company_id')->count(),
             ];
         }
 
         // For non-account systems: no contact-per-account data
-        if (!$isAccountSystem) {
+        if (! $isAccountSystem) {
             $identitiesByExtId = collect();
         }
 
@@ -238,23 +250,18 @@ class DataRelationsController extends Controller
                 ->where('type', 'email')
                 ->where(function ($q) {
                     $q->whereNull(DB::raw("meta_json->>'account_external_id'"))
-                      ->orWhereRaw("meta_json->>'account_external_id' = ''");
+                        ->orWhereRaw("meta_json->>'account_external_id' = ''");
                 })
                 ->with('person')
                 ->orderBy('value')
                 ->get();
 
-            // Also exclude those matched via primary-email fallback (they DO belong to an account)
-            $allExtIds = $identitiesByExtId->keys()->all();
-            $unregisteredUsers = $unreg->filter(function ($i) use ($allExtIds) {
-                // If this identity ended up in $identitiesByExtId via fallback, exclude it
-                return true; // Already filtered by missing account_external_id above
-            });
+            $unregisteredUsers = $unreg;
 
             $unregisteredStats = [
-                'total'    => $unregisteredUsers->count(),
+                'total' => $unregisteredUsers->count(),
                 'unlinked' => $unregisteredUsers->whereNull('person_id')->count(),
-                'linked'   => $unregisteredUsers->whereNotNull('person_id')->count(),
+                'linked' => $unregisteredUsers->whereNotNull('person_id')->count(),
             ];
         }
 
@@ -269,15 +276,15 @@ class DataRelationsController extends Controller
 
     public function resolveAuto(): RedirectResponse
     {
-        $resolver = new AutoResolver();
-        $results  = $resolver->resolveAll();
+        $resolver = new AutoResolver;
+        $results = $resolver->resolveAll();
 
-        $msg = "Auto-resolve: "
-             . "{$results['accounts_linked']} accounts linked, "
-             . "{$results['companies_created']} companies created, "
-             . "{$results['identities_linked']} identities linked, "
-             . "{$results['people_created']} people created, "
-             . "{$results['conversations_filled']} conversations filled.";
+        $msg = 'Auto-resolve: '
+             ."{$results['accounts_linked']} accounts linked, "
+             ."{$results['companies_created']} companies created, "
+             ."{$results['identities_linked']} identities linked, "
+             ."{$results['people_created']} people created, "
+             ."{$results['conversations_filled']} conversations filled.";
 
         return redirect()->back()->with('success', $msg);
     }
@@ -294,7 +301,7 @@ class DataRelationsController extends Controller
             ->where('system_slug', $account->system_slug)
             ->update(['company_id' => $data['company_id']]);
 
-        $resolver = new AutoResolver();
+        $resolver = new AutoResolver;
         $resolver->fillActivityCompanies();
         $resolver->linkWhmcsPersonsToCompanies();
 
@@ -304,6 +311,7 @@ class DataRelationsController extends Controller
     public function unlinkAccount(Account $account): RedirectResponse
     {
         $account->update(['company_id' => null]);
+
         return redirect()->back()->with('success', 'Account unlinked.');
     }
 
@@ -320,6 +328,7 @@ class DataRelationsController extends Controller
     public function unlinkIdentity(Identity $identity): RedirectResponse
     {
         $identity->update(['person_id' => null]);
+
         return redirect()->back()->with('success', 'Identity unlinked.');
     }
 
@@ -329,19 +338,30 @@ class DataRelationsController extends Controller
     {
         $data = $request->validate(['company_id' => 'required|exists:companies,id']);
         $conversation->update(['company_id' => $data['company_id']]);
-        (new AutoResolver())->fillActivityCompanies();
+        (new AutoResolver)->fillActivityCompanies();
+
         return redirect()->back()->with('success', 'Channel linked to company.');
     }
 
     public function unlinkConversation(Conversation $conversation): RedirectResponse
     {
         $conversation->update(['company_id' => null]);
+
         return redirect()->back()->with('success', 'Channel unlinked.');
+    }
+
+    public function toggleBot(Identity $identity): RedirectResponse
+    {
+        $identity->update(['is_bot' => ! $identity->is_bot]);
+
+        $label = $identity->is_bot ? 'Marked as bot — hidden from mapping.' : 'Bot mark removed.';
+
+        return redirect()->back()->with('success', $label);
     }
 
     public function toggleTeamMember(Identity $identity): RedirectResponse
     {
-        $newVal = !$identity->is_team_member;
+        $newVal = ! $identity->is_team_member;
         $identity->update(['is_team_member' => $newVal]);
 
         // Sync person.is_our_org
@@ -354,13 +374,14 @@ class DataRelationsController extends Controller
                     ->where('id', '!=', $identity->id)
                     ->where('is_team_member', true)
                     ->exists();
-                if (!$stillTeam) {
+                if (! $stillTeam) {
                     $person->update(['is_our_org' => false]);
                 }
             }
         }
 
         $label = $newVal ? 'Marked as team member.' : 'Removed from team.';
+
         return redirect()->back()->with('success', $label);
     }
 }

@@ -31,11 +31,13 @@ class AutoResolver
     public function markTeamMembers(): void
     {
         $teamDomains = SystemSetting::get('team_domains', []);
-        if (empty($teamDomains)) return;
+        if (empty($teamDomains)) {
+            return;
+        }
 
         foreach ($teamDomains as $domain) {
             Identity::where('type', 'email')
-                ->whereRaw("value_normalized LIKE ?", ['%@' . strtolower($domain)])
+                ->whereRaw('value_normalized LIKE ?', ['%@'.strtolower($domain)])
                 ->where('is_team_member', false)
                 ->update(['is_team_member' => true]);
         }
@@ -51,10 +53,10 @@ class AutoResolver
             ->where('is_team_member', false)
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
-                  ->from('conversation_messages')
-                  ->whereColumn('conversation_messages.identity_id', 'identities.id')
-                  ->where('conversation_messages.direction', 'internal')
-                  ->whereNull('conversation_messages.deleted_at');
+                    ->from('conversation_messages')
+                    ->whereColumn('conversation_messages.identity_id', 'identities.id')
+                    ->where('conversation_messages.direction', 'internal')
+                    ->whereNull('conversation_messages.deleted_at');
             })
             ->update(['is_team_member' => true]);
     }
@@ -69,10 +71,10 @@ class AutoResolver
             ->whereNotNull('identity_id')
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
-                  ->from('identities')
-                  ->whereColumn('identities.id', 'conversation_messages.identity_id')
-                  ->where('identities.is_team_member', true)
-                  ->whereNull('identities.deleted_at');
+                    ->from('identities')
+                    ->whereColumn('identities.id', 'conversation_messages.identity_id')
+                    ->where('identities.is_team_member', true)
+                    ->whereNull('identities.deleted_at');
             })
             ->update(['direction' => 'internal']);
     }
@@ -84,16 +86,16 @@ class AutoResolver
     {
         // 0. Mark team member identities by configured domains + by message direction
         $this->markTeamMembers();
-        $teamFromMessages   = $this->markTeamMembersFromMessageDirection();
-        $mcDetected         = $this->detectMcInternalActivities();
+        $teamFromMessages = $this->markTeamMembersFromMessageDirection();
+        $mcDetected = $this->detectMcInternalActivities();
 
         // 1. Match existing companies/people first
-        $accountsLinked     = $this->resolveAccounts();
-        $identitiesLinked   = $this->resolveIdentities();
+        $accountsLinked = $this->resolveAccounts();
+        $identitiesLinked = $this->resolveIdentities();
 
         // 2. Create companies/people for anything still unmatched
-        $companiesCreated   = $this->autoCreateCompanies();
-        $peopleCreated      = $this->autoCreatePeople();
+        $companiesCreated = $this->autoCreateCompanies();
+        $peopleCreated = $this->autoCreatePeople();
 
         // 3. Link people to companies via email ↔ account matching
         $this->linkPeopleToCompanies();
@@ -106,36 +108,36 @@ class AutoResolver
         $this->markTeamMemberActivities();
 
         // 5. Backfill conversations now that more accounts/identities are linked
-        $convsFilled        = $this->fillConversationCompanies();
+        $convsFilled = $this->fillConversationCompanies();
 
         // 6. Backfill activity.company_id from linked conversation (after conversations get companies)
-        $activitiesFilled   = $this->fillActivityCompanies();
+        $activitiesFilled = $this->fillActivityCompanies();
 
         // 7. Backfill target_url on ticket activities
-        $ticketsLinked      = $this->linkTicketActivities();
+        $ticketsLinked = $this->linkTicketActivities();
 
         // 8. Backfill activity.person_id for email activities (sender/recipient resolution)
-        $personsFilled      = $this->fillActivityPersons();
+        $personsFilled = $this->fillActivityPersons();
 
         // 9. Backfill activity.person_id for MetricsCube activities via customer name
-        $mcPersonsFilled    = $this->fillMcActivityPersons();
+        $mcPersonsFilled = $this->fillMcActivityPersons();
 
         // 9. Remove people that lost all their identities (orphans created by UI deletions)
-        $orphansRemoved     = $this->cleanOrphanPeople();
+        $orphansRemoved = $this->cleanOrphanPeople();
 
         return [
-            'accounts_linked'      => $accountsLinked,
-            'identities_linked'    => $identitiesLinked,
-            'companies_created'    => $companiesCreated,
-            'people_created'       => $peopleCreated,
+            'accounts_linked' => $accountsLinked,
+            'identities_linked' => $identitiesLinked,
+            'companies_created' => $companiesCreated,
+            'people_created' => $peopleCreated,
             'conversations_filled' => $convsFilled,
-            'activities_filled'    => $activitiesFilled,
-            'tickets_linked'       => $ticketsLinked,
-            'persons_filled'       => $personsFilled,
-            'mc_persons_filled'    => $mcPersonsFilled,
-            'orphans_removed'      => $orphansRemoved,
-            'team_from_messages'   => $teamFromMessages,
-            'mc_admin_detected'    => $mcDetected,
+            'activities_filled' => $activitiesFilled,
+            'tickets_linked' => $ticketsLinked,
+            'persons_filled' => $personsFilled,
+            'mc_persons_filled' => $mcPersonsFilled,
+            'orphans_removed' => $orphansRemoved,
+            'team_from_messages' => $teamFromMessages,
+            'mc_admin_detected' => $mcDetected,
         ];
     }
 
@@ -147,39 +149,46 @@ class AutoResolver
     {
         $linked = 0;
 
+        // Collect pending updates: company_id => [account_ids]
+        $pendingByCompany = [];
+
         Account::whereNull('company_id')
             ->whereNotNull('meta_json')
-            ->cursor()
-            ->each(function (Account $account) use (&$linked) {
-                $meta      = $account->meta_json ?? [];
+            ->lazy(500)
+            ->each(function (Account $account) use (&$linked, &$pendingByCompany) {
+                $meta = $account->meta_json ?? [];
                 $companyId = null;
 
                 // 1. Match by email domain
-                if (!empty($meta['email'])) {
-                    $parts  = explode('@', $meta['email']);
-                    $domain = strtolower(trim($parts[1] ?? ''));
-                    if ($domain) {
-                        $companyId = CompanyDomain::where('domain', $domain)->value('company_id');
-                        if ($companyId) {
-                            $this->log[] = "Account #{$account->id}: matched by domain {$domain}";
-                        }
+                if (! empty($meta['email'])) {
+                    $companyId = $this->matchEmailToDomain($meta['email']);
+                    if ($companyId) {
+                        $domain = strtolower(trim(explode('@', $meta['email'])[1] ?? ''));
+                        $this->log[] = "Account #{$account->id}: matched by domain {$domain}";
                     }
                 }
 
                 // 2. Match by company name alias
-                if (!$companyId && !empty($meta['company_name'])) {
+                if (! $companyId && ! empty($meta['company_name'])) {
                     $normalized = strtolower(trim($meta['company_name']));
-                    $companyId  = CompanyAlias::where('alias_normalized', $normalized)->value('company_id');
+                    $companyId = CompanyAlias::where('alias_normalized', $normalized)->value('company_id');
                     if ($companyId) {
                         $this->log[] = "Account #{$account->id}: matched by name '{$meta['company_name']}'";
                     }
                 }
 
                 if ($companyId) {
-                    $account->update(['company_id' => $companyId]);
+                    $pendingByCompany[$companyId][] = $account->id;
                     $linked++;
                 }
             });
+
+        // Batch update grouped by company_id
+        foreach ($pendingByCompany as $companyId => $ids) {
+            foreach (array_chunk($ids, 500) as $chunk) {
+                Account::whereIn('id', $chunk)->update(['company_id' => $companyId]);
+            }
+        }
 
         return $linked;
     }
@@ -201,8 +210,10 @@ class AutoResolver
         $byName = [];
         foreach ($unlinked as $account) {
             $name = trim($account->meta_json['company_name'] ?? '');
-            if ($name === '') continue;
-            $normalized          = strtolower($name);
+            if ($name === '') {
+                continue;
+            }
+            $normalized = strtolower($name);
             $byName[$normalized][] = $account;
         }
 
@@ -210,16 +221,16 @@ class AutoResolver
             // Check again — a previous iteration in this run may have created the alias
             $companyId = CompanyAlias::where('alias_normalized', $normalized)->value('company_id');
 
-            if (!$companyId) {
+            if (! $companyId) {
                 $canonicalName = $accounts[0]->meta_json['company_name'];
 
                 $company = Company::create(['name' => $canonicalName]);
 
                 CompanyAlias::create([
-                    'company_id'       => $company->id,
-                    'alias'            => $canonicalName,
+                    'company_id' => $company->id,
+                    'alias' => $canonicalName,
                     'alias_normalized' => $normalized,
-                    'is_primary'       => true,
+                    'is_primary' => true,
                 ]);
 
                 // Try to add domain from the first email we find in this group
@@ -227,12 +238,12 @@ class AutoResolver
                     $email = $acc->meta_json['email'] ?? '';
                     if ($email && str_contains($email, '@')) {
                         $domain = strtolower(trim(explode('@', $email)[1] ?? ''));
-                        if ($domain && !in_array($domain, self::GENERIC_DOMAINS, true)) {
+                        if ($domain && ! in_array($domain, self::GENERIC_DOMAINS, true)) {
                             $alreadyUsed = CompanyDomain::where('domain', $domain)->exists();
-                            if (!$alreadyUsed) {
+                            if (! $alreadyUsed) {
                                 CompanyDomain::create([
                                     'company_id' => $company->id,
-                                    'domain'     => $domain,
+                                    'domain' => $domain,
                                     'is_primary' => true,
                                 ]);
                             }
@@ -269,9 +280,12 @@ class AutoResolver
     {
         $linked = 0;
 
+        // Collect pending updates: person_id => [identity_ids]
+        $pendingByPerson = [];
+
         Identity::whereNull('person_id')
-            ->cursor()
-            ->each(function (Identity $identity) use (&$linked) {
+            ->lazy(500)
+            ->each(function (Identity $identity) use (&$linked, &$pendingByPerson) {
                 // Strategy 1: same value_normalized in another system already has a person
                 $personId = Identity::where('type', $identity->type)
                     ->where('value_normalized', $identity->value_normalized)
@@ -279,28 +293,36 @@ class AutoResolver
                     ->value('person_id');
 
                 if ($personId) {
-                    $identity->update(['person_id' => $personId]);
+                    $pendingByPerson[$personId][] = $identity->id;
                     $this->log[] = "Identity #{$identity->id} ({$identity->value}): linked to person #{$personId} via value match";
                     $linked++;
+
                     return;
                 }
 
                 // Strategy 2: email identity display_name matches a person's full name
-                if ($identity->type === 'email' && !empty($identity->meta_json['display_name'])) {
-                    $name  = trim($identity->meta_json['display_name']);
+                if ($identity->type === 'email' && ! empty($identity->meta_json['display_name'])) {
+                    $name = trim($identity->meta_json['display_name']);
                     $parts = explode(' ', $name, 2);
                     if (count($parts) === 2) {
                         $person = Person::where('first_name', $parts[0])
                             ->where('last_name', $parts[1])
                             ->first();
                         if ($person) {
-                            $identity->update(['person_id' => $person->id]);
+                            $pendingByPerson[$person->id][] = $identity->id;
                             $this->log[] = "Identity #{$identity->id}: linked to person #{$person->id} via name '{$name}'";
                             $linked++;
                         }
                     }
                 }
             });
+
+        // Batch update grouped by person_id
+        foreach ($pendingByPerson as $personId => $ids) {
+            foreach (array_chunk($ids, 500) as $chunk) {
+                Identity::whereIn('id', $chunk)->update(['person_id' => $personId]);
+            }
+        }
 
         return $linked;
     }
@@ -324,26 +346,28 @@ class AutoResolver
         $byName = [];
         foreach ($unlinked as $identity) {
             $name = trim($identity->meta_json['display_name'] ?? '');
-            if ($name === '') continue;
-            $normalized         = strtolower($name);
+            if ($name === '') {
+                continue;
+            }
+            $normalized = strtolower($name);
             $byName[$normalized][] = $identity;
         }
 
         foreach ($byName as $normalized => $identities) {
-            $rawName   = $identities[0]->meta_json['display_name'];
-            $parts     = explode(' ', $rawName, 2);
+            $rawName = $identities[0]->meta_json['display_name'];
+            $parts = explode(' ', $rawName, 2);
             $firstName = trim($parts[0]);
-            $lastName  = trim($parts[1] ?? '');
+            $lastName = trim($parts[1] ?? '');
 
             // Check again for an existing person (could have been created in this run)
             $person = Person::where('first_name', $firstName)
                 ->where('last_name', $lastName)
                 ->first();
 
-            if (!$person) {
+            if (! $person) {
                 $person = Person::create([
                     'first_name' => $firstName,
-                    'last_name'  => $lastName,
+                    'last_name' => $lastName,
                 ]);
                 $created++;
                 $this->log[] = "Created person '{$rawName}' (#{$person->id})";
@@ -375,12 +399,12 @@ class AutoResolver
             ->whereRaw("(meta_json->>'direction') IS DISTINCT FROM 'internal'")
             ->cursor()
             ->each(function (\App\Models\Activity $activity) use (&$detected) {
-                $meta     = $activity->meta_json;
-                $desc     = trim($meta['description'] ?? '');
+                $meta = $activity->meta_json;
+                $desc = trim($meta['description'] ?? '');
                 $customer = strtolower(trim($meta['customer'] ?? ''));
 
                 // Extract "X replied to ticket to #ID …"
-                if (!preg_match('/^(.+?)\s+replied\s+to\s+ticket/iu', $desc, $m)) {
+                if (! preg_match('/^(.+?)\s+replied\s+to\s+ticket/iu', $desc, $m)) {
                     return;
                 }
 
@@ -398,15 +422,15 @@ class AutoResolver
                 $this->log[] = "MC admin reply detected: '{$replierName}' (activity #{$activity->id})";
 
                 // Try to find an existing person and mark them as team member
-                $parts     = explode(' ', $replierName, 2);
+                $parts = explode(' ', $replierName, 2);
                 $firstName = strtolower($parts[0]);
-                $lastName  = isset($parts[1]) ? strtolower($parts[1]) : null;
+                $lastName = isset($parts[1]) ? strtolower($parts[1]) : null;
 
                 $person = \App\Models\Person::whereRaw('LOWER(first_name) = ?', [$firstName])
-                    ->when($lastName, fn($q) => $q->whereRaw('LOWER(last_name) = ?', [$lastName]))
+                    ->when($lastName, fn ($q) => $q->whereRaw('LOWER(last_name) = ?', [$lastName]))
                     ->first();
 
-                if ($person && !$person->is_our_org) {
+                if ($person && ! $person->is_our_org) {
                     $person->update(['is_our_org' => true]);
                     $this->log[] = "Marked '{$replierName}' (person #{$person->id}) as team member via MC admin detection";
                 }
@@ -421,13 +445,12 @@ class AutoResolver
 
     public function markTeamMemberActivities(): int
     {
-        $teamPeople = Person::where(fn($q) =>
-            $q->where('is_our_org', true)
-              ->orWhereHas('identities', fn($i) => $i->where('is_team_member', true))
+        $teamPeople = Person::where(fn ($q) => $q->where('is_our_org', true)
+            ->orWhereHas('identities', fn ($i) => $i->where('is_team_member', true))
         )->get();
 
         $teamNames = $teamPeople
-            ->map(fn($p) => trim(strtolower($p->full_name)))
+            ->map(fn ($p) => trim(strtolower($p->full_name)))
             ->filter()
             ->values()
             ->toArray();
@@ -441,8 +464,8 @@ class AutoResolver
         \App\Models\Activity::whereRaw("meta_json->>'system_type' = 'metricscube'")
             ->cursor()
             ->each(function (\App\Models\Activity $activity) use ($teamNames, &$updated) {
-                $meta     = $activity->meta_json;
-                $mcType   = $meta['mc_type'] ?? '';
+                $meta = $activity->meta_json;
+                $mcType = $meta['mc_type'] ?? '';
                 $customer = strtolower(trim($meta['customer'] ?? ''));
 
                 // For "Ticket Replied" the replier's name is in description, not customer.
@@ -450,12 +473,14 @@ class AutoResolver
                 // that can false-match team member names (e.g. "ModulesGarden" in service descriptions).
                 if ($mcType === 'Ticket Replied') {
                     $description = strtolower(trim($meta['description'] ?? ''));
-                    $haystack    = $customer . ' ' . $description;
+                    $haystack = $customer.' '.$description;
                 } else {
                     $haystack = $customer;
                 }
 
-                if (trim($haystack) === '') return;
+                if (trim($haystack) === '') {
+                    return;
+                }
 
                 $isTeam = false;
                 foreach ($teamNames as $name) {
@@ -466,7 +491,7 @@ class AutoResolver
                 }
 
                 $currentDirection = $meta['direction'] ?? null;
-                $newDirection     = $isTeam ? 'internal' : null;
+                $newDirection = $isTeam ? 'internal' : null;
 
                 if ($currentDirection !== $newDirection) {
                     if ($newDirection) {
@@ -497,7 +522,7 @@ class AutoResolver
 
         $existingPairs = DB::table('company_person')
             ->get(['company_id', 'person_id'])
-            ->mapWithKeys(fn($r) => ["{$r->company_id}:{$r->person_id}" => true])
+            ->mapWithKeys(fn ($r) => ["{$r->company_id}:{$r->person_id}" => true])
             ->toArray();
 
         Account::whereIn('system_type', ['whmcs', 'metricscube'])
@@ -512,11 +537,13 @@ class AutoResolver
 
                 foreach ($identities as $identity) {
                     $key = "{$account->company_id}:{$identity->person_id}";
-                    if (isset($existingPairs[$key])) continue;
+                    if (isset($existingPairs[$key])) {
+                        continue;
+                    }
 
                     DB::table('company_person')->insert([
                         'company_id' => $account->company_id,
-                        'person_id'  => $identity->person_id,
+                        'person_id' => $identity->person_id,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
@@ -550,7 +577,7 @@ class AutoResolver
 
         $existingPairs = DB::table('company_person')
             ->get(['company_id', 'person_id'])
-            ->mapWithKeys(fn($r) => ["{$r->company_id}:{$r->person_id}" => true])
+            ->mapWithKeys(fn ($r) => ["{$r->company_id}:{$r->person_id}" => true])
             ->toArray();
 
         foreach ($identities as $identity) {
@@ -567,7 +594,7 @@ class AutoResolver
 
                 DB::table('company_person')->insert([
                     'company_id' => $account->company_id,
-                    'person_id'  => $identity->person_id,
+                    'person_id' => $identity->person_id,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -579,14 +606,14 @@ class AutoResolver
 
             // Also match via email domain → company domain
             if (str_contains($identity->value, '@')) {
-                $domain    = strtolower(trim(explode('@', $identity->value)[1] ?? ''));
-                $companyId = $domain ? CompanyDomain::where('domain', $domain)->value('company_id') : null;
+                $domain = strtolower(trim(explode('@', $identity->value)[1] ?? ''));
+                $companyId = $this->matchEmailToDomain($identity->value);
                 if ($companyId) {
                     $key = "{$companyId}:{$identity->person_id}";
-                    if (!isset($existingPairs[$key]) && !in_array($domain, self::GENERIC_DOMAINS, true)) {
+                    if (! isset($existingPairs[$key]) && ! in_array($domain, self::GENERIC_DOMAINS, true)) {
                         DB::table('company_person')->insert([
                             'company_id' => $companyId,
-                            'person_id'  => $identity->person_id,
+                            'person_id' => $identity->person_id,
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
@@ -613,7 +640,7 @@ class AutoResolver
         $ticketMap = \App\Models\Conversation::where('channel_type', 'ticket')
             ->whereNotNull('external_thread_id')
             ->get(['id', 'external_thread_id'])
-            ->mapWithKeys(fn($c) => [
+            ->mapWithKeys(fn ($c) => [
                 // strip "ticket_" prefix → numeric ticket ID
                 (string) substr($c->external_thread_id, 7) => $c->id,
             ]);
@@ -627,7 +654,7 @@ class AutoResolver
             ->whereNull('target_url')
             ->cursor()
             ->each(function (\App\Models\Activity $activity) use ($ticketMap, &$linked) {
-                $meta   = $activity->meta_json;
+                $meta = $activity->meta_json;
                 $mcType = $meta['mc_type'] ?? '';
 
                 // For "Ticket Replied": relation_id is the reply log ID, not ticket ID.
@@ -635,18 +662,20 @@ class AutoResolver
                 // e.g. "replied to ticket to #613496 - Subject"
                 if ($mcType === 'Ticket Replied') {
                     $desc = $meta['description'] ?? '';
-                    if (!preg_match('/ticket to #(\d+)/i', $desc, $m)) {
+                    if (! preg_match('/ticket to #(\d+)/i', $desc, $m)) {
                         return; // can't determine ticket ID
                     }
                     $ticketId = $m[1];
                 } else {
                     // Opened Ticket / Closed Ticket: relation_id IS the ticket ID
                     $ticketId = (string) ($meta['relation_id'] ?? '');
-                    if ($ticketId === '') return;
+                    if ($ticketId === '') {
+                        return;
+                    }
                 }
 
                 if (isset($ticketMap[$ticketId])) {
-                    $activity->update(['target_url' => '/conversations/' . $ticketMap[$ticketId]]);
+                    $activity->update(['target_url' => '/conversations/'.$ticketMap[$ticketId]]);
                     $linked++;
                     $this->log[] = "Linked activity #{$activity->id} ({$mcType}) → ticket #{$ticketId}";
                 }
@@ -668,21 +697,31 @@ class AutoResolver
         \App\Models\Activity::whereRaw("meta_json->>'conversation_external_id' IS NOT NULL")
             ->cursor()
             ->each(function (\App\Models\Activity $activity) use (&$filled) {
-                $meta        = $activity->meta_json ?? [];
-                $convExtId   = $meta['conversation_external_id'] ?? null;
+                $meta = $activity->meta_json ?? [];
+                $convExtId = $meta['conversation_external_id'] ?? null;
                 $channelType = $meta['channel_type'] ?? null;
-                $systemType  = $meta['system_type'] ?? null;
-                $systemSlug  = $meta['system_slug'] ?? null;
+                $systemType = $meta['system_type'] ?? null;
+                $systemSlug = $meta['system_slug'] ?? null;
 
-                if (!$convExtId) return;
+                if (! $convExtId) {
+                    return;
+                }
 
                 $query = Conversation::where('external_thread_id', $convExtId);
-                if ($channelType) $query->where('channel_type', $channelType);
-                if ($systemType)  $query->where('system_type', $systemType);
-                if ($systemSlug)  $query->where('system_slug', $systemSlug);
+                if ($channelType) {
+                    $query->where('channel_type', $channelType);
+                }
+                if ($systemType) {
+                    $query->where('system_type', $systemType);
+                }
+                if ($systemSlug) {
+                    $query->where('system_slug', $systemSlug);
+                }
 
                 $conv = $query->first();
-                if (!$conv) return;
+                if (! $conv) {
+                    return;
+                }
 
                 $changes = [];
 
@@ -690,12 +729,12 @@ class AutoResolver
                     $changes['company_id'] = $conv->company_id;
                 }
 
-                $expectedUrl = '/conversations/' . $conv->id;
+                $expectedUrl = '/conversations/'.$conv->id;
                 if ($activity->target_url !== $expectedUrl) {
                     $changes['target_url'] = $expectedUrl;
                 }
 
-                if (!empty($changes)) {
+                if (! empty($changes)) {
                     $activity->update($changes);
                     $filled++;
                 }
@@ -718,7 +757,7 @@ class AutoResolver
                 $companyId = null;
 
                 // 1. Via meta client_id (for WHMCS ticket conversations)
-                if ($conv->system_type && $conv->system_slug && !empty($conv->meta_json['client_id'])) {
+                if ($conv->system_type && $conv->system_slug && ! empty($conv->meta_json['client_id'])) {
                     $companyId = Account::where('system_type', $conv->system_type)
                         ->where('system_slug', $conv->system_slug)
                         ->where('external_id', (string) $conv->meta_json['client_id'])
@@ -727,7 +766,7 @@ class AutoResolver
                 }
 
                 // 2. Via account: match (system_type, system_slug) — only if single company for this system
-                if (!$companyId && $conv->system_type && $conv->system_slug) {
+                if (! $companyId && $conv->system_type && $conv->system_slug) {
                     $companies = Account::where('system_type', $conv->system_type)
                         ->where('system_slug', $conv->system_slug)
                         ->whereNotNull('company_id')
@@ -740,14 +779,14 @@ class AutoResolver
                 }
 
                 // 3. Via first customer message's sender email → account → company
-                if (!$companyId) {
+                if (! $companyId) {
                     $firstMsg = $conv->messages()
                         ->where('direction', 'customer')
                         ->whereNotNull('identity_id')
                         ->oldest('occurred_at')
                         ->first();
                     if ($firstMsg?->identity) {
-                        $email     = $firstMsg->identity->value;
+                        $email = $firstMsg->identity->value;
                         $companyId = Account::whereNotNull('company_id')
                             ->whereRaw("meta_json->>'email' = ?", [$email])
                             ->value('company_id');
@@ -757,12 +796,12 @@ class AutoResolver
                 // 4. Via message's identity → person → company
                 // Prefer customer senders: persons who are not our_org AND have no team identities.
                 // This prevents assigning the operator's company to Discord/Slack client channels.
-                if (!$companyId) {
+                if (! $companyId) {
                     $customerMsg = $conv->messages()
                         ->whereNotNull('identity_id')
                         ->whereHas('identity.person', function ($q) {
                             $q->where('is_our_org', false)
-                              ->whereDoesntHave('identities', fn($i) => $i->where('is_team_member', true));
+                                ->whereDoesntHave('identities', fn ($i) => $i->where('is_team_member', true));
                         })
                         ->oldest('occurred_at')
                         ->first();
@@ -800,15 +839,17 @@ class AutoResolver
             ->whereRaw("meta_json->>'conversation_external_id' IS NOT NULL")
             ->cursor()
             ->each(function (\App\Models\Activity $activity) use (&$filled) {
-                $meta       = $activity->meta_json ?? [];
-                $convExtId  = $meta['conversation_external_id'] ?? null;
+                $meta = $activity->meta_json ?? [];
+                $convExtId = $meta['conversation_external_id'] ?? null;
                 $systemType = $meta['system_type'] ?? null;
                 $systemSlug = $meta['system_slug'] ?? null;
 
-                if (!$convExtId) return;
+                if (! $convExtId) {
+                    return;
+                }
 
                 // Quick path: contact_email already in meta (future activities from updated normalizer)
-                if (!empty($meta['contact_email'])) {
+                if (! empty($meta['contact_email'])) {
                     $identity = Identity::where('type', 'email')
                         ->where('value_normalized', strtolower(trim($meta['contact_email'])))
                         ->where('is_team_member', false)
@@ -818,6 +859,7 @@ class AutoResolver
                         $activity->update(['person_id' => $identity->person_id]);
                         $filled++;
                         $this->log[] = "Filled activity #{$activity->id} person_id={$identity->person_id} via contact_email meta";
+
                         return;
                     }
                 }
@@ -825,27 +867,35 @@ class AutoResolver
                 // Find the conversation
                 $query = Conversation::where('external_thread_id', $convExtId)
                     ->where('channel_type', 'email');
-                if ($systemType) $query->where('system_type', $systemType);
-                if ($systemSlug) $query->where('system_slug', $systemSlug);
+                if ($systemType) {
+                    $query->where('system_type', $systemType);
+                }
+                if ($systemSlug) {
+                    $query->where('system_slug', $systemSlug);
+                }
 
                 $conv = $query->first();
-                if (!$conv) return;
+                if (! $conv) {
+                    return;
+                }
 
                 $personId = null;
 
                 // Strategy 1: customer-direction message sender (non-team identity with person)
                 foreach ($conv->messages()->where('direction', 'customer')->whereNotNull('identity_id')->with('identity')->oldest('occurred_at')->get() as $msg) {
-                    if ($msg->identity?->person_id && !$msg->identity->is_team_member) {
+                    if ($msg->identity?->person_id && ! $msg->identity->is_team_member) {
                         $personId = $msg->identity->person_id;
                         break;
                     }
                 }
 
                 // Strategy 2: parse 'to' from message meta (sent-only threads — outgoing emails)
-                if (!$personId) {
+                if (! $personId) {
                     foreach ($conv->messages()->oldest('occurred_at')->get() as $msg) {
                         $to = $msg->meta_json['to'] ?? null;
-                        if (!$to) continue;
+                        if (! $to) {
+                            continue;
+                        }
 
                         if (preg_match('/<([^>]+@[^>]+)>/', $to, $match)) {
                             $email = strtolower(trim($match[1]));
@@ -894,22 +944,26 @@ class AutoResolver
             ->cursor()
             ->each(function (\App\Models\Activity $activity) use (&$filled) {
                 $customer = trim($activity->meta_json['customer'] ?? '');
-                if (!$customer) return;
+                if (! $customer) {
+                    return;
+                }
 
                 // Strip leading "#N - " prefix if present
                 $name = preg_replace('/^#\d+\s*-\s*/', '', $customer);
                 $name = trim($name);
-                if (!$name) return;
+                if (! $name) {
+                    return;
+                }
 
                 $parts = explode(' ', $name, 2);
                 $firstName = trim($parts[0]);
-                $lastName  = isset($parts[1]) ? trim($parts[1]) : '';
+                $lastName = isset($parts[1]) ? trim($parts[1]) : '';
 
                 $person = Person::where('first_name', $firstName)
                     ->where('last_name', $lastName !== '' ? $lastName : null)
                     ->first();
 
-                if (!$person && $lastName !== '') {
+                if (! $person && $lastName !== '') {
                     // Try with last_name IS NULL for single-word names
                     $person = Person::where('first_name', $firstName)
                         ->whereNull('last_name')
@@ -927,6 +981,25 @@ class AutoResolver
     }
 
     // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Extract domain from email and look up matching CompanyDomain.
+     * Returns company_id or null if not found.
+     */
+    private function matchEmailToDomain(string $email): ?int
+    {
+        $parts = explode('@', $email, 2);
+        $domain = strtolower(trim($parts[1] ?? ''));
+        if (! $domain) {
+            return null;
+        }
+
+        return CompanyDomain::where('domain', $domain)->value('company_id');
+    }
+
+    // -------------------------------------------------------------------------
     // Orphan people cleanup
     // -------------------------------------------------------------------------
 
@@ -941,7 +1014,7 @@ class AutoResolver
 
         Person::where('is_our_org', false)
             ->whereDoesntHave('identities')
-            ->whereNotExists(fn($q) => $q->select(DB::raw(1))->from('company_person')->whereColumn('person_id', 'people.id'))
+            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('company_person')->whereColumn('person_id', 'people.id'))
             ->whereDoesntHave('activities')
             ->whereDoesntHave('notes')
             ->cursor()

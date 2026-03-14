@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'PanelAlpha',     'variant' => 'Cloud',      'slug' => 'panelalpha-cloud'],
             ['name' => 'PanelAlpha',     'variant' => 'On-Premise', 'slug' => 'panelalpha-onpremise'],
             ['name' => 'EasyDCIM',       'variant' => null,         'slug' => 'easydcim'],
-            ['name' => 'WHMCS',          'variant' => 'Integration','slug' => 'whmcs-integration'],
+            ['name' => 'WHMCS',          'variant' => 'Integration', 'slug' => 'whmcs-integration'],
         ])->map(fn ($d) => BrandProduct::create($d));
 
         $companies = [
@@ -73,7 +73,7 @@ class DatabaseSeeder extends Seeder
                 'primary_person_id' => $people[$i]->id,
                 'channel_type' => $channel,
                 'system_slug' => 'default',
-                'external_thread_id' => 'thread-' . strtoupper(substr(md5($company->name), 0, 8)),
+                'external_thread_id' => 'thread-'.strtoupper(substr(md5($company->name), 0, 8)),
                 'message_count' => 0,
                 'started_at' => $started,
                 'last_message_at' => $started->copy()->addDays(rand(1, 10)),
@@ -181,7 +181,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'author' => 'Support', 'dir' => 'internal',
-                'body' => "Update: we identified a database connection pool exhaustion. Fix is being deployed now. ETA: 15 minutes.",
+                'body' => 'Update: we identified a database connection pool exhaustion. Fix is being deployed now. ETA: 15 minutes.',
                 'offset' => 45,
             ],
             [
@@ -192,13 +192,13 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'author' => 'Support', 'dir' => 'internal',
-                'body' => "The issue has been resolved. API response times are back to normal (<200ms). Please confirm everything is working on your end.",
+                'body' => 'The issue has been resolved. API response times are back to normal (<200ms). Please confirm everything is working on your end.',
                 'offset' => 65,
                 'meta' => ['ticket_status' => 'resolved'],
             ],
             [
                 'author' => $ticketPerson->full_name, 'dir' => 'customer',
-                'body' => "Confirmed — API is working again. Thanks for the fast response!",
+                'body' => 'Confirmed — API is working again. Thanks for the fast response!',
                 'offset' => 80,
             ],
         ];
@@ -221,16 +221,16 @@ class DatabaseSeeder extends Seeder
             ['type' => 'ticket',       'meta' => ['description' => 'API timeout reported', 'priority' => 'high']],
             ['type' => 'note',         'meta' => ['description' => 'Follow-up call scheduled']],
             ['type' => 'conversation', 'meta' => ['description' => 'Demo meeting completed via Slack']],
-            ['type' => 'status_change','meta' => ['description' => 'Stage changed: trial → active']],
+            ['type' => 'status_change', 'meta' => ['description' => 'Stage changed: trial → active']],
             ['type' => 'campaign_run', 'meta' => ['description' => 'Q1 follow-up campaign delivered']],
         ];
         foreach ($companies as $i => $company) {
             foreach ($activitySets as $j => $act) {
                 Activity::create([
-                    'company_id'  => $company->id,
-                    'person_id'   => ($j < count($people)) ? $people[($i + $j) % count($people)]->id : null,
-                    'type'        => $act['type'],
-                    'meta_json'   => $act['meta'],
+                    'company_id' => $company->id,
+                    'person_id' => ($j < count($people)) ? $people[($i + $j) % count($people)]->id : null,
+                    'type' => $act['type'],
+                    'meta_json' => $act['meta'],
                     'occurred_at' => now()->subDays(rand(1, 180)),
                 ]);
             }
@@ -265,6 +265,7 @@ class DatabaseSeeder extends Seeder
         foreach ($accounts as $type => $extId) {
             Account::create(['company_id' => $company->id, 'system_type' => $type, 'system_slug' => 'default', 'external_id' => $extId]);
         }
+
         return $company;
     }
 
@@ -273,6 +274,7 @@ class DatabaseSeeder extends Seeder
         $person = Person::create(['first_name' => $first, 'last_name' => $last]);
         Identity::create(['person_id' => $person->id, 'system_slug' => 'default', 'type' => 'email', 'value' => $email]);
         Identity::create(['person_id' => $person->id, 'system_slug' => 'default', 'type' => 'slack_id', 'value' => $slackId]);
+
         return $person;
     }
 }

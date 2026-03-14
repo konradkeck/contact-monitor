@@ -2,34 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\BuildsConvSubjectMap;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Identity;
-use App\Models\Note;
 use App\Models\Person;
 use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class PersonController extends Controller
 {
+    use BuildsConvSubjectMap;
+
     public function index(Request $request): View
     {
         $search = $request->get('q');
-        $sort   = $request->get('sort', 'updated_at');
-        $dir    = $request->get('dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $sort = $request->get('sort', 'updated_at');
+        $dir = $request->get('dir', 'desc') === 'asc' ? 'asc' : 'desc';
 
-        if (!in_array($sort, ['first_name', 'updated_at', 'identities'])) {
+        if (! in_array($sort, ['first_name', 'updated_at', 'identities'])) {
             $sort = 'updated_at';
         }
 
         $query = Person::query()
             ->where('is_our_org', false)
             ->when($search, function ($q) use ($search) {
-                $term = '%' . strtolower($search) . '%';
+                $term = '%'.strtolower($search).'%';
                 $q->where(function ($sub) use ($term) {
                     $sub->whereRaw("LOWER(first_name || ' ' || COALESCE(last_name, '')) LIKE ?", [$term])
                         ->orWhereHas('identities', fn ($i) => $i->whereRaw('LOWER(value_normalized) LIKE ?', [$term]));
@@ -40,25 +42,25 @@ class PersonController extends Controller
 
         match ($sort) {
             'identities' => $query->orderByRaw("(SELECT COUNT(*) FROM identities WHERE person_id=people.id AND deleted_at IS NULL) {$dir}"),
-            default       => $query->orderBy($sort, $dir),
+            default => $query->orderBy($sort, $dir),
         };
 
         // ── Filtered people ────────────────────────────────────
-        $filterDomains  = SystemSetting::get('filter_domains', []);
-        $filterEmails   = SystemSetting::get('filter_emails', []);
+        $filterDomains = SystemSetting::get('filter_domains', []);
+        $filterEmails = SystemSetting::get('filter_emails', []);
         $filterContacts = DB::table('filter_contacts')->pluck('person_id')->all();
 
-        $filteredIds     = [];
+        $filteredIds = [];
         $filteredReasons = [];
 
         // By filter_contacts list
         foreach ($filterContacts as $personId) {
-            $filteredIds[]               = $personId;
+            $filteredIds[] = $personId;
             $filteredReasons[$personId] = 'Added to filter list';
         }
 
         // By email match: people whose email identity value matches a filter_emails entry
-        if (!empty($filterEmails)) {
+        if (! empty($filterEmails)) {
             $emailMatches = DB::table('identities')
                 ->where('type', 'email')
                 ->whereIn(DB::raw('LOWER(value)'), array_map('strtolower', $filterEmails))
@@ -66,37 +68,37 @@ class PersonController extends Controller
                 ->select('person_id', 'value')
                 ->get();
             foreach ($emailMatches as $row) {
-                if (!isset($filteredReasons[$row->person_id])) {
-                    $filteredIds[]                  = $row->person_id;
+                if (! isset($filteredReasons[$row->person_id])) {
+                    $filteredIds[] = $row->person_id;
                     $filteredReasons[$row->person_id] = "Email match: {$row->value}";
                 }
             }
         }
 
         // By domain match: people whose email domain matches a filter_domains entry
-        if (!empty($filterDomains)) {
+        if (! empty($filterDomains)) {
             $domainQuery = DB::table('identities')
                 ->where('type', 'email')
                 ->whereNull('deleted_at')
                 ->where(function ($q) use ($filterDomains) {
                     foreach ($filterDomains as $domain) {
-                        $q->orWhereRaw('LOWER(value) LIKE ?', ['%@' . strtolower($domain)]);
+                        $q->orWhereRaw('LOWER(value) LIKE ?', ['%@'.strtolower($domain)]);
                     }
                 })
                 ->select('person_id', 'value')
                 ->get();
             foreach ($domainQuery as $row) {
-                if (!isset($filteredReasons[$row->person_id])) {
+                if (! isset($filteredReasons[$row->person_id])) {
                     $domain = substr(strrchr($row->value, '@'), 1);
-                    $filteredIds[]                  = $row->person_id;
+                    $filteredIds[] = $row->person_id;
                     $filteredReasons[$row->person_id] = "Domain match: {$domain}";
                 }
             }
         }
 
-        $filteredIds   = array_unique($filteredIds);
+        $filteredIds = array_unique($filteredIds);
         $filteredCount = count($filteredIds);
-        $showFiltered  = (bool) $request->get('show_filtered');
+        $showFiltered = (bool) $request->get('show_filtered');
 
         if ($showFiltered) {
             if (empty($filteredIds)) {
@@ -137,7 +139,7 @@ class PersonController extends Controller
 
         // Step 2: for those conversations, get latest non-system message per conversation
         $latestPerConv = collect();
-        if (!empty($allConvIds)) {
+        if (! empty($allConvIds)) {
             $latestPerConv = DB::table('conversation_messages as cm')
                 ->join('conversations as c', 'c.id', '=', 'cm.conversation_id')
                 ->whereIn('cm.conversation_id', $allConvIds)
@@ -155,7 +157,7 @@ class PersonController extends Controller
             $best = null;
             foreach ($convIds as $convId) {
                 $msg = $latestPerConv->get($convId);
-                if ($msg && (!$best || $msg->occurred_at > $best->occurred_at)) {
+                if ($msg && (! $best || $msg->occurred_at > $best->occurred_at)) {
                     $best = (object) (array) $msg;
                     $best->person_id = $personId;
                 }
@@ -168,8 +170,8 @@ class PersonController extends Controller
 
         // For people with no message-based last contact, fall back to outbound activity data.
         // Find people on this page who still have no last_msg entry.
-        $missingIds = $personIds->filter(fn($id) => !$lastMsgs->has($id))->values()->all();
-        if (!empty($missingIds)) {
+        $missingIds = $personIds->filter(fn ($id) => ! $lastMsgs->has($id))->values()->all();
+        if (! empty($missingIds)) {
             $personEmailMap = DB::table('identities')
                 ->whereIn('person_id', $missingIds)
                 ->where('type', 'email')
@@ -177,14 +179,14 @@ class PersonController extends Controller
                 ->select('person_id', 'value')
                 ->get()
                 ->groupBy('person_id')
-                ->map(fn($rows) => $rows->pluck('value')->map('strtolower')->toArray());
+                ->map(fn ($rows) => $rows->pluck('value')->map('strtolower')->toArray());
 
             // Latest outbound activity per person where contact_email matches their known email.
             // Join conversation to get conv ID and subject for the clickable modal link.
             $fallbackRows = DB::table('activities as a')
                 ->leftJoin('conversations as c', function ($join) {
                     $join->whereRaw("c.external_thread_id = a.meta_json->>'conversation_external_id'")
-                         ->whereRaw("c.system_slug = a.meta_json->>'system_slug'");
+                        ->whereRaw("c.system_slug = a.meta_json->>'system_slug'");
                 })
                 ->whereIn('a.person_id', $missingIds)
                 ->whereRaw("a.meta_json->>'contact_email' IS NOT NULL")
@@ -200,14 +202,15 @@ class PersonController extends Controller
                 ->get()
                 ->filter(function ($row) use ($personEmailMap) {
                     $emails = $personEmailMap->get($row->person_id, []);
+
                     return in_array($row->contact_email, $emails, true);
                 })
                 ->unique('person_id'); // keep only latest per person (already ordered desc)
 
             foreach ($fallbackRows as $row) {
                 $lastMsgs->put($row->person_id, (object) [
-                    'person_id'    => $row->person_id,
-                    'occurred_at'  => $row->occurred_at,
+                    'person_id' => $row->person_id,
+                    'occurred_at' => $row->occurred_at,
                     'channel_type' => $row->channel_type,
                     'conv_subject' => $row->conv_subject,
                     'last_conv_id' => $row->last_conv_id,
@@ -232,7 +235,7 @@ class PersonController extends Controller
     {
         $data = $request->validate([
             'first_name' => 'required|string|max:255',
-            'last_name'  => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'is_our_org' => 'nullable|boolean',
         ]);
         $data['is_our_org'] = (bool) ($data['is_our_org'] ?? false);
@@ -258,7 +261,7 @@ class PersonController extends Controller
         $convSubjectMap = $this->buildConvSubjectMap($timelinePage->items());
 
         // Conversations where this person appeared (sender via messages OR participant)
-        $convGroups = collect(DB::select("
+        $convGroups = collect(DB::select('
             SELECT DISTINCT ON (channel_type, system_slug)
                 channel_type, system_slug, id AS last_conv_id,
                 subject AS last_subject, last_message_at,
@@ -278,13 +281,13 @@ class PersonController extends Controller
                     )
             ) sub
             ORDER BY channel_type, system_slug, last_message_at DESC
-        ", [$person->id, $person->id]))->sortByDesc('last_message_at');
+        ', [$person->id, $person->id]))->sortByDesc('last_message_at');
 
         // Conversation systems for filter dropdown (derived from convGroups)
-        $convSystems = $convGroups->map(fn ($g) => (object)[
+        $convSystems = $convGroups->map(fn ($g) => (object) [
             'channel_type' => $g->channel_type,
-            'system_slug'  => $g->system_slug,
-        ])->unique(fn ($g) => $g->channel_type . '|' . $g->system_slug)->values();
+            'system_slug' => $g->system_slug,
+        ])->unique(fn ($g) => $g->channel_type.'|'.$g->system_slug)->values();
 
         $filteredConvCount = DB::table('conversations as c')
             ->where('c.is_archived', true)
@@ -313,13 +316,13 @@ class PersonController extends Controller
         }
         if ($systems = $request->get('systems')) {
             $pairs = array_filter((array) $systems);
-            if (!empty($pairs)) {
+            if (! empty($pairs)) {
                 $query->where(function ($q) use ($pairs) {
                     foreach ($pairs as $pair) {
                         [$ch, $slug] = array_pad(explode('|', $pair, 2), 2, '');
                         $q->orWhere(function ($sq) use ($ch, $slug) {
                             $sq->whereRaw("meta_json->>'channel_type' = ?", [$ch])
-                               ->whereRaw("meta_json->>'system_slug' = ?", [$slug]);
+                                ->whereRaw("meta_json->>'system_slug' = ?", [$slug]);
                         });
                     }
                 });
@@ -346,7 +349,7 @@ class PersonController extends Controller
         $page = $query->cursorPaginate(25, ['*'], 'cursor', $request->get('cursor'));
 
         return view('people.partials.timeline-items', [
-            'activities'     => $page->items(),
+            'activities' => $page->items(),
             'convSubjectMap' => $this->buildConvSubjectMap($page->items()),
             'nextCursor' => $page->nextCursor()?->encode(),
         ]);
@@ -361,7 +364,7 @@ class PersonController extends Controller
     {
         $data = $request->validate([
             'first_name' => 'required|string|max:255',
-            'last_name'  => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'is_our_org' => 'nullable|boolean',
         ]);
         $data['is_our_org'] = (bool) ($data['is_our_org'] ?? false);
@@ -395,15 +398,15 @@ class PersonController extends Controller
         }
 
         $people = Person::where(function ($query) use ($q) {
-                $query->where('first_name', 'ilike', "%{$q}%")
-                      ->orWhere('last_name', 'ilike', "%{$q}%");
-            })
+            $query->where('first_name', 'ilike', "%{$q}%")
+                ->orWhere('last_name', 'ilike', "%{$q}%");
+        })
             ->orderBy('first_name')
             ->limit(20)
             ->get(['id', 'first_name', 'last_name']);
 
         return response()->json($people->map(fn ($p) => [
-            'id'   => $p->id,
+            'id' => $p->id,
             'name' => trim("{$p->first_name} {$p->last_name}"),
         ]));
     }
@@ -518,14 +521,18 @@ class PersonController extends Controller
     public function markOurOrg(Person $person): JsonResponse
     {
         $person->update(['is_our_org' => true]);
+
         return response()->json(['ok' => true]);
     }
 
     public function bulkMarkOurOrg(Request $request): JsonResponse
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
-        if (empty($ids)) return response()->json(['ok' => false, 'error' => 'No IDs']);
+        if (empty($ids)) {
+            return response()->json(['ok' => false, 'error' => 'No IDs']);
+        }
         Person::whereIn('id', $ids)->update(['is_our_org' => true]);
+
         return response()->json(['ok' => true, 'count' => count($ids)]);
     }
 
@@ -534,6 +541,7 @@ class PersonController extends Controller
     public function assignCompanyModal(Request $request): View
     {
         $ids = array_filter(array_map('intval', (array) $request->get('ids', [])));
+
         return view('people.assign-company-modal', ['ids' => $ids]);
     }
 
@@ -545,22 +553,29 @@ class PersonController extends Controller
     public function bulkAssignCompany(Request $request): JsonResponse
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
+
         return $this->doAssignCompany($ids, $request);
     }
 
     private function doAssignCompany(array $personIds, Request $request): JsonResponse
     {
-        if (empty($personIds)) return response()->json(['ok' => false, 'error' => 'No people selected']);
+        if (empty($personIds)) {
+            return response()->json(['ok' => false, 'error' => 'No people selected']);
+        }
 
         $mode = $request->input('mode'); // 'new' | 'existing'
 
         if ($mode === 'new') {
             $name = trim($request->input('name', ''));
-            if (!$name) return response()->json(['ok' => false, 'error' => 'Company name required']);
+            if (! $name) {
+                return response()->json(['ok' => false, 'error' => 'Company name required']);
+            }
             $company = Company::create(['name' => $name]);
         } else {
             $company = Company::find((int) $request->input('company_id'));
-            if (!$company) return response()->json(['ok' => false, 'error' => 'Company not found']);
+            if (! $company) {
+                return response()->json(['ok' => false, 'error' => 'Company not found']);
+            }
         }
 
         foreach ($personIds as $id) {
@@ -570,35 +585,4 @@ class PersonController extends Controller
         return response()->json(['ok' => true, 'company_id' => $company->id, 'company_name' => $company->name]);
     }
 
-    private function buildConvSubjectMap(array $activities): array
-    {
-        $extIds = [];
-        foreach ($activities as $activity) {
-            $m = $activity->meta_json ?? [];
-            $effectiveChannelType = $m['channel_type'] ?? match($m['system_type'] ?? '') {
-                'whmcs', 'metricscube' => 'ticket',
-                default => null,
-            };
-            if ($effectiveChannelType === 'ticket' && !empty($m['conversation_external_id'])) {
-                $extIds[] = $m['conversation_external_id'];
-            }
-            // MetricsCube ticket activities (relation_id = raw ticket number)
-            $mcType = $m['mc_type'] ?? '';
-            if (in_array($mcType, ['Opened Ticket', 'Closed Ticket', 'Ticket Replied'], true) && !empty($m['relation_id'])) {
-                $extIds[] = 'ticket_' . $m['relation_id'];
-            }
-        }
-        if (empty($extIds)) {
-            return [];
-        }
-        $map = [];
-        DB::table('conversations')
-            ->whereIn('external_thread_id', array_unique($extIds))
-            ->select('id', 'external_thread_id', 'subject')
-            ->get()
-            ->each(function ($c) use (&$map) {
-                $map[$c->external_thread_id] = ['id' => $c->id, 'subject' => $c->subject];
-            });
-        return $map;
-    }
 }

@@ -41,7 +41,7 @@ class NoteController extends Controller
         // Record audit log based on entity type
         $entity = ($typeMap[$data['linkable_type']])::find($data['linkable_id']);
         if ($entity) {
-            AuditLog::record('added_note', $entity, "Added note to " . class_basename($entity) . " #{$entity->id}");
+            AuditLog::record('added_note', $entity, 'Added note to '.class_basename($entity)." #{$entity->id}");
         }
 
         // Redirect back to the entity that was noted
@@ -49,6 +49,7 @@ class NoteController extends Controller
             'company' => route('companies.show', $data['linkable_id']),
             'person' => route('people.show', $data['linkable_id']),
             'conversation' => route('conversations.show', $data['linkable_id']),
+            default => route('dashboard'),
         };
 
         return redirect($redirect)->with('success', 'Note added.');

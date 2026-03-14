@@ -30,18 +30,11 @@ class BrandProductController extends Controller
             'slug' => 'nullable|string|max:255|unique:brand_products,slug',
         ]);
 
-        $data['slug'] ??= Str::slug($data['name'] . ($data['variant'] ? '-' . $data['variant'] : ''));
+        $data['slug'] ??= Str::slug($data['name'].($data['variant'] ? '-'.$data['variant'] : ''));
 
         BrandProduct::create($data);
 
-        return redirect()->route('brand-products.index')->with('success', 'Brand product created.');
-    }
-
-    public function show(BrandProduct $brandProduct): View
-    {
-        $brandProduct->load(['companyStatuses.company']);
-
-        return view('brand-products.show', compact('brandProduct'));
+        return redirect()->route('segmentation.index')->with('success', 'Segmentation created.');
     }
 
     public function edit(BrandProduct $brandProduct): View
@@ -54,12 +47,12 @@ class BrandProductController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'variant' => 'nullable|string|max:255',
-            'slug' => 'required|string|max:255|unique:brand_products,slug,' . $brandProduct->id,
+            'slug' => 'required|string|max:255|unique:brand_products,slug,'.$brandProduct->id,
         ]);
 
         $brandProduct->update($data);
 
-        return redirect()->route('brand-products.show', $brandProduct)->with('success', 'Brand product updated.');
+        return redirect()->route('segmentation.index')->with('success', 'Segmentation updated.');
     }
 
     public function destroy(BrandProduct $brandProduct): RedirectResponse
@@ -67,6 +60,6 @@ class BrandProductController extends Controller
         $brandProduct->companyStatuses()->delete();
         $brandProduct->delete();
 
-        return redirect()->route('brand-products.index')->with('success', 'Brand product deleted.');
+        return redirect()->route('segmentation.index')->with('success', 'Segmentation deleted.');
     }
 }

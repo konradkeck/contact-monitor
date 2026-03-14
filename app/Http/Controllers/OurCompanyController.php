@@ -17,10 +17,9 @@ class OurCompanyController extends Controller
         $teamDomains = SystemSetting::get('team_domains', []);
 
         // People in Our Organization — by is_our_org flag OR linked team member identity
-        $teamPeople = Person::where(fn($q) =>
-                $q->where('is_our_org', true)
-                  ->orWhereHas('identities', fn($i) => $i->where('is_team_member', true))
-            )
+        $teamPeople = Person::where(fn ($q) => $q->where('is_our_org', true)
+            ->orWhereHas('identities', fn ($i) => $i->where('is_team_member', true))
+        )
             ->with(['identities'])
             ->get();
 
@@ -38,10 +37,10 @@ class OurCompanyController extends Controller
 
     public function saveTeamDomains(Request $request): RedirectResponse
     {
-        $raw     = $request->input('domains', '');
+        $raw = $request->input('domains', '');
         $domains = array_values(array_filter(
             array_map('trim', preg_split('/[\r\n,]+/', $raw)),
-            fn($d) => $d !== ''
+            fn ($d) => $d !== ''
         ));
         $domains = array_map('strtolower', $domains);
 
@@ -51,26 +50,28 @@ class OurCompanyController extends Controller
         $marked = 0;
         foreach ($domains as $domain) {
             $count = Identity::where('type', 'email')
-                ->whereRaw("value_normalized LIKE ?", ['%@' . $domain])
+                ->whereRaw('value_normalized LIKE ?', ['%@'.$domain])
                 ->where('is_team_member', false)
                 ->update(['is_team_member' => true]);
             $marked += $count;
         }
 
-        (new AutoResolver())->resolveAll();
+        (new AutoResolver)->resolveAll();
 
         $msg = 'Team domains saved.';
-        if ($marked > 0) $msg .= " Marked {$marked} identities as team members.";
+        if ($marked > 0) {
+            $msg .= " Marked {$marked} identities as team members.";
+        }
 
-        return redirect()->back()->with('success', $msg . ' Auto-resolve done.');
+        return redirect()->back()->with('success', $msg.' Auto-resolve done.');
     }
 
     public function removeTeamDomain(Request $request): RedirectResponse
     {
-        $domain  = strtolower(trim($request->input('domain', '')));
+        $domain = strtolower(trim($request->input('domain', '')));
         $domains = array_values(array_filter(
             SystemSetting::get('team_domains', []),
-            fn($d) => $d !== $domain
+            fn ($d) => $d !== $domain
         ));
         SystemSetting::set('team_domains', $domains);
 
