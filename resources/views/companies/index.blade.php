@@ -376,7 +376,7 @@
                 @empty
                     <tr>
                         <td colspan="{{ 6 + max(1, $brandProducts->count()) }}"
-                            class="px-4 py-10 text-center text-gray-400 italic">
+                            class="px-4 py-10 text-center empty-state italic">
                             No companies found.
                         </td>
                     </tr>

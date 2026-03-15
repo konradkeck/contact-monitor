@@ -259,7 +259,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" class="px-4 py-8 text-center text-gray-400 italic">No conversations.</td>
+                    <td colspan="9" class="px-4 py-8 text-center empty-state italic">No conversations.</td>
                 </tr>
             @endforelse
         </tbody>

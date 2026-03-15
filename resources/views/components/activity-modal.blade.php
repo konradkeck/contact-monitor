@@ -39,8 +39,14 @@ function openActivityModal(btn) {
 }
 function closeActivityModal() {
     const overlay = document.getElementById('activity-modal-overlay');
-    overlay.classList.add('hidden');
-    overlay.classList.remove('flex');
+    overlay.style.animation = 'modal-overlay-in 0.15s ease-in reverse forwards';
+    overlay.querySelector(':scope > div').style.animation = 'modal-panel-in 0.15s ease-in reverse forwards';
+    setTimeout(function() {
+        overlay.style.animation = '';
+        overlay.querySelector(':scope > div').style.animation = '';
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+    }, 140);
 }
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeActivityModal(); });
 </script>

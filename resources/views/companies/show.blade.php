@@ -35,7 +35,7 @@
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
             {{-- Dark header --}}
-            <div class="bg-gradient-to-br from-gray-900 to-gray-700 px-5 pt-5 pb-10">
+            <div class="bg-gradient-to-b from-[#1c2028] to-[#252d3b] px-5 pt-5 pb-10">
                 <div class="flex items-baseline gap-2 flex-wrap">
                     <h2 class="text-white font-bold text-xl leading-tight">
                         {{ $primaryAlias?->alias ?? $company->name }}
@@ -70,9 +70,9 @@
             </div>
 
             {{-- Analysis placeholder --}}
-            <div class="-mt-4 mx-4 mb-4 bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3">
-                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Company Analysis</p>
-                <p class="text-xs text-gray-300 italic">AI summary coming soon…</p>
+            <div class="-mt-4 mx-4 mb-4 bg-white rounded-lg border border-brand-100 shadow-sm px-4 py-3">
+                <p class="text-xs font-semibold text-brand-400 uppercase tracking-wide mb-1">Company Analysis</p>
+                <p class="text-xs text-brand-200 italic">AI summary coming soon…</p>
             </div>
 
         </div>{{-- /Company Card --}}

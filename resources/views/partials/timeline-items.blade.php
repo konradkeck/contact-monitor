@@ -79,6 +79,44 @@
                         @endif
                     </div>
 
+                {{-- Ticket (WHMCS): 2-line layout --}}
+                @elseif($d->isTicket)
+                    <div class="min-w-0 flex-1 flex flex-col gap-px text-right">
+                        <div class="flex items-center gap-1.5 min-w-0 justify-end">
+                            @if($d->ticketNotFound)
+                                <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $d->hoverText }}">#{{ $d->ticketNotFound }}</span>
+                            @elseif($d->titleText && $d->url)
+                                <a href="{{ $d->url }}" class="text-xs link truncate max-w-[180px] text-right" title="{{ $d->hoverText }}">{{ $d->titleText }}</a>
+                            @elseif($d->titleText)
+                                <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $d->hoverText }}">{{ $d->titleText }}</span>
+                            @endif
+                            <span class="text-xs text-gray-400 shrink-0 tabular-nums whitespace-nowrap"
+                                  title="{{ $activity->occurred_at->format('d M Y H:i') }}">{{ $activity->occurred_at->diffForHumans(null, true, true) }}</span>
+                        </div>
+                        @if($d->department)
+                            <div class="text-[10px] text-gray-400 truncate max-w-full text-right">{{ $d->department }}</div>
+                        @endif
+                    </div>
+
+                {{-- MetricsCube: 2-line layout --}}
+                @elseif($d->isMetricscube)
+                    <div class="min-w-0 flex-1 flex flex-col gap-px text-right">
+                        <div class="flex items-center gap-1.5 min-w-0 justify-end">
+                            @if($d->ticketNotFound)
+                                <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $d->hoverText }}">#{{ $d->ticketNotFound }}</span>
+                            @elseif($d->titleText && $d->url)
+                                <a href="{{ $d->url }}" class="text-xs link truncate max-w-[180px] text-right" title="{{ $d->hoverText }}">{{ $d->titleText }}</a>
+                            @elseif($d->titleText)
+                                <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $d->hoverText }}">{{ $d->titleText }}</span>
+                            @endif
+                            <span class="text-xs text-gray-400 shrink-0 tabular-nums whitespace-nowrap"
+                                  title="{{ $activity->occurred_at->format('d M Y H:i') }}">{{ $activity->occurred_at->diffForHumans(null, true, true) }}</span>
+                        </div>
+                        @if($d->mcType)
+                            <div class="text-[10px] text-gray-400 truncate max-w-full text-right">{{ $d->mcType }}</div>
+                        @endif
+                    </div>
+
                 {{-- Other: single-line layout --}}
                 @else
                     @if($d->sourceLabel)
@@ -192,6 +230,46 @@
                         </div>
                         @if($d->participants)
                             <div class="text-[10px] text-gray-400 truncate max-w-full">{{ $d->participants }}</div>
+                        @endif
+                    </div>
+
+                {{-- Ticket (WHMCS): 2-line layout --}}
+                @elseif($d->isTicket)
+                    <div class="min-w-0 flex-1 flex flex-col gap-px">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            @if($d->ticketNotFound)
+                                <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $d->hoverText }}">#{{ $d->ticketNotFound }}</span>
+                            @elseif($d->titleText && $d->url)
+                                <a href="{{ $d->url }}" class="text-xs link truncate max-w-[180px]" title="{{ $d->hoverText }}">{{ $d->titleText }}</a>
+                            @elseif($d->titleText)
+                                <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $d->hoverText }}">{{ $d->titleText }}</span>
+                            @endif
+                            <div class="flex-1 min-w-0"></div>
+                            <span class="text-xs text-gray-400 shrink-0 tabular-nums whitespace-nowrap"
+                                  title="{{ $activity->occurred_at->format('d M Y H:i') }}">{{ $activity->occurred_at->diffForHumans(null, true, true) }}</span>
+                        </div>
+                        @if($d->department)
+                            <div class="text-[10px] text-gray-400 truncate max-w-full">{{ $d->department }}</div>
+                        @endif
+                    </div>
+
+                {{-- MetricsCube: 2-line layout --}}
+                @elseif($d->isMetricscube)
+                    <div class="min-w-0 flex-1 flex flex-col gap-px">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            @if($d->ticketNotFound)
+                                <span class="text-xs text-red-400 font-mono truncate max-w-[180px]" title="{{ $d->hoverText }}">#{{ $d->ticketNotFound }}</span>
+                            @elseif($d->titleText && $d->url)
+                                <a href="{{ $d->url }}" class="text-xs link truncate max-w-[180px]" title="{{ $d->hoverText }}">{{ $d->titleText }}</a>
+                            @elseif($d->titleText)
+                                <span class="text-xs text-gray-600 truncate max-w-[180px]" title="{{ $d->hoverText }}">{{ $d->titleText }}</span>
+                            @endif
+                            <div class="flex-1 min-w-0"></div>
+                            <span class="text-xs text-gray-400 shrink-0 tabular-nums whitespace-nowrap"
+                                  title="{{ $activity->occurred_at->format('d M Y H:i') }}">{{ $activity->occurred_at->diffForHumans(null, true, true) }}</span>
+                        </div>
+                        @if($d->mcType)
+                            <div class="text-[10px] text-gray-400 truncate max-w-full">{{ $d->mcType }}</div>
                         @endif
                     </div>
 

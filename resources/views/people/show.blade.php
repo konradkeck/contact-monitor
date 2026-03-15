@@ -119,9 +119,9 @@
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
             {{-- Dark header (indigo tint if Our Organization) --}}
-            <div class="{{ $person->is_our_org ? 'bg-gradient-to-br from-indigo-900 to-indigo-700' : 'bg-gradient-to-br from-gray-900 to-gray-700' }} px-5 pt-5 pb-10 flex flex-col items-center text-center">
+            <div class="{{ $person->is_our_org ? 'bg-gradient-to-b from-[#191f3a] to-[#222c50]' : 'bg-gradient-to-b from-[#1c2028] to-[#252d3b]' }} px-5 pt-5 pb-10 flex flex-col items-center text-center">
                 @if($person->is_our_org)
-                    <span class="mb-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-400/30 text-indigo-100 border border-indigo-400/40">
+                    <span class="mb-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-400/15 text-indigo-200/80 border border-indigo-400/20">
                         Our Org
                     </span>
                 @endif
@@ -137,18 +137,13 @@
                 <div class="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
                     <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned Companies</span>
                     <div class="flex items-center gap-1.5">
-                        @if($allCompanies->isNotEmpty())
-                            <button type="button"
-                                    onclick="document.getElementById('popup-link-company').classList.remove('hidden')"
-                                    class="text-xs font-medium text-brand-600 hover:text-brand-700 border border-brand-200 hover:border-brand-400 px-2 py-0.5 rounded transition">
-                                Link
-                            </button>
-                        @endif
+                        @can('data_write')
                         <button type="button"
                                 onclick="showPersonAssignCompany()"
                                 class="text-xs font-medium text-gray-500 hover:text-brand-700 border border-gray-200 hover:border-brand-400 px-2 py-0.5 rounded transition">
-                            + New
+                            + Assign
                         </button>
+                        @endcan
                     </div>
                 </div>
                 @if($person->companies->isEmpty())

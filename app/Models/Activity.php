@@ -243,6 +243,10 @@ class Activity extends Model
         $useBadge = ($chType === null && $sysType !== 'metricscube')
                  || ($chType === null && $sysType === 'metricscube' && ! $isMcTicket);
 
+        $isTicket      = ($chType === 'ticket' && ! $isMcTicket);
+        $isMetricscube = ($sysType === 'metricscube');
+        $department    = $isTicket ? ($meta['department'] ?? null) : null;
+
         // Hover text
         $hoverText = $titleText ?? '';
         if ($ticketNotFound !== null) {
@@ -254,7 +258,8 @@ class Activity extends Model
             'url', 'isCustomer', 'chType', 'sysType', 'sysSlug', 'badgeTitle',
             'sourceLabel', 'titleText', 'modalUrl', 'rowClickable', 'ticketNotFound',
             'useBadge', 'hoverText',
-            'isEmail', 'isSlack', 'isDiscord', 'isOutbound', 'participants'
+            'isEmail', 'isSlack', 'isDiscord', 'isOutbound', 'participants',
+            'isTicket', 'isMetricscube', 'department', 'mcType'
         );
     }
 }

@@ -227,7 +227,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="px-4 py-10 text-center text-sm text-gray-400">No people found.</td>
+                    <td colspan="6" class="px-4 py-10 text-center empty-state">No people found.</td>
                 </tr>
             @endforelse
         </tbody>
