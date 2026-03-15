@@ -163,7 +163,7 @@ class CompanyController extends Controller
         foreach ($companies as $company) {
             $company->_primaryDomain = $company->domains->firstWhere('is_primary', true) ?? $company->domains->first();
             $company->_extraDomains  = $company->domains->filter(fn ($d) => $d->id !== $company->_primaryDomain?->id);
-            $company->_contacts      = $company->people->filter(fn ($p) => ! $p->identities->contains('is_team_member', true));
+            $company->_contacts      = $company->people->filter(fn ($p) => ! $p->is_our_org);
             $totalContacts           = $company->_contacts->count();
             $company->_visiblePeople = $totalContacts > 5 ? $company->_contacts->take(4) : $company->_contacts;
             $company->_extraPeople   = $totalContacts > 5 ? $totalContacts - 4 : 0;
@@ -355,7 +355,7 @@ class CompanyController extends Controller
             'followup'      => 'bg-slate-300',
         ];
 
-        $contacts = $company->people->filter(fn ($p) => ! $p->identities->contains('is_team_member', true));
+        $contacts = $company->people->filter(fn ($p) => ! $p->is_our_org);
 
         // Group services by system_slug (each WHMCS instance = separate tab)
         $serviceSystems = [];

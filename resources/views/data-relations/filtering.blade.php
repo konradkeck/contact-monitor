@@ -11,7 +11,7 @@
 </div>
 
 {{-- Tabs --}}
-<div class="flex gap-0 border-b border-gray-200 mb-5">
+<div class="tabs-bar flex gap-0 border-b border-gray-200 mb-5">
     @foreach([
         'domains'  => ['label' => 'Domains',  'count' => count($filterDomains)],
         'emails'   => ['label' => 'Emails',   'count' => count($filterEmails)],
@@ -19,7 +19,7 @@
         'contacts' => ['label' => 'Contacts', 'count' => $filterContacts->count()],
     ] as $tab => $cfg)
         <a href="{{ request()->fullUrlWithQuery(['tab' => $tab]) }}"
-           class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
+           class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap shrink-0
                   {{ $activeTab === $tab
                      ? 'border-brand-600 text-brand-700'
                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
@@ -44,35 +44,31 @@
                 Conversations or contacts from these domains will be excluded from views.
             </p>
         </div>
-
-        @if(!empty($filterDomains))
-            <ul class="divide-y divide-gray-50">
-                @foreach($filterDomains as $domain)
-                    <li class="flex items-center justify-between px-5 py-2.5">
-                        <span class="font-mono text-sm text-gray-700">{{ $domain }}</span>
-                        <form action="{{ route('filtering.domains.remove') }}" method="POST">
-                            @csrf
-                            <input type="hidden" name="domain" value="{{ $domain }}">
-                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ Remove</button>
-                        </form>
-                    </li>
-                @endforeach
-            </ul>
-        @else
-            <p class="px-5 py-4 text-sm text-gray-400 italic">No filter domains configured.</p>
-        @endif
-
-        <div class="px-5 py-4 bg-gray-50 border-t border-gray-100">
-            <form action="{{ route('filtering.domains.save') }}" method="POST" class="space-y-2">
+        <div class="px-5 py-4" x-data="filterTags({{ Js::from($filterDomains) }})">
+            <form x-ref="form" action="{{ route('filtering.domains.save') }}" method="POST">
                 @csrf
-                <textarea name="domains" rows="3" placeholder="example.com&#10;spam.net"
-                          class="w-full text-sm font-mono border border-gray-200 rounded-lg px-3 py-2
-                                 placeholder-gray-300 text-gray-700 resize-none focus:outline-none
-                                 focus:ring-2 focus:ring-brand-300">{{ implode("\n", $filterDomains) }}</textarea>
-                <button class="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition">
-                    Save
-                </button>
+                <input type="hidden" name="domains" :value="tags.join('\n')">
+                <div class="w-full min-h-[44px] bg-white border border-gray-200 rounded-lg px-2 py-1.5
+                            flex flex-wrap gap-1.5 focus-within:border-brand-400 focus-within:ring-2
+                            focus-within:ring-brand-100 cursor-text transition"
+                     @click="$refs.tagInput.focus()">
+                    <template x-for="tag in tags" :key="tag">
+                        <span class="inline-flex items-center gap-1 bg-brand-100 text-brand-800
+                                     text-xs font-mono px-2 py-0.5 rounded-full max-w-[220px]">
+                            <span class="truncate" x-text="tag"></span>
+                            <button type="button" @click.stop="remove(tag)"
+                                    class="text-brand-400 hover:text-brand-700 shrink-0 leading-none">
+                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                        </span>
+                    </template>
+                    <input x-ref="tagInput" type="text" x-model="input" @keydown="onKey"
+                           placeholder="example.com — Enter or , to add"
+                           class="flex-1 min-w-[160px] text-xs text-gray-700 font-mono outline-none
+                                  border-none bg-transparent py-0.5 placeholder-gray-300">
+                </div>
             </form>
+            <p class="text-xs text-gray-400 mt-1.5">Press <kbd class="px-1 py-0.5 text-xs bg-gray-100 border border-gray-200 rounded">Enter</kbd> or <kbd class="px-1 py-0.5 text-xs bg-gray-100 border border-gray-200 rounded">,</kbd> to add. Click × to remove.</p>
         </div>
     </div>
 </div>
@@ -88,35 +84,31 @@
                 Specific email addresses to exclude from views.
             </p>
         </div>
-
-        @if(!empty($filterEmails))
-            <ul class="divide-y divide-gray-50">
-                @foreach($filterEmails as $email)
-                    <li class="flex items-center justify-between px-5 py-2.5">
-                        <span class="font-mono text-sm text-gray-700">{{ $email }}</span>
-                        <form action="{{ route('filtering.emails.remove') }}" method="POST">
-                            @csrf
-                            <input type="hidden" name="email" value="{{ $email }}">
-                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ Remove</button>
-                        </form>
-                    </li>
-                @endforeach
-            </ul>
-        @else
-            <p class="px-5 py-4 text-sm text-gray-400 italic">No filter emails configured.</p>
-        @endif
-
-        <div class="px-5 py-4 bg-gray-50 border-t border-gray-100">
-            <form action="{{ route('filtering.emails.save') }}" method="POST" class="space-y-2">
+        <div class="px-5 py-4" x-data="filterTags({{ Js::from($filterEmails) }})">
+            <form x-ref="form" action="{{ route('filtering.emails.save') }}" method="POST">
                 @csrf
-                <textarea name="emails" rows="4" placeholder="noreply@example.com&#10;spam@domain.net"
-                          class="w-full text-sm font-mono border border-gray-200 rounded-lg px-3 py-2
-                                 placeholder-gray-300 text-gray-700 resize-none focus:outline-none
-                                 focus:ring-2 focus:ring-brand-300">{{ implode("\n", $filterEmails) }}</textarea>
-                <button class="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition">
-                    Save
-                </button>
+                <input type="hidden" name="emails" :value="tags.join('\n')">
+                <div class="w-full min-h-[44px] bg-white border border-gray-200 rounded-lg px-2 py-1.5
+                            flex flex-wrap gap-1.5 focus-within:border-brand-400 focus-within:ring-2
+                            focus-within:ring-brand-100 cursor-text transition"
+                     @click="$refs.tagInput.focus()">
+                    <template x-for="tag in tags" :key="tag">
+                        <span class="inline-flex items-center gap-1 bg-brand-100 text-brand-800
+                                     text-xs font-mono px-2 py-0.5 rounded-full max-w-[220px]">
+                            <span class="truncate" x-text="tag"></span>
+                            <button type="button" @click.stop="remove(tag)"
+                                    class="text-brand-400 hover:text-brand-700 shrink-0 leading-none">
+                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                        </span>
+                    </template>
+                    <input x-ref="tagInput" type="text" x-model="input" @keydown="onKey"
+                           placeholder="noreply@example.com — Enter or , to add"
+                           class="flex-1 min-w-[160px] text-xs text-gray-700 font-mono outline-none
+                                  border-none bg-transparent py-0.5 placeholder-gray-300">
+                </div>
             </form>
+            <p class="text-xs text-gray-400 mt-1.5">Press <kbd class="px-1 py-0.5 text-xs bg-gray-100 border border-gray-200 rounded">Enter</kbd> or <kbd class="px-1 py-0.5 text-xs bg-gray-100 border border-gray-200 rounded">,</kbd> to add. Click × to remove.</p>
         </div>
     </div>
 </div>
@@ -130,50 +122,45 @@
             <h2 class="font-semibold text-gray-800">Filter Subjects</h2>
             <p class="text-xs text-gray-400 mt-0.5">
                 Conversations whose subject/title matches these entries will be excluded from views.
-                One entry per line, exact match.
+                Exact match.
             </p>
         </div>
-
-        @if(!empty($filterSubjects))
-            <ul class="divide-y divide-gray-50">
-                @foreach($filterSubjects as $subject)
-                    <li class="flex items-center justify-between px-5 py-2.5 gap-3">
-                        <span class="text-sm text-gray-700 truncate" title="{{ $subject }}">{{ $subject }}</span>
-                        <form action="{{ route('filtering.subjects.remove') }}" method="POST" class="shrink-0">
-                            @csrf
-                            <input type="hidden" name="subject" value="{{ $subject }}">
-                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ Remove</button>
-                        </form>
-                    </li>
-                @endforeach
-            </ul>
-        @else
-            <p class="px-5 py-4 text-sm text-gray-400 italic">No filter subjects configured.</p>
-        @endif
-
-        <div class="px-5 py-4 bg-gray-50 border-t border-gray-100">
-            <form action="{{ route('filtering.subjects.save') }}" method="POST" class="space-y-2">
+        <div class="px-5 py-4" x-data="filterTags({{ Js::from($filterSubjects) }}, false)">
+            <form x-ref="form" action="{{ route('filtering.subjects.save') }}" method="POST">
                 @csrf
-                <textarea name="subjects" rows="4"
-                          placeholder="Re: Your invoice #12345&#10;[SPAM] Free offer"
-                          class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2
-                                 placeholder-gray-300 text-gray-700 resize-none focus:outline-none
-                                 focus:ring-2 focus:ring-brand-300">{{ implode("\n", $filterSubjects) }}</textarea>
-                <button class="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition">
-                    Save
-                </button>
+                <input type="hidden" name="subjects" :value="tags.join('\n')">
+                <div class="w-full min-h-[44px] bg-white border border-gray-200 rounded-lg px-2 py-1.5
+                            flex flex-wrap gap-1.5 focus-within:border-brand-400 focus-within:ring-2
+                            focus-within:ring-brand-100 cursor-text transition"
+                     @click="$refs.tagInput.focus()">
+                    <template x-for="tag in tags" :key="tag">
+                        <span class="inline-flex items-center gap-1 bg-brand-100 text-brand-800
+                                     text-xs px-2 py-0.5 rounded-full max-w-[300px]">
+                            <span class="truncate" x-text="tag"></span>
+                            <button type="button" @click.stop="remove(tag)"
+                                    class="text-brand-400 hover:text-brand-700 shrink-0 leading-none">
+                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                        </span>
+                    </template>
+                    <input x-ref="tagInput" type="text" x-model="input" @keydown="onKey"
+                           placeholder="Re: Your invoice — Enter to add"
+                           class="flex-1 min-w-[160px] text-xs text-gray-700 outline-none
+                                  border-none bg-transparent py-0.5 placeholder-gray-300">
+                </div>
             </form>
+            <p class="text-xs text-gray-400 mt-1.5">Press <kbd class="px-1 py-0.5 text-xs bg-gray-100 border border-gray-200 rounded">Enter</kbd> to add (no comma splitting — subjects may contain commas). Click × to remove.</p>
         </div>
     </div>
 </div>
 @endif
 
-{{-- ── TAB: FILTER CONTACTS ── --}}
+{{-- ── TAB: FILTERED CONTACTS ── --}}
 @if($activeTab === 'contacts')
 <div class="max-w-2xl">
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100">
-            <h2 class="font-semibold text-gray-800">Filter Contacts</h2>
+            <h2 class="font-semibold text-gray-800">Filtered Contacts</h2>
             <p class="text-xs text-gray-400 mt-0.5">
                 Contacts whose activity will be excluded from views. Add from the People list or contact details.
             </p>
@@ -193,7 +180,7 @@
                         <a href="{{ route('people.show', $person) }}"
                            class="text-xs text-brand-600 hover:underline shrink-0">View →</a>
                         <form action="{{ route('filtering.contacts.remove', $person) }}" method="POST"
-                              onsubmit="return confirm('Remove {{ $person->full_name }} from filter contacts?')">
+                              onsubmit="return confirm('Remove {{ $person->full_name }} from filtered contacts?')">
                             @csrf @method('DELETE')
                             <button type="submit" class="text-xs text-red-400 hover:text-red-600 font-medium">✕ Remove</button>
                         </form>
@@ -202,7 +189,7 @@
             </div>
         @else
             <div class="px-6 py-10 text-center">
-                <p class="text-gray-400 text-sm italic">No filter contacts yet.</p>
+                <p class="text-gray-400 text-sm italic">No filtered contacts yet.</p>
                 <p class="text-gray-300 text-xs mt-1">Add contacts from the People list or their detail page.</p>
             </div>
         @endif
@@ -211,3 +198,34 @@
 @endif
 
 @endsection
+
+@push('scripts')
+<script>
+function filterTags(initial, splitComma = true) {
+    return {
+        tags: initial,
+        input: '',
+        add() {
+            const sep = splitComma ? /[,\n]+/ : /\n+/;
+            const vals = this.input.split(sep).map(s => s.trim()).filter(Boolean);
+            vals.forEach(v => { if (!this.tags.includes(v)) this.tags.push(v); });
+            this.input = '';
+            if (vals.length) this.$nextTick(() => this.$refs.form.submit());
+        },
+        remove(tag) {
+            this.tags = this.tags.filter(t => t !== tag);
+            this.$nextTick(() => this.$refs.form.submit());
+        },
+        onKey(e) {
+            if (e.key === 'Enter' || (splitComma && e.key === ',')) {
+                e.preventDefault();
+                this.add();
+            } else if (e.key === 'Backspace' && !this.input && this.tags.length) {
+                this.tags.pop();
+                this.$nextTick(() => this.$refs.form.submit());
+            }
+        }
+    };
+}
+</script>
+@endpush

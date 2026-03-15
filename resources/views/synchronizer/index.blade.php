@@ -131,9 +131,9 @@
         <thead class="tbl-header">
             <tr>
                 <th class="px-4 py-2.5 text-left">Connection</th>
-                <th class="px-4 py-2.5 text-left">Integration</th>
-                <th class="px-4 py-2.5 text-left">Schedule</th>
-                <th class="px-4 py-2.5 text-left">Last run</th>
+                <th class="col-mobile-hidden px-4 py-2.5 text-left">Integration</th>
+                <th class="col-mobile-hidden px-4 py-2.5 text-left">Schedule</th>
+                <th class="col-mobile-hidden px-4 py-2.5 text-left">Last run</th>
                 <th class="px-4 py-2.5 text-left">Status</th>
                 <th class="px-4 py-2.5 text-right">Actions</th>
             </tr>
@@ -148,7 +148,7 @@
                         </a>
                         <div class="text-xs text-gray-400 mt-0.5">{{ $conn['system_slug'] }}</div>
                     </td>
-                    <td class="px-4 py-3">
+                    <td class="col-mobile-hidden px-4 py-3">
                         <div class="flex items-center gap-1.5">
                             @include('synchronizer._type_icon', ['type' => $conn['type'], 'class' => 'w-4 h-4'])
                             <span class="badge" style="background:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['bg'] }}; color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['color'] }}; border-color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['border'] }}">
@@ -156,7 +156,7 @@
                             </span>
                         </div>
                     </td>
-                    <td class="px-4 py-3 text-xs text-gray-500">
+                    <td class="col-mobile-hidden px-4 py-3 text-xs text-gray-500">
                         @if($conn['type'] === 'metricscube')
                             @if((int)($conn['settings']['whmcs_connection_id'] ?? 0))
                                 <span class="text-gray-400">Runs with WHMCS</span>
@@ -170,7 +170,7 @@
                             @endif
                         @endif
                     </td>
-                    <td class="px-4 py-3 text-xs text-gray-500">
+                    <td class="col-mobile-hidden px-4 py-3 text-xs text-gray-500">
                         @if($conn['latest_run'] ?? null)
                             <span title="{{ $conn['latest_run']['created_at'] }}">
                                 {{ \Carbon\Carbon::parse($conn['latest_run']['created_at'])->diffForHumans() }}
@@ -182,7 +182,8 @@
                             <span class="text-gray-300">Never</span>
                         @endif
                     </td>
-                    <td class="px-4 py-3" id="status-{{ $conn['id'] }}">
+                    <td class="px-4 py-3">
+                        <div id="status-{{ $conn['id'] }}">
                         @if(($conn['latest_run'] ?? null) && ($conn['latest_run']['status'] ?? null))
                             <span class="badge" style="background:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['bg'] }}; color:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['color'] }}; border-color:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['border'] }}">
                                 @if($conn['latest_run']['status'] === 'running')
@@ -195,9 +196,16 @@
                         @else
                             <span class="text-gray-300 text-xs">&mdash;</span>
                         @endif
+                        </div>
+                        @if($conn['latest_run'] ?? null)
+                            <div class="md:hidden text-[10px] text-gray-400 mt-0.5">
+                                {{ \Carbon\Carbon::parse($conn['latest_run']['created_at'])->diffForHumans() }}
+                            </div>
+                        @endif
                     </td>
                     <td class="px-4 py-3 text-right">
-                        <div class="flex items-center justify-end gap-1.5">
+                        {{-- Desktop --}}
+                        <div class="row-actions-desktop items-center justify-end gap-1.5">
                             <span id="run-btn-{{ $conn['id'] }}">
                             @if($conn['type'] === 'metricscube')
                             @elseif(in_array(($conn['latest_run']['status'] ?? null), ['pending', 'running']))
@@ -212,20 +220,11 @@
                                 </button>
                             @endif
                             </span>
-                            <a href="{{ route('synchronizer.connections.show', $conn['id']) }}" class="btn btn-muted btn-sm">
-                                <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-3-3v6m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                Logs
-                            </a>
-                            <a href="{{ route('synchronizer.connections.edit', $conn['id']) }}" class="btn btn-muted btn-sm">
-                                <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                Edit
-                            </a>
+                            <a href="{{ route('synchronizer.connections.show', $conn['id']) }}" class="btn btn-muted btn-sm">Logs</a>
+                            <a href="{{ route('synchronizer.connections.edit', $conn['id']) }}" class="btn btn-muted btn-sm">Edit</a>
                             <form method="POST" action="{{ route('synchronizer.connections.duplicate', $conn['id']) }}" class="inline">
                                 @csrf
-                                <button type="submit" class="btn btn-muted btn-sm">
-                                    <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                                    Copy
-                                </button>
+                                <button type="submit" class="btn btn-muted btn-sm">Copy</button>
                             </form>
                             <form method="POST" action="{{ route('synchronizer.connections.destroy', $conn['id']) }}" class="inline"
                                   onsubmit="return confirm('Delete {{ addslashes($conn['name']) }}?')">
@@ -234,6 +233,43 @@
                                     <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             </form>
+                        </div>
+                        {{-- Mobile "Actions" dropdown --}}
+                        <div class="row-actions-mobile">
+                            <div class="relative" x-data="{ open: false }" @click.outside="open = false" @close-row-dropdowns.window="open = false">
+                                <button @click="let o=open; $dispatch('close-row-dropdowns'); open=!o"
+                                        class="btn btn-secondary btn-sm flex items-center gap-1">
+                                    Actions
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                <div x-show="open" x-cloak
+                                     class="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50 text-sm">
+                                    <span id="run-btn-mobile-{{ $conn['id'] }}">
+                                    @if($conn['type'] !== 'metricscube')
+                                        @if(in_array(($conn['latest_run']['status'] ?? null), ['pending', 'running']))
+                                            <button onclick="stopRun({{ $conn['id'] }}, this)"
+                                                    class="flex w-full px-3 py-2 text-red-600 hover:bg-red-50 text-xs text-left">Stop</button>
+                                        @else
+                                            <button onclick="openRunModal({{ $conn['id'] }})"
+                                                    class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50 text-xs text-left">Run</button>
+                                        @endif
+                                    @endif
+                                    </span>
+                                    <a href="{{ route('synchronizer.connections.show', $conn['id']) }}"
+                                       class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50 text-xs">Logs</a>
+                                    <a href="{{ route('synchronizer.connections.edit', $conn['id']) }}"
+                                       class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50 text-xs">Edit</a>
+                                    <form method="POST" action="{{ route('synchronizer.connections.duplicate', $conn['id']) }}">
+                                        @csrf
+                                        <button type="submit" class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50 text-xs text-left">Copy</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('synchronizer.connections.destroy', $conn['id']) }}"
+                                          onsubmit="return confirm('Delete {{ addslashes($conn['name']) }}?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="flex w-full px-3 py-2 text-red-600 hover:bg-red-50 text-xs text-left">Delete</button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -285,6 +321,14 @@ function renderActions(connId, status) {
     return active ? stopBtn : runBtn;
 }
 
+function renderActionsMobile(connId, status) {
+    const active = status === 'pending' || status === 'running';
+    if (active) {
+        return `<button onclick="stopRun(${connId},this)" class="flex w-full px-3 py-2 text-red-600 hover:bg-red-50 text-xs text-left">Stop</button>`;
+    }
+    return `<button onclick="openRunModal(${connId})" class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50 text-xs text-left">Run</button>`;
+}
+
 // ── Live status polling ───────────────────────────────────────────────────────
 let _pollTimer = null;
 
@@ -298,8 +342,10 @@ async function pollStatuses() {
         for (const [connId, info] of Object.entries(data.statuses)) {
             const statusCell = document.getElementById(`status-${connId}`);
             const runBtn     = document.getElementById(`run-btn-${connId}`);
-            if (statusCell) statusCell.innerHTML = renderBadge(info.status);
-            if (runBtn)     runBtn.innerHTML     = renderActions(connId, info.status);
+            const runBtnMobile = document.getElementById(`run-btn-mobile-${connId}`);
+            if (statusCell)   statusCell.innerHTML   = renderBadge(info.status);
+            if (runBtn)       runBtn.innerHTML       = renderActions(connId, info.status);
+            if (runBtnMobile) runBtnMobile.innerHTML = renderActionsMobile(connId, info.status);
             if (info.status === 'pending' || info.status === 'running') hasActive = true;
         }
 

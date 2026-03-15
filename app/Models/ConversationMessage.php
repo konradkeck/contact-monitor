@@ -66,8 +66,12 @@ class ConversationMessage extends Model
             return null;
         }
 
-        if (in_array($this->identity->type, ['discord_user', 'discord_id']) && ! empty($this->identity->meta_json['avatar'])) {
-            return 'https://cdn.discordapp.com/avatars/'.$this->identity->value_normalized.'/'.$this->identity->meta_json['avatar'].'.webp?size=56';
+        if (in_array($this->identity->type, ['discord_user', 'discord_id'])) {
+            if (! empty($this->identity->meta_json['avatar'])) {
+                return 'https://cdn.discordapp.com/avatars/'.$this->identity->value_normalized.'/'.$this->identity->meta_json['avatar'].'.webp?size=56';
+            }
+            $idx = (int) substr($this->identity->value_normalized ?? '0', -1) % 5;
+            return 'https://cdn.discordapp.com/embed/avatars/'.$idx.'.png';
         }
 
         if ($this->identity->type === 'slack_user' && ! empty($this->identity->meta_json['avatar'])) {

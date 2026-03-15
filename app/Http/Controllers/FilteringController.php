@@ -194,17 +194,26 @@ class FilteringController extends Controller
     public function applyRule(Request $request): RedirectResponse
     {
         $ruleType = $request->input('rule_type', 'none');
-        $ruleValue = trim($request->input('rule_value', ''));
 
-        if ($ruleType !== 'none' && $ruleValue !== '') {
-            match ($ruleType) {
-                'domain' => $this->addFilterRuleDomain($ruleValue),
-                'email' => $this->addFilterRuleEmail($ruleValue),
-                'contact' => $this->addFilterRuleContact((int) $ruleValue),
-                default => null,
-            };
+        // Support both rule_values[] (multi) and legacy rule_value (single)
+        $rawValues = $request->input('rule_values', []);
+        if (empty($rawValues)) {
+            $single = trim($request->input('rule_value', ''));
+            $rawValues = $single !== '' ? [$single] : [];
+        }
+        $ruleValues = array_filter(array_map('trim', (array) $rawValues));
 
-            return back()->with('success', "Filter rule added ({$ruleType}: {$ruleValue}).");
+        if ($ruleType !== 'none' && ! empty($ruleValues)) {
+            foreach ($ruleValues as $val) {
+                match ($ruleType) {
+                    'domain' => $this->addFilterRuleDomain($val),
+                    'email' => $this->addFilterRuleEmail($val),
+                    'contact' => $this->addFilterRuleContact((int) $val),
+                    default => null,
+                };
+            }
+            $n = count($ruleValues);
+            return back()->with('success', "Filter rule added ({$ruleType}: {$n} value(s)).");
         }
 
         return back()->with('success', 'No rule added.');

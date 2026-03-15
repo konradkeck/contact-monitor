@@ -22,6 +22,11 @@ abstract class Controller
             return null;
         }
 
+        // Don't show a back-link to the page we're already on (e.g. after a reload).
+        if ('/' . ltrim($request->path(), '/') === $path) {
+            return null;
+        }
+
         if (preg_match('#^/companies/(\d+)$#', $path, $m)) {
             $entity = \App\Models\Company::find((int) $m[1]);
 

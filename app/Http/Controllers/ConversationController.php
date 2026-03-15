@@ -24,6 +24,8 @@ class ConversationController extends Controller
         $personId = $request->input('person_id');
         // Multi-system filter: each element is "channel_type|system_slug"
         $systems = array_filter((array) $request->input('systems', []));
+        $f_date_from = $request->input('f_date_from', '');
+        $f_date_to   = $request->input('f_date_to', '');
 
         $convSystems = DB::table('conversations')
             ->whereNotNull('channel_type')
@@ -107,6 +109,13 @@ class ConversationController extends Controller
             });
         }
 
+        if ($f_date_from !== '') {
+            $query->whereDate('last_message_at', '>=', $f_date_from);
+        }
+        if ($f_date_to !== '') {
+            $query->whereDate('last_message_at', '<=', $f_date_to);
+        }
+
         $conversations = $query->paginate(50)->withQueryString();
         $convIds = $conversations->pluck('id');
 
@@ -159,12 +168,17 @@ class ConversationController extends Controller
 
                 // Avatar URL (Discord CDN hash → URL; Slack stores direct URL)
                 $avatarUrl = null;
-                if ($identity && ! empty($identity->meta_json['avatar'])) {
+                if ($identity) {
                     if (in_array($identity->type, ['discord_user', 'discord_id'])) {
-                        $avatarUrl = 'https://cdn.discordapp.com/avatars/'
-                            .$identity->value_normalized.'/'
-                            .$identity->meta_json['avatar'].'.webp?size=56';
-                    } elseif ($identity->type === 'slack_user') {
+                        if (! empty($identity->meta_json['avatar'])) {
+                            $avatarUrl = 'https://cdn.discordapp.com/avatars/'
+                                .$identity->value_normalized.'/'
+                                .$identity->meta_json['avatar'].'.webp?size=56';
+                        } else {
+                            $idx = (int) substr($identity->value_normalized ?? '0', -1) % 5;
+                            $avatarUrl = 'https://cdn.discordapp.com/embed/avatars/'.$idx.'.png';
+                        }
+                    } elseif ($identity->type === 'slack_user' && ! empty($identity->meta_json['avatar'])) {
                         $avatarUrl = $identity->meta_json['avatar'];
                     }
                 }
@@ -195,11 +209,13 @@ class ConversationController extends Controller
         }
 
         $q = $search;
+        $activeConvFilterCount = (($f_date_from !== '' || $f_date_to !== '') ? 1 : 0) + (count($systems) > 0 ? 1 : 0);
 
         return view('conversations.index', compact(
             'conversations', 'convParticipants', 'tab', 'tabCounts',
             'companyId', 'channelType', 'systemSlug', 'personId', 'q',
-            'convSystems', 'activeSystems'
+            'convSystems', 'activeSystems',
+            'f_date_from', 'f_date_to', 'activeConvFilterCount'
         ));
     }
 
@@ -383,26 +399,35 @@ class ConversationController extends Controller
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
         $ruleType = $request->input('rule_type', 'none');
-        $ruleValue = trim($request->input('rule_value', ''));
+
+        // Support both rule_values[] (multi) and legacy rule_value (single)
+        $rawValues = $request->input('rule_values', []);
+        if (empty($rawValues)) {
+            $single = trim($request->input('rule_value', ''));
+            $rawValues = $single !== '' ? [$single] : [];
+        }
+        $ruleValues = array_filter(array_map('trim', (array) $rawValues));
 
         if (! empty($ids)) {
             Conversation::whereIn('id', $ids)->update(['is_archived' => true]);
         }
 
-        if ($ruleType !== 'none' && $ruleValue !== '') {
-            match ($ruleType) {
-                'domain' => $this->addFilterDomain($ruleValue),
-                'email' => $this->addFilterEmail($ruleValue),
-                'contact' => $this->addFilterContact((int) $ruleValue),
-                'subject' => $this->addFilterSubject($ruleValue),
-                default => null,
-            };
+        if ($ruleType !== 'none' && ! empty($ruleValues)) {
+            foreach ($ruleValues as $val) {
+                match ($ruleType) {
+                    'domain' => $this->addFilterDomain($val),
+                    'email' => $this->addFilterEmail($val),
+                    'contact' => $this->addFilterContact((int) $val),
+                    'subject' => $this->addFilterSubject($val),
+                    default => null,
+                };
+            }
         }
 
         $n = count($ids);
         $msg = $n.' conversation(s) filtered';
-        if ($ruleType !== 'none' && $ruleValue !== '') {
-            $msg .= " + filter rule added ({$ruleType}: {$ruleValue})";
+        if ($ruleType !== 'none' && ! empty($ruleValues)) {
+            $msg .= ' + filter rule added (' . $ruleType . ': ' . count($ruleValues) . ' value(s))';
         }
 
         return back()->with('success', $msg.'.');

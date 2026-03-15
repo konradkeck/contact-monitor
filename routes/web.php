@@ -89,6 +89,7 @@ Route::middleware('auth')->group(function () {
 
             // People (write)
             Route::post('people/bulk-mark-our-org', [PersonController::class, 'bulkMarkOurOrg'])->name('people.bulk-mark-our-org');
+            Route::post('people/bulk-unmark-our-org', [PersonController::class, 'bulkUnmarkOurOrg'])->name('people.bulk-unmark-our-org');
             Route::post('people/bulk-assign-company', [PersonController::class, 'bulkAssignCompany'])->name('people.bulk-assign-company');
             Route::get('people/create', [PersonController::class, 'create'])->name('people.create');
             Route::post('people', [PersonController::class, 'store'])->name('people.store');
@@ -96,6 +97,7 @@ Route::middleware('auth')->group(function () {
             Route::put('people/{person}', [PersonController::class, 'update'])->name('people.update');
             Route::delete('people/{person}', [PersonController::class, 'destroy'])->name('people.destroy');
             Route::post('people/{person}/mark-our-org', [PersonController::class, 'markOurOrg'])->name('people.mark-our-org');
+            Route::post('people/{person}/unmark-our-org', [PersonController::class, 'unmarkOurOrg'])->name('people.unmark-our-org');
             Route::post('people/{person}/assign-company', [PersonController::class, 'assignCompany'])->name('people.assign-company');
             Route::post('people/{person}/identities', [PersonController::class, 'storeIdentity'])->name('people.identities.store');
             Route::delete('people/{person}/identities/{identity}', [PersonController::class, 'destroyIdentity'])->name('people.identities.destroy');
@@ -139,11 +141,11 @@ Route::middleware('auth')->group(function () {
         Route::post('configuration/accounts/{account}/link', [DataRelationsController::class, 'linkAccount'])->name('data-relations.accounts.link');
         Route::delete('configuration/accounts/{account}/unlink', [DataRelationsController::class, 'unlinkAccount'])->name('data-relations.accounts.unlink');
         Route::post('configuration/identities/{identity}/link', [DataRelationsController::class, 'linkIdentity'])->name('data-relations.identities.link');
+        Route::post('configuration/identities/{identity}/link-create', [DataRelationsController::class, 'linkIdentityWithCreate'])->name('data-relations.identities.link-create');
         Route::delete('configuration/identities/{identity}/unlink', [DataRelationsController::class, 'unlinkIdentity'])->name('data-relations.identities.unlink');
         Route::post('configuration/conversations/{conversation}/link', [DataRelationsController::class, 'linkConversation'])->name('data-relations.conversations.link');
         Route::delete('configuration/conversations/{conversation}/unlink', [DataRelationsController::class, 'unlinkConversation'])->name('data-relations.conversations.unlink');
-        Route::post('configuration/identities/{identity}/toggle-team-member', [DataRelationsController::class, 'toggleTeamMember'])->name('data-relations.identities.toggle-team-member');
-        Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsController::class, 'toggleBot'])->name('data-relations.identities.toggle-bot');
+Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsController::class, 'toggleBot'])->name('data-relations.identities.toggle-bot');
 
         // Filtering
         Route::post('configuration/filtering/apply-rule', [FilteringController::class, 'applyRule'])->name('filtering.apply-rule');

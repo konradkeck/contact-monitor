@@ -43,7 +43,8 @@
 
 
 {{-- Outer Alpine scope covers everything so header/info/buttons all react to runStatus --}}
-<div x-data="showPage({{ $conn['id'] }}, {{ request()->query('run_id', ($runs[0] ?? [])['id'] ?? 'null') }}, {{ json_encode(($runs[0] ?? [])['status'] ?? null) }})">
+<div x-data="showPage({{ $conn['id'] }}, {{ request()->query('run_id', ($runs[0] ?? [])['id'] ?? 'null') }}, {{ json_encode(($runs[0] ?? [])['status'] ?? null) }})"
+     @mobile-select-run.window="selectRun($event.detail.runId)">
 
 {{-- HEADER --}}
 <div class="page-header">
@@ -120,11 +121,48 @@
     </div>
 </div>
 
+{{-- Mobile-only: run history dropdown --}}
+<div class="md:hidden mb-3" x-data="{ open: false }">
+    <div class="relative" @click.outside="open = false">
+        <button @click="open = !open"
+                class="btn btn-secondary btn-sm w-full flex items-center justify-between gap-2">
+            <span>Run history</span>
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div x-show="open" x-cloak
+             class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-y-auto"
+             style="max-height:280px">
+            @forelse($runs as $run)
+                <button
+                    onclick="window.history.pushState({}, '', '?run_id={{ $run['id'] }}')"
+                    @click="$dispatch('mobile-select-run', { runId: {{ $run['id'] }} }); open = false"
+                    :class="activeRunId == {{ $run['id'] }} ? 'bg-brand-50 border-l-2 border-brand-500' : 'border-l-2 border-transparent hover:bg-gray-50'"
+                    class="w-full text-left px-4 py-2.5 border-b border-gray-50 transition text-sm">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-mono text-xs text-gray-400">#{{ $run['id'] }}</span>
+                        <span class="badge text-xs" style="background:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['bg'] }}; color:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['color'] }}; border-color:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['border'] }}">
+                            {{ $run['status'] }}
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-0.5">
+                        {{ \Carbon\Carbon::parse($run['created_at'])->format('d M Y, H:i') }}
+                        @if($run['duration_seconds'])
+                            <span class="text-gray-400"> &middot; {{ $run['duration_seconds'] }}s</span>
+                        @endif
+                    </div>
+                </button>
+            @empty
+                <div class="px-4 py-6 text-center text-sm text-gray-300">No runs yet.</div>
+            @endforelse
+        </div>
+    </div>
+</div>
+
 {{-- LAYOUT: run history + log viewer --}}
 <div class="flex gap-4 items-start">
 
-    {{-- RUN HISTORY --}}
-    <div class="card overflow-hidden flex-shrink-0" style="width:320px">
+    {{-- RUN HISTORY (desktop only) --}}
+    <div class="card overflow-hidden flex-shrink-0 hidden md:block" style="width:320px">
         <div class="px-4 py-2.5 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Run history
         </div>

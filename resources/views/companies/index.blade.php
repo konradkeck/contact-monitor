@@ -58,15 +58,6 @@
 
     {{-- Search + Filter toggle --}}
     <div class="flex gap-2 mb-4 items-center">
-        <div class="flex gap-2 flex-1 max-w-md">
-            <input type="text" name="q" value="{{ $search }}" placeholder="Search by name, domain, alias…"
-                   class="input max-w-[280px]">
-            <button type="submit" class="btn btn-secondary">Search</button>
-            @if($hasFilters)
-                <a href="{{ route('companies.index') }}" class="btn btn-muted">Clear</a>
-            @endif
-        </div>
-
         <button type="button" onclick="toggleFilterPanel()"
                 class="btn {{ $activeFilterCount > 0 ? 'btn-primary' : 'btn-secondary' }}">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,6 +70,12 @@
                 </span>
             @endif
         </button>
+        <input type="text" name="q" value="{{ $search }}" placeholder="Search by name, domain, alias…"
+               class="input max-w-[280px]">
+        <button type="submit" class="btn btn-secondary">Search</button>
+        @if($hasFilters)
+            <a href="{{ route('companies.index') }}" class="btn btn-muted">Clear</a>
+        @endif
     </div>
 
     {{-- Collapsible filter panel --}}
@@ -129,14 +126,14 @@
                 </div>
             @endforeach
             <div>
-                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Updated from</label>
-                <input type="date" name="f_updated_from" value="{{ request('f_updated_from') }}"
-                       class="input">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Updated to</label>
-                <input type="date" name="f_updated_to" value="{{ request('f_updated_to') }}"
-                       class="input">
+                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Updated</label>
+                <div id="co-date-wrap" class="flex items-center gap-1.5">
+                    <input id="co-date-range" type="text" placeholder="Date range…" readonly
+                           class="input cursor-pointer flex-1">
+                    <input type="hidden" name="f_updated_from" id="f-updated-from" value="{{ request('f_updated_from') }}">
+                    <input type="hidden" name="f_updated_to" id="f-updated-to" value="{{ request('f_updated_to') }}">
+                    <button type="button" class="drp-clear {{ request('f_updated_from') ? '' : 'hidden' }} text-base leading-none text-gray-400 hover:text-gray-600 px-1">×</button>
+                </div>
             </div>
             <div>
                 <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">Channel type</label>
@@ -168,22 +165,23 @@
             <button type="button" onclick="companiesOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
             <button type="button" onclick="companiesClearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
         </div>
-        <div class="overflow-x-auto">
-        <table class="text-sm table-fixed" style="width:{{ 36 + 220 + 160 + 150 + ($brandProducts->isEmpty() ? 320 : $brandProducts->count() * 160) + 110 + 120 }}px; min-width:100%">
+        <div id="companies-scroll" class="overflow-x-auto">
+        <table id="companies-table" class="text-sm table-fixed" style="width:{{ 36 + 220 + 160 + 150 + ($brandProducts->isEmpty() ? 320 : $brandProducts->count() * 160) + 110 + 120 }}px; min-width:100%">
             <colgroup>
                 <col style="width:36px">
                 <col style="width:220px">
-                <col style="width:160px">
+                <col class="col-mobile-hidden" style="width:160px">
                 <col style="width:150px">
                 @if($brandProducts->isEmpty())
-                    <col style="width:320px">{{-- placeholder col --}}
+                    <col class="col-mobile-hidden" style="width:320px">{{-- placeholder col --}}
                 @else
                     @foreach($brandProducts as $bp)
-                        <col style="width:160px">
+                        <col class="col-mobile-hidden" style="width:160px">
                     @endforeach
                 @endif
-                <col style="width:110px">
-                <col style="width:120px">
+                <col class="col-mobile-hidden" style="width:110px">
+                <col class="col-mobile-hidden" style="width:120px">
+                <col class="col-mobile-only" style="width:44px">
             </colgroup>
             <thead class="tbl-header">
                 <tr>
@@ -196,7 +194,7 @@
                             <span>Company</span><span class="shrink-0 opacity-60">{{ $sortIcon('name') }}</span>
                         </a>
                     </th>
-                    <th scope="col" class="px-4 py-2.5 text-left">
+                    <th scope="col" class="col-mobile-hidden px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('domain') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Domain</span><span class="shrink-0 opacity-60">{{ $sortIcon('domain') }}</span>
                         </a>
@@ -207,7 +205,7 @@
                         </a>
                     </th>
                     @if($brandProducts->isEmpty())
-                        <th scope="col" class="px-4 py-2.5 text-left">
+                        <th scope="col" class="col-mobile-hidden px-4 py-2.5 text-left">
                             <span class="text-xs text-gray-500 font-normal italic">
                                 Configure <a href="{{ route('segmentation.index') }}"
                                              class="underline hover:text-gray-700 transition">Segmentation</a> to evaluate
@@ -215,7 +213,7 @@
                         </th>
                     @else
                         @foreach($brandProducts as $bp)
-                            <th scope="col" class="px-2 py-2.5 text-left">
+                            <th scope="col" class="col-mobile-hidden px-2 py-2.5 text-left">
                                 <a href="{{ $sortUrl('bp_score_'.$bp->id) }}"
                                    class="flex items-center justify-between gap-1 hover:text-gray-900 text-xs">
                                     <span class="leading-tight truncate">{{ $bp->name }}{{ $bp->variant ? ' · '.$bp->variant : '' }}</span>
@@ -224,16 +222,17 @@
                             </th>
                         @endforeach
                     @endif
-                    <th scope="col" class="px-4 py-2.5 text-left">
+                    <th scope="col" class="col-mobile-hidden px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('updated_at') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Updated</span><span class="shrink-0 opacity-60">{{ $sortIcon('updated_at') }}</span>
                         </a>
                     </th>
-                    <th scope="col" class="px-4 py-2.5 text-left">
+                    <th scope="col" class="col-mobile-hidden px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('last_conv') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Channels</span><span class="shrink-0 opacity-60">{{ $sortIcon('last_conv') }}</span>
                         </a>
                     </th>
+                    <th scope="col" class="col-mobile-only px-2 py-2.5"></th>
                 </tr>
             </thead>
             <tbody>
@@ -278,7 +277,7 @@
                                 <button type="button"
                                         onclick="companiesOpenFilterModal([{{ $company->id }}])"
                                         title="Filter"
-                                        class="shrink-0 text-gray-300 hover:text-red-500 transition leading-none opacity-0 group-hover/row:opacity-100 focus:opacity-100">
+                                        class="shrink-0 text-gray-300 hover:text-red-500 transition leading-none md:opacity-0 md:group-hover/row:opacity-100 focus:opacity-100">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
                                 </button>
                                 <x-notes-popup :notes="$company->notes" linkable-type="company" :linkable-id="$company->id" :entity-name="$company->name" />
@@ -286,7 +285,7 @@
                         </td>
 
                         {{-- Domain: primary + hover tooltip for extra domains --}}
-                        <td class="px-4 py-3 overflow-hidden">
+                        <td class="col-mobile-hidden px-4 py-3 overflow-hidden">
                             @if($company->_primaryDomain)
                                 <div class="flex items-center gap-1.5 min-w-0">
                                     <span class="font-mono text-xs text-gray-600 truncate" title="{{ $company->_primaryDomain->domain }}">{{ $company->_primaryDomain->domain }}</span>
@@ -339,28 +338,29 @@
 
                         {{-- Segmentation columns: dot + score + stage badge inline --}}
                         @if($brandProducts->isEmpty())
-                            <td></td>
+                            <td class="col-mobile-hidden"></td>
                         @endif
                         @foreach($brandProducts as $bp)
                             @if($company->brandStatuses->first(fn($s) => $s->brand_product_id === $bp->id))
                                 <x-brand-status-cell
                                     :status="$company->brandStatuses->first(fn($s) => $s->brand_product_id === $bp->id)"
                                     :company-id="$company->id"
-                                    :bp-id="$bp->id" />
+                                    :bp-id="$bp->id"
+                                    class="col-mobile-hidden" />
                             @else
-                                <td class="px-2 py-2 text-center text-gray-300 text-xs">—</td>
+                                <td class="col-mobile-hidden px-2 py-2 text-center text-gray-300 text-xs">—</td>
                             @endif
                         @endforeach
 
                         {{-- Last update with full-date tooltip --}}
-                        <td class="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
+                        <td class="col-mobile-hidden px-4 py-3 text-xs text-gray-400 whitespace-nowrap">
                             <span title="{{ $fmtDate($company->updated_at) }}">
                                 {{ $company->updated_at->diffForHumans() }}
                             </span>
                         </td>
 
                         {{-- Conv channels: one icon per unique channel type --}}
-                        <td class="px-4 py-3">
+                        <td class="col-mobile-hidden px-4 py-3">
                             @if($company->_convChannels->isEmpty())
                                 <span class="text-gray-300 text-xs">—</span>
                             @else
@@ -370,6 +370,32 @@
                                     @endforeach
                                 </div>
                             @endif
+                        </td>
+
+                        {{-- Mobile actions "..." --}}
+                        <td class="col-mobile-only px-2 py-3 text-right">
+                            <div class="relative inline-block" x-data="{ open: false }" @click.outside="open = false" @close-row-dropdowns.window="open = false">
+                                <button type="button" @click="let o=open; $dispatch('close-row-dropdowns'); open=!o"
+                                        class="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+                                        aria-label="Row actions">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/>
+                                    </svg>
+                                </button>
+                                <div x-show="open" x-cloak
+                                     class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 py-1.5 w-36">
+                                    <a href="{{ route('companies.show', $company) }}"
+                                       class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                        View
+                                    </a>
+                                    @can('data_write')
+                                    <button type="button" onclick="companiesOpenFilterModal([{{ $company->id }}])"
+                                            class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                        Filter
+                                    </button>
+                                    @endcan
+                                </div>
+                            </div>
                         </td>
 
                     </tr>
@@ -462,6 +488,15 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPopu
 function toggleFilterPanel() {
     document.getElementById('filter-panel').classList.toggle('hidden');
 }
+document.addEventListener('DOMContentLoaded', () => {
+    drp.init('co-date-range', function(from, to) {
+        document.getElementById('f-updated-from').value = from;
+        document.getElementById('f-updated-to').value = to;
+    }, {
+        defaultFrom: '{{ request('f_updated_from') }}',
+        defaultTo: '{{ request('f_updated_to') }}',
+    });
+});
 
 function companiesUpdateBulkBar() {
     const checked = document.querySelectorAll('.companies-row-check:checked');

@@ -105,6 +105,11 @@ class IdentityProcessor
             }
         }
 
+        // Handle mailbox owner flag (IMAP/Gmail) — sets is_team_member and links to an our-org person.
+        if (!empty($payload['is_mailbox_owner'])) {
+            $this->handleMailboxOwner($identity, $payload);
+        }
+
         $item->update([
             'status' => 'done',
             'entity_type' => Identity::class,
@@ -159,5 +164,57 @@ class IdentityProcessor
             ->where('value_normalized', $email)
             ->whereNotNull('person_id')
             ->value('person_id');
+    }
+
+    private function handleMailboxOwner(Identity $identity, array $payload): void
+    {
+        if (!$identity->is_team_member) {
+            $identity->update(['is_team_member' => true]);
+        }
+
+        if ($identity->person_id) {
+            $person = Person::find($identity->person_id);
+            if ($person && !$person->is_our_org) {
+                $person->update(['is_our_org' => true]);
+            }
+            return;
+        }
+
+        $displayName = $payload['display_name'] ?? null;
+        $personId    = $displayName ? $this->findPersonByName($displayName) : null;
+
+        if ($personId) {
+            $person = Person::find($personId);
+            if ($person && !$person->is_our_org) {
+                $person->update(['is_our_org' => true]);
+            }
+        } else {
+            $nameParts = $displayName ? explode(' ', trim($displayName), 2) : [];
+            $person = Person::create([
+                'first_name' => $nameParts[0] ?? $identity->value,
+                'last_name'  => $nameParts[1] ?? null,
+                'is_our_org' => true,
+            ]);
+        }
+
+        $identity->update(['person_id' => $person->id]);
+    }
+
+    private function findPersonByName(string $displayName): ?int
+    {
+        $parts = explode(' ', trim($displayName), 2);
+        $first = trim($parts[0] ?? '');
+        $last  = trim($parts[1] ?? '');
+
+        if (!$first) {
+            return null;
+        }
+
+        $query = Person::where('first_name', 'ilike', $first);
+        if ($last) {
+            $query->where('last_name', 'ilike', $last);
+        }
+
+        return $query->value('id');
     }
 }

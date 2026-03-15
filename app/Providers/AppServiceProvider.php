@@ -164,7 +164,7 @@ class AppServiceProvider extends ServiceProvider
                     'disabled' => !$hasServers,
                     'type'     => 'normal',
                 ],
-                'Analyse' => [
+                'Analyze' => [
                     'route'    => null,
                     'pattern'  => [],
                     'disabled' => true,
@@ -172,7 +172,7 @@ class AppServiceProvider extends ServiceProvider
                 ],
                 'Configuration' => [
                     'route'    => 'setup-assistant.index',
-                    'pattern'  => ['synchronizer.*', 'data-relations.*', 'our-company.*', 'filtering.*', 'segmentation.*', 'configuration.*'],
+                    'pattern'  => ['synchronizer.*', 'data-relations.*', 'our-company.*', 'filtering.*', 'segmentation.*', 'configuration.*', 'team-access.*', 'setup-assistant.*'],
                     'disabled' => false,
                     'type'     => 'config',
                     'dot'      => $configNeedsAttention,

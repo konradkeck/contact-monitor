@@ -20,10 +20,14 @@ class PersonController extends Controller
 
     public function index(Request $request): View
     {
-        $search = $request->get('q');
-        $sort = $request->get('sort', 'updated_at');
-        $dir = $request->get('dir', 'desc') === 'asc' ? 'asc' : 'desc';
-        $tab = $request->get('tab', 'clients');
+        $search   = $request->get('q');
+        $sort     = $request->get('sort', 'updated_at');
+        $dir      = $request->get('dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $tab      = $request->get('tab', 'clients');
+        $f_lc_from     = $request->get('f_lc_from', '');
+        $f_lc_to       = $request->get('f_lc_to', '');
+        $f_has_company = $request->get('f_has_company', '');
+        $f_channel     = $request->get('f_channel', '');
         if (! in_array($tab, ['clients', 'our_org'])) {
             $tab = 'clients';
         }
@@ -48,6 +52,35 @@ class PersonController extends Controller
             'identities' => $query->orderByRaw("(SELECT COUNT(*) FROM identities WHERE person_id=people.id AND deleted_at IS NULL) {$dir}"),
             default => $query->orderBy($sort, $dir),
         };
+
+        // Last contact date filter
+        $lcSubquery = "(SELECT MAX(cm.occurred_at) FROM conversation_messages cm JOIN identities i ON i.id = cm.identity_id WHERE i.person_id = people.id AND cm.direction != 'system' AND i.deleted_at IS NULL)";
+        if ($f_lc_from !== '') {
+            $query->whereRaw("{$lcSubquery} >= ?", [$f_lc_from]);
+        }
+        if ($f_lc_to !== '') {
+            $query->whereRaw("{$lcSubquery} <= ?", [$f_lc_to . ' 23:59:59']);
+        }
+
+        // Has company filter
+        if ($f_has_company === 'has') {
+            $query->whereHas('companies');
+        } elseif ($f_has_company === 'none') {
+            $query->whereDoesntHave('companies');
+        }
+
+        // Channel filter
+        if ($f_channel !== '') {
+            $query->whereExists(function ($sub) use ($f_channel) {
+                $sub->select(DB::raw(1))
+                    ->from('conversation_messages as cm_f')
+                    ->join('identities as i_f', 'i_f.id', '=', 'cm_f.identity_id')
+                    ->join('conversations as c_f', 'c_f.id', '=', 'cm_f.conversation_id')
+                    ->whereColumn('i_f.person_id', 'people.id')
+                    ->where('c_f.channel_type', $f_channel)
+                    ->whereNull('i_f.deleted_at');
+            });
+        }
 
         // ── Filtered people ────────────────────────────────────
         $filterDomains = SystemSetting::get('filter_domains', []);
@@ -253,9 +286,20 @@ class PersonController extends Controller
             'our_org' => Person::where('is_our_org', true)->count(),
         ];
 
+        $activeFilterCount = (($f_lc_from !== '' || $f_lc_to !== '') ? 1 : 0)
+                           + ($f_has_company !== '' ? 1 : 0)
+                           + ($f_channel !== '' ? 1 : 0);
+        $hasFilters        = (bool) ($search || $activeFilterCount > 0);
+
+        $channelTypes = DB::table('conversations')
+            ->whereNotNull('channel_type')
+            ->distinct()->orderBy('channel_type')->pluck('channel_type');
+
         return view('people.index', compact(
             'people', 'search', 'sort', 'dir', 'filteredCount', 'filteredReasons', 'showFiltered',
             'contactBadge', 'sortLink', 'sortIcon', 'channelBadge', 'tab', 'tabCounts',
+            'f_lc_from', 'f_lc_to', 'f_has_company', 'f_channel', 'channelTypes',
+            'activeFilterCount', 'hasFilters',
         ));
     }
 
@@ -655,6 +699,13 @@ class PersonController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function unmarkOurOrg(Person $person): JsonResponse
+    {
+        $person->update(['is_our_org' => false]);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function bulkMarkOurOrg(Request $request): JsonResponse
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
@@ -662,6 +713,17 @@ class PersonController extends Controller
             return response()->json(['ok' => false, 'error' => 'No IDs']);
         }
         Person::whereIn('id', $ids)->update(['is_our_org' => true]);
+
+        return response()->json(['ok' => true, 'count' => count($ids)]);
+    }
+
+    public function bulkUnmarkOurOrg(Request $request): JsonResponse
+    {
+        $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
+        if (empty($ids)) {
+            return response()->json(['ok' => false, 'error' => 'No IDs']);
+        }
+        Person::whereIn('id', $ids)->update(['is_our_org' => false]);
 
         return response()->json(['ok' => true, 'count' => count($ids)]);
     }

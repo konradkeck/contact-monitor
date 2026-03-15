@@ -257,10 +257,12 @@ Manages users and permission groups. Two tabs: Users / Groups.
 - **Tabs**: All / Conversations / Activity (Activity tab uses `exclude_type=conversation`)
 - **Never** pass `showPersonLink` or `showCompanyLink` to `activity/partials/timeline-items.blade.php` — they must not appear in the global activity list.
 - AJAX pagination via `/activity/timeline?cursor=...` mirrors the initial SSR render.
+- **Search + filters**: Always-visible search bar (input + Search + Clear buttons) with collapsible filter panel — same pattern as people/companies index. "Filters" button shows brand-primary color + count badge when filters are active. Channels and activity type filters are inline checkbox labels (not dropdowns). AJAX endpoint `/activity/timeline` accepts `q` param for text search (searches description, company name, person name).
 
 ### Conversations (`/conversations`)
 
 - `$filteredQuery` in `ConversationController::index()` **must** include `filter_subjects` (from `SystemSetting`) — same logic as the main listing. Tab counts (All/Unread/Archived) are derived from `$filteredQuery`, not a plain query.
+- **Bulk select**: Checkbox column + select-all in `<thead>`, table wrapped in `<form id="conv-bulk-form">`. Bulk bar has "Filter…" button (under `@can('data_write')`). JS: `convUpdateBulkBar()`, `convToggleAll()`, `convClearSelection()`, `convOpenFilterModal()`.
 
 ### Data Relations Mapping (`/data-relations/mapping/{type}/{slug}`)
 
@@ -271,6 +273,41 @@ Manages users and permission groups. Two tabs: Users / Groups.
 ### PersonController
 
 - `PersonController::personActivitiesQuery()` must **not** use `.distinct()` — it breaks PostgreSQL `ORDER BY` with `SQLSTATE[42P10]`.
+
+### Our Org system (People)
+
+- `Person.is_our_org` is the canonical flag; `Identity.is_team_member` is derived/secondary.
+- **people/index**: No per-row Our Org toggle — bulk management only.
+  - Clients tab bulk bar: "Mark as Our Org" button.
+  - Our Org tab bulk bar: "Unmark Our Org" button (POSTs to `people.bulk-unmark-our-org`).
+  - Our Org rows get `bg-brand-50/60` tinted background.
+- **people/show**: "Unmark Our Org" button (muted) when `is_our_org = true`; "Our Org" button (org style) when false. Both reload the page on success.
+- Routes: `POST people/bulk-unmark-our-org` → `PersonController::bulkUnmarkOurOrg()`, `POST people/{person}/unmark-our-org` → `PersonController::unmarkOurOrg()`.
+- Person card header gradient: `from-brand-600 to-brand-800` (brand magenta) — **not** dark indigo or any other color.
+
+### Discord avatars
+
+- When `meta_json['avatar']` is empty for a Discord identity, fall back to the Discord default avatar:
+  ```
+  https://cdn.discordapp.com/embed/avatars/{N}.png
+  ```
+  where `N = (int) substr($discordUserId, -1) % 5`.
+- Custom avatar URL format: `https://cdn.discordapp.com/avatars/{user_id}/{hash}.webp?size=128`
+- Implemented in: `DataRelationsController`, `ConversationMessage::chatAvatarUrl()`, `ConversationController` (participant avatars).
+
+### Filter modals (people / companies / conversations) — tag-input
+
+- All filter modals use a **tag-input** UI for multi-value fields (domain, email, subject).
+- Backend accepts `rule_values[]` array; falls back to single `rule_value` for backwards compat. Both `FilteringController::applyRule()` and `ConversationController::archiveWithRule()` use this pattern.
+- **JS rule**: Modal content is AJAX-loaded — Alpine.js does **not** auto-init inside it. All tag-input JS must use plain DOM (`createElement`, `addEventListener`). **Never** build `onkeydown="handler(event, 'value')"` inline attributes using `JSON.stringify` — double-quoted strings inside double-quoted HTML attributes silently break the handler. Always attach event listeners via `addEventListener` in a closure.
+- Suggested values rendered as chip buttons with `data-add-tag` / `data-val` attributes; click handler adds tag and switches type tab.
+- Submit: `fmBeforeSubmit()` / `pfmBeforeSubmit()` / `cfmBeforeSubmit()` sync hidden `rule_values[]` inputs before form posts.
+
+### Breadcrumb back-link (`resolveBackLink`)
+
+- `Controller::resolveBackLink(Request $request)` reads the HTTP `Referer` header, matches `/companies/{id}`, `/people/{id}`, `/conversations/{id}`, and returns `['url' => ..., 'label' => ...]`.
+- **Self-link guard**: if the referer path equals the current request path (`'/' . $request->path()`), returns `null` — prevents a link to the page you're already on (e.g. after a reload triggered by a form action).
+- Used in `PersonController::show()`, `CompanyController::show()`, `ConversationController::show()`.
 
 ---
 

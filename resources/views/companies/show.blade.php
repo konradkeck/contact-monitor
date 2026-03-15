@@ -26,7 +26,7 @@
 </div>
 
 {{-- MAIN GRID --}}
-<div class="grid grid-cols-3 gap-5">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5">
 
     {{-- ── LEFT COLUMN ── --}}
     <div class="space-y-4">
@@ -148,7 +148,7 @@
     </div>{{-- /LEFT --}}
 
     {{-- ── RIGHT COLUMN (2/3) ── --}}
-    <div class="col-span-2 space-y-5">
+    <div class="col-span-1 md:col-span-2 space-y-5">
 
         {{-- Segmentation --}}
         <div class="w-full">
@@ -165,7 +165,7 @@
             @if($company->brandStatuses->isEmpty())
                 <p class="text-sm text-gray-400 italic">No brand statuses yet.</p>
             @else
-                <div class="grid grid-cols-2 xl:grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                     @foreach($company->brandStatuses as $status)
                         <div class="{{ match(strtolower($status->stage)) { 'lead' => 'bg-blue-50 border-blue-200', 'prospect' => 'bg-purple-50 border-purple-200', 'trial' => 'bg-yellow-50 border-yellow-200', 'active' => 'bg-green-50 border-green-200', 'churned' => 'bg-red-50 border-red-200', default => 'bg-white border-gray-200' } }} rounded-xl border p-4">
                             <div class="flex items-start justify-between mb-3">

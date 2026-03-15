@@ -11,14 +11,14 @@
 </div>
 
 {{-- Tabs --}}
-<div class="flex gap-0 border-b border-gray-200 mb-6">
+<div class="tabs-bar flex gap-0 border-b border-gray-200 mb-6">
     @foreach([
         'members'    => ['label' => 'Members',         'count' => $teamPeople->count()],
         'identities' => ['label' => 'Team Identities', 'count' => $unlinkedTeamIdentities->count()],
         'domains'    => ['label' => 'Email Domains',   'count' => count($teamDomains)],
     ] as $tab => $cfg)
         <a href="{{ request()->fullUrlWithQuery(['tab' => $tab]) }}"
-           class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
+           class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap shrink-0
                   {{ $activeTab === $tab
                      ? 'border-brand-600 text-brand-700'
                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
@@ -36,9 +36,9 @@
 {{-- ── TAB: MEMBERS ── --}}
 @if($activeTab === 'members')
     @if($teamPeople->isNotEmpty())
-        <div class="w-4/5 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+        <div class="w-full md:w-4/5 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
             @foreach($teamPeople as $person)
-                <div class="flex items-center gap-3 px-4 py-3">
+                <div class="flex items-center gap-3 px-4 py-3" x-data="{ open: false }">
                     <img src="https://www.gravatar.com/avatar/{{ md5(strtolower(trim($person->identities->firstWhere('type', 'email')?->value ?? ''))) }}?d=identicon&s=80"
                          class="w-9 h-9 rounded-full object-cover border border-gray-100 shrink-0">
                     <div class="flex-1 min-w-0">
@@ -51,13 +51,18 @@
                             @endforeach
                         </div>
                     </div>
-                    <a href="{{ route('people.show', $person) }}"
-                       class="text-xs text-brand-600 hover:underline shrink-0">View →</a>
-                    <form action="{{ route('our-company.remove-member', $person) }}" method="POST"
-                          onsubmit="return confirm('Remove {{ $person->full_name }} from Our Organization?')">
-                        @csrf @method('DELETE')
-                        <button type="submit" class="text-xs text-red-400 hover:text-red-600 font-medium">✕ Remove</button>
-                    </form>
+                    <div class="relative shrink-0" @close-row-dropdowns.window="open = false">
+                        <button type="button" @click="let o=open; $dispatch('close-row-dropdowns'); open=!o"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 text-lg leading-none transition">···</button>
+                        <div x-show="open" x-cloak
+                             class="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1 text-sm">
+                            <form action="{{ route('our-company.remove-member', $person) }}" method="POST"
+                                  onsubmit="return confirm('Remove {{ $person->full_name }} from Our Organization?')">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="w-full text-left px-3 py-1.5 text-red-500 hover:bg-red-50 hover:text-red-700">✕ Remove</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             @endforeach
         </div>
@@ -72,16 +77,23 @@
 {{-- ── TAB: IDENTITIES ── --}}
 @if($activeTab === 'identities')
     @if($unlinkedTeamIdentities->isNotEmpty())
-        <div class="w-4/5 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+        <div class="w-full md:w-4/5 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
             @foreach($unlinkedTeamIdentities as $identity)
-                <div class="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <div class="flex items-center gap-3 px-4 py-2.5 text-sm" x-data="{ open: false }">
                     <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded shrink-0">{{ $identity->type }}</span>
                     <span class="font-mono text-gray-700 flex-1 truncate">{{ $identity->value }}</span>
-                    <span class="text-xs text-gray-400 shrink-0 font-mono">{{ $identity->system_slug }}</span>
-                    <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST">
-                        @csrf
-                        <button class="text-xs text-red-400 hover:text-red-600 font-medium">✕ unmark</button>
-                    </form>
+                    <span class="text-xs text-gray-400 shrink-0 font-mono col-mobile-hidden">{{ $identity->system_slug }}</span>
+                    <div class="relative shrink-0" @close-row-dropdowns.window="open = false">
+                        <button type="button" @click="let o=open; $dispatch('close-row-dropdowns'); open=!o"
+                                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 text-lg leading-none transition">···</button>
+                        <div x-show="open" x-cloak
+                             class="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1 text-sm">
+                            <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="w-full text-left px-3 py-1.5 text-red-500 hover:bg-red-50 hover:text-red-700">✕ Unmark</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             @endforeach
         </div>

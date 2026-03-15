@@ -3,7 +3,7 @@
 
 @section('content')
 
-<div style="max-width:80%">
+<div class="w-full md:max-w-[80%]">
 
 {{-- Page header --}}
 <div class="page-header">
@@ -59,7 +59,7 @@
 </div>
 
 {{-- Meta row --}}
-<div class="bg-white rounded-lg border border-gray-200 p-4 grid grid-cols-4 gap-4 text-sm mb-5">
+<div class="bg-white rounded-lg border border-gray-200 p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-5">
     <div>
         <p class="text-xs text-gray-500 mb-0.5">Primary Contact</p>
         <p class="font-medium">

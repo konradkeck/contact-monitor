@@ -254,12 +254,35 @@ class Activity extends Model
             $hoverText   = ($hoverText !== '' ? $hoverText . "\n" : '') . $notFoundMsg;
         }
 
+        // Counterpart label for email (the linked person or company name)
+        $counterpartLabel = null;
+        if ($isEmail) {
+            $counterpartLabel = ($this->relationLoaded('person') && $this->person)
+                ? $this->person->full_name
+                : (($this->relationLoaded('company') && $this->company) ? $this->company->name : null);
+        }
+
+        // Source person — person directly linked to this activity (for inline linking)
+        $sourcePerson = ($this->relationLoaded('person') && $this->person) ? $this->person : null;
+
+        // Participant links for Slack/Discord — split participants string and flag the linked person
+        $participantLinks = null;
+        if (($isSlack || $isDiscord) && $participants && $sourcePerson) {
+            $parts = array_map('trim', explode(',', $participants));
+            $personFullName = mb_strtolower($sourcePerson->full_name);
+            $participantLinks = array_map(fn ($p) => [
+                'name'   => $p,
+                'person' => (mb_strtolower($p) === $personFullName) ? $sourcePerson : null,
+            ], $parts);
+        }
+
         return (object) compact(
             'url', 'isCustomer', 'chType', 'sysType', 'sysSlug', 'badgeTitle',
             'sourceLabel', 'titleText', 'modalUrl', 'rowClickable', 'ticketNotFound',
             'useBadge', 'hoverText',
             'isEmail', 'isSlack', 'isDiscord', 'isOutbound', 'participants',
-            'isTicket', 'isMetricscube', 'department', 'mcType'
+            'isTicket', 'isMetricscube', 'department', 'mcType', 'counterpartLabel',
+            'sourcePerson', 'participantLinks'
         );
     }
 }

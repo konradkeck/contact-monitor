@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="flex flex-col min-h-screen bg-gray-50">
+<body class="flex flex-col min-h-screen bg-gray-50" x-data="{ sidebarOpen: false }">
 <a href="#main-content"
    class="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50
           focus:px-4 focus:py-2 focus:bg-white focus:text-brand-700 focus:text-sm focus:font-medium
@@ -22,12 +22,68 @@
 {{-- ─── TOP BAR ─── --}}
 <header class="flex-shrink-0 z-20 sticky top-0 border-b" style="background:rgba(33,39,49,0.97);border-color:rgba(255,255,255,0.07);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
     <div class="flex items-center h-16 px-5 gap-6">
+        {{-- Hamburger (mobile only) --}}
+        <button @click="sidebarOpen = !sidebarOpen"
+                class="md:hidden flex items-center justify-center w-9 h-9 -ml-2 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition shrink-0"
+                aria-label="Toggle navigation">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+
         <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 flex-shrink-0">
             <img src="/logo.svg" alt="" class="w-6 h-6">
-            <span class="font-medium text-base tracking-tight text-white">Contact Monitor</span>
+            <span class="font-medium text-base tracking-tight text-white hidden sm:inline">Contact Monitor</span>
         </a>
 
-        <nav class="flex items-center gap-0.5 ml-8" aria-label="Primary">
+        {{-- Mobile section switcher dropdown --}}
+        <div class="md:hidden relative ml-1" x-data="{ sectOpen: false }" @click.outside="sectOpen = false">
+            <button @click="sectOpen = !sectOpen"
+                    class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium text-slate-200 hover:text-white hover:bg-white/10 transition">
+                @foreach($topSections as $label => $section)
+                    @if(auth()->check() && !auth()->user()->hasPermission($section['permKey'])) @continue @endif
+                    @if($section['isActive'])
+                        <span>{{ $label }}</span>
+                    @endif
+                @endforeach
+                <svg class="w-3.5 h-3.5 opacity-50 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </button>
+            <div x-show="sectOpen" x-cloak
+                 x-transition:enter="transition duration-150 ease-out"
+                 x-transition:enter-start="opacity-0 scale-95 -translate-y-1"
+                 x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                 x-transition:leave="transition duration-100 ease-in"
+                 x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 scale-95 -translate-y-1"
+                 style="transform-origin: top left"
+                 class="absolute left-0 top-full mt-1 w-44 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50">
+                @foreach($topSections as $label => $section)
+                    @if(auth()->check() && !auth()->user()->hasPermission($section['permKey'])) @continue @endif
+                    <a href="{{ $section['disabled'] ? '#' : $section['href'] }}"
+                       @if($section['disabled']) onclick="return false" @endif
+                       class="flex items-center gap-2 px-3 py-2.5 text-sm transition
+                              {{ $section['isActive'] ? 'text-brand-700 font-semibold bg-brand-50' : 'text-gray-700 hover:bg-gray-50' }}
+                              {{ $section['disabled'] ? 'opacity-40 pointer-events-none' : '' }}">
+                        @if($section['type'] === 'ai')
+                            <img src="/ai-icon.svg" class="w-5 h-5 shrink-0" alt="">
+                        @endif
+                        <span class="flex-1">{{ $label }}</span>
+                        @if($section['isActive'])
+                            <svg class="w-3.5 h-3.5 text-brand-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        @endif
+                        @if($section['dot'] ?? false)
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                        @endif
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
+        <nav class="hidden md:flex items-center gap-0.5 ml-8" aria-label="Primary">
             @foreach($topSections as $label => $section)
                 @if(auth()->check() && !auth()->user()->hasPermission($section['permKey']))
                     @continue
@@ -40,9 +96,7 @@
                           {{ $section['isActive'] ? 'bg-white/12 text-white' : 'text-slate-300 hover:text-white hover:bg-white/10' }}
                           {{ $section['disabled'] ? 'opacity-40 cursor-not-allowed' : '' }}">
                     @if($section['type'] === 'ai')
-                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
-                        </svg>
+                        <img src="/ai-icon.svg" class="w-5 h-5 shrink-0" alt="">
                     @endif
                     {{ $label }}
                     @if(($section['dot'] ?? false))
@@ -96,9 +150,21 @@
 {{-- ─── BODY: SIDEBAR + CONTENT ─── --}}
 <div class="flex flex-1">
 
+    {{-- Mobile sidebar backdrop --}}
+    <div x-show="sidebarOpen" @click="sidebarOpen = false" x-cloak
+         x-transition:enter="transition-opacity duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition-opacity duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-30 bg-black/50 md:hidden"></div>
+
     {{-- Left sidebar --}}
-    <aside class="sidebar w-52 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 left-0 h-[calc(100vh-4rem)]">
-        <nav class="flex-1 px-2 py-3 space-y-0.5" aria-label="Sidebar">
+    <aside :class="sidebarOpen ? '!translate-x-0' : ''"
+           class="sidebar w-52 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 left-0 h-[calc(100vh-4rem)]
+                  -translate-x-full md:translate-x-0 transition-transform duration-200 ease-out z-40">
+        <nav class="flex-1 px-2 py-3 space-y-0.5" aria-label="Sidebar" @click="sidebarOpen = false">
 
         @if($isConfigRoute)
             {{-- ── Configuration sidebar ── --}}
@@ -176,8 +242,6 @@
 
         @elseif(auth()->user()->hasPermission('browse_data'))
             {{-- ── Browse Data sidebar ── --}}
-            <span class="sidebar-section pt-1">Browse Data</span>
-
             @foreach($sidebarItems as $item)
                 <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}" {{ $item['active'] ? 'aria-current="page"' : '' }}>
                     <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,7 +260,7 @@
 
     {{-- Secondary sidebar: Mapping connections (only on mapping routes) --}}
     @if($isConfigRoute && $onMapping && $mappingSystems->isNotEmpty())
-    <aside class="sidebar w-44 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 h-[calc(100vh-4rem)]" style="left: 13rem;">
+    <aside class="sidebar w-44 flex-shrink-0 flex flex-col overflow-y-auto fixed top-16 h-[calc(100vh-4rem)] hidden md:flex z-40" style="left: 13rem;">
         <div class="px-2 py-3 space-y-0.5">
             <a href="{{ route('configuration.mapping') }}"
                class="sidebar-link text-xs mb-1">

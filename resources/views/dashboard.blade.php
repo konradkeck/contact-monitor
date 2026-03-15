@@ -3,7 +3,7 @@
 
 @section('content')
 
-<div class="flex gap-6 items-start">
+<div class="flex flex-col md:flex-row gap-6 md:items-start">
 
 {{-- ── Main content ─────────────────────────────────────────────────────── --}}
 <div class="flex-1 min-w-0">
@@ -39,7 +39,7 @@
     </div>
 
     {{-- Two summary tables --}}
-    <div class="grid grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {{-- Most Active People --}}
         <div class="card overflow-hidden">
@@ -111,7 +111,7 @@
 </div>
 
 {{-- ── Right sidebar: Recent Notes ──────────────────────────────────────── --}}
-<div class="w-72 shrink-0">
+<div class="w-full md:w-72 shrink-0">
     <h3 class="text-sm font-semibold text-gray-700 mb-3">Recent Notes</h3>
 
     @if($recentNotes->isEmpty())

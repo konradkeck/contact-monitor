@@ -91,44 +91,51 @@
         </nav>
         <h1 class="page-title mt-1">{{ $person->full_name }}</h1>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
         <button type="button" onclick="showPersonFilterModal()" class="btn btn-secondary btn-sm">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
-            Filter
+            <span class="hidden sm:inline">Filter</span>
         </button>
         @can('data_write')
-        @if(!$person->is_our_org)
+        @if($person->is_our_org)
+        <button type="button" id="unmark-our-org-btn" onclick="unmarkPersonOurOrg()" class="btn btn-muted btn-sm">
+            <span class="hidden sm:inline">Unmark Our Org</span>
+            <span class="sm:hidden">Unmark</span>
+        </button>
+        @else
         <button type="button" id="mark-our-org-btn" onclick="markPersonOurOrg()" class="btn btn-org btn-sm">
-            Our Org
+            <span class="hidden sm:inline">Our Org</span>
+            <span class="sm:hidden">Org</span>
         </button>
         @endif
         <button type="button" onclick="showPersonAssignCompany()" class="btn btn-secondary btn-sm">
-            Assign Company
+            <span class="hidden sm:inline">Assign Company</span>
+            <span class="sm:hidden">Assign</span>
         </button>
         <a href="{{ route('people.edit', $person) }}" class="btn btn-secondary btn-sm">Edit</a>
         @endcan
     </div>
 </div>
 
-<div class="grid grid-cols-4 gap-5">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-5">
 
     {{-- ── LEFT COLUMN ── --}}
-    <div class="space-y-4">
+    <div class="space-y-4 order-1">
 
         {{-- Avatar + name + companies --}}
         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
-            {{-- Dark header (indigo tint if Our Organization) --}}
-            <div class="{{ $person->is_our_org ? 'bg-gradient-to-b from-[#191f3a] to-[#222c50]' : 'bg-gradient-to-b from-[#1c2028] to-[#252d3b]' }} px-5 pt-5 pb-10 flex flex-col items-center text-center">
+            {{-- Dark header (brand gradient if Our Organization) --}}
+            <div class="{{ $person->is_our_org ? 'bg-gradient-to-b from-brand-600 to-brand-800' : 'bg-gradient-to-b from-[#1c2028] to-[#252d3b]' }} px-5 pt-5 pb-10 flex flex-col items-center text-center">
                 @if($person->is_our_org)
-                    <span class="mb-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-400/15 text-indigo-200/80 border border-indigo-400/20">
+                    <span class="mb-2 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/15 text-white/90 border border-white/20">
                         Our Org
                     </span>
                 @endif
                 <x-person-avatar :person="$person" size="14"
-                     class="border-2 {{ $person->is_our_org ? 'border-indigo-300/40' : 'border-white/20' }} bg-gray-600 mb-3" />
+                     class="border-2 {{ $person->is_our_org ? 'border-white/30' : 'border-white/20' }} bg-gray-600 mb-3" />
                 <p class="font-bold text-white text-base leading-snug">{{ $person->full_name }}</p>
-                <p class="text-xs {{ $person->is_our_org ? 'text-indigo-300' : 'text-gray-400' }} mt-1">Since {{ $person->created_at->format('d M Y') }}</p>
+                <p class="text-xs text-white/60 mt-1">Since {{ $person->created_at->format('d M Y') }}</p>
             </div>
 
             {{-- Companies lifted card --}}
@@ -268,7 +275,7 @@
     </div>{{-- /LEFT --}}
 
     {{-- ── RIGHT: TIMELINE (col-span-2) ── --}}
-    <div class="col-span-2">
+    <div class="col-span-1 md:col-span-2 order-3 md:order-2">
 
         <div id="timeline-box" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
@@ -404,7 +411,7 @@
     </div>
 
     {{-- ── RIGHT COLUMN: Quick Reports ── --}}
-    <div class="space-y-3">
+    <div class="space-y-3 order-2 md:order-3">
 
         {{-- Quick Reports header + datepicker --}}
         <div class="flex items-center justify-between gap-3 px-1">
@@ -717,6 +724,15 @@ function markPersonOurOrg() {
     const btn = document.getElementById('mark-our-org-btn');
     if (btn) btn.disabled = true;
     fetch(`/people/${_personId}/mark-our-org`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({}),
+    }).then(r => r.json()).then(d => { if (d.ok) window.location.reload(); else if (btn) btn.disabled = false; });
+}
+function unmarkPersonOurOrg() {
+    const btn = document.getElementById('unmark-our-org-btn');
+    if (btn) btn.disabled = true;
+    fetch(`/people/${_personId}/unmark-our-org`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _csrfToken, 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({}),

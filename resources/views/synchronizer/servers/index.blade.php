@@ -38,7 +38,7 @@
         <thead class="tbl-header">
             <tr>
                 <th class="px-4 py-2.5 text-left">Name</th>
-                <th class="px-4 py-2.5 text-left">URL</th>
+                <th class="col-mobile-hidden px-4 py-2.5 text-left">URL</th>
                 <th class="px-4 py-2.5 text-left">Status</th>
                 <th class="px-4 py-2.5 text-right">Actions</th>
             </tr>
@@ -46,8 +46,11 @@
         <tbody>
             @forelse($servers as $server)
                 <tr class="tbl-row">
-                    <td class="px-4 py-3 font-medium text-gray-900">{{ $server->name }}</td>
-                    <td class="px-4 py-3 text-gray-500 text-xs font-mono">{{ $server->url }}</td>
+                    <td class="px-4 py-3 font-medium text-gray-900">
+                        {{ $server->name }}
+                        <span class="md:hidden block text-xs text-gray-400 font-mono truncate mt-0.5">{{ $server->url }}</span>
+                    </td>
+                    <td class="col-mobile-hidden px-4 py-3 text-gray-500 text-xs font-mono">{{ $server->url }}</td>
                     <td class="px-4 py-3">
                         <span id="status-{{ $server->id }}" class="text-xs text-gray-400">
                             <span class="inline-block w-1.5 h-1.5 rounded-full bg-gray-300 mr-1"></span>
@@ -55,7 +58,8 @@
                         </span>
                     </td>
                     <td class="px-4 py-3 text-right">
-                        <div class="flex items-center justify-end gap-1.5">
+                        {{-- Desktop --}}
+                        <div class="row-actions-desktop items-center justify-end gap-1.5">
                             <a href="{{ route('synchronizer.index', ['server' => $server->id]) }}" class="btn btn-muted btn-sm">
                                 Connections
                             </a>
@@ -67,6 +71,23 @@
                                 onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}')">
                                 <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
+                        </div>
+                        {{-- Mobile "..." --}}
+                        <div class="row-actions-mobile relative" x-data="{ open: false }" @click.outside="open = false" @close-row-dropdowns.window="open = false">
+                            <button @click="let o=open; $dispatch('close-row-dropdowns'); open=!o"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg>
+                            </button>
+                            <div x-show="open" x-cloak
+                                 class="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50 text-sm">
+                                <a href="{{ route('synchronizer.index', ['server' => $server->id]) }}"
+                                   class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50">Connections</a>
+                                <a href="{{ route('synchronizer.servers.edit', $server) }}"
+                                   class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50">Edit</a>
+                                <button type="button"
+                                        onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}')"
+                                        class="flex w-full px-3 py-2 text-red-600 hover:bg-red-50 text-left">Delete</button>
+                            </div>
                         </div>
                     </td>
                 </tr>

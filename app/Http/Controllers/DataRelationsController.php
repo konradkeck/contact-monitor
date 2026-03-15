@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Conversation;
 use App\Models\Identity;
 use App\Models\Person;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -307,6 +308,9 @@ class DataRelationsController extends Controller
                         } elseif ($identity->type === 'slack_user') {
                             $identity->sys_avatar = $identity->meta_json['avatar'];
                         }
+                    } elseif (in_array($identity->type, ['discord_user', 'discord_id'])) {
+                        $idx = (int) substr($identity->value_normalized ?? '0', -1) % 5;
+                        $identity->sys_avatar = 'https://cdn.discordapp.com/embed/avatars/' . $idx . '.png';
                     }
                     $idFmEmail  = $gEmail ?? '';
                     $idFmDomain = $idFmEmail ? substr(strrchr($idFmEmail, '@'), 1) : '';
@@ -402,6 +406,34 @@ class DataRelationsController extends Controller
         return redirect()->back()->with('success', 'Identity unlinked.');
     }
 
+    public function linkIdentityWithCreate(Request $request, Identity $identity): JsonResponse
+    {
+        $mode = $request->input('mode');
+
+        if ($mode === 'new') {
+            $data = $request->validate([
+                'first_name' => 'required|string|max:255',
+                'last_name'  => 'nullable|string|max:255',
+                'is_our_org' => 'nullable|boolean',
+            ]);
+            $person = Person::create([
+                'first_name' => $data['first_name'],
+                'last_name'  => $data['last_name'] ?? null,
+                'is_our_org' => (bool) ($data['is_our_org'] ?? false),
+            ]);
+            $identity->update(['person_id' => $person->id]);
+            return response()->json(['ok' => true]);
+        }
+
+        if ($mode === 'existing') {
+            $data = $request->validate(['person_id' => 'required|exists:people,id']);
+            $identity->update(['person_id' => $data['person_id']]);
+            return response()->json(['ok' => true]);
+        }
+
+        return response()->json(['ok' => false, 'error' => 'Invalid mode.'], 422);
+    }
+
     // ─── Conversation link / unlink ───────────────────────────────────────────
 
     public function linkConversation(Request $request, Conversation $conversation): RedirectResponse
@@ -429,29 +461,4 @@ class DataRelationsController extends Controller
         return redirect()->back()->with('success', $label);
     }
 
-    public function toggleTeamMember(Identity $identity): RedirectResponse
-    {
-        $newVal = ! $identity->is_team_member;
-        $identity->update(['is_team_member' => $newVal]);
-
-        // Sync person.is_our_org
-        if ($identity->person_id) {
-            $person = $identity->person;
-            if ($newVal) {
-                $person->update(['is_our_org' => true]);
-            } else {
-                $stillTeam = $person->identities()
-                    ->where('id', '!=', $identity->id)
-                    ->where('is_team_member', true)
-                    ->exists();
-                if (! $stillTeam) {
-                    $person->update(['is_our_org' => false]);
-                }
-            }
-        }
-
-        $label = $newVal ? 'Marked as team member.' : 'Removed from team.';
-
-        return redirect()->back()->with('success', $label);
-    }
 }

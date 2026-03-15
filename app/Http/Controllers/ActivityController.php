@@ -91,6 +91,13 @@ class ActivityController extends Controller
     {
         $query = $this->baseQuery();
 
+        if ($q = trim($request->get('q', ''))) {
+            $query->where(function ($qb) use ($q) {
+                $qb->where('description', 'ilike', '%' . $q . '%')
+                    ->orWhereHas('company', fn ($c) => $c->where('name', 'ilike', '%' . $q . '%'))
+                    ->orWhereHas('person', fn ($p) => $p->whereRaw("(first_name || ' ' || COALESCE(last_name,'')) ilike ?", ['%' . $q . '%']));
+            });
+        }
         if ($types = $request->get('types')) {
             $query->whereIn('type', (array) $types);
         }
