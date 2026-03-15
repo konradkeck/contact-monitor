@@ -11,7 +11,7 @@
 </div>
 
 {{-- Tabs --}}
-<div class="flex gap-0 border-b border-gray-200 mb-6">
+<div class="flex gap-0 border-b border-gray-200 mb-5">
     @foreach([
         'domains'  => ['label' => 'Domains',  'count' => count($filterDomains)],
         'emails'   => ['label' => 'Emails',   'count' => count($filterEmails)],
@@ -53,7 +53,7 @@
                         <form action="{{ route('filtering.domains.remove') }}" method="POST">
                             @csrf
                             <input type="hidden" name="domain" value="{{ $domain }}">
-                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ remove</button>
+                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ Remove</button>
                         </form>
                     </li>
                 @endforeach
@@ -97,7 +97,7 @@
                         <form action="{{ route('filtering.emails.remove') }}" method="POST">
                             @csrf
                             <input type="hidden" name="email" value="{{ $email }}">
-                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ remove</button>
+                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ Remove</button>
                         </form>
                     </li>
                 @endforeach
@@ -142,7 +142,7 @@
                         <form action="{{ route('filtering.subjects.remove') }}" method="POST" class="shrink-0">
                             @csrf
                             <input type="hidden" name="subject" value="{{ $subject }}">
-                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ remove</button>
+                            <button class="text-xs text-red-400 hover:text-red-600 font-bold">✕ Remove</button>
                         </form>
                     </li>
                 @endforeach

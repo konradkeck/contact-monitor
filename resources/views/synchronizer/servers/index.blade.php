@@ -8,9 +8,9 @@
         <span class="page-title">Synchronizer Servers</span>
         <p class="text-xs text-gray-400 mt-0.5">Register the external Synchronizer services that pull data from your integrations and push it here. Each server runs independently and can manage multiple connections.</p>
     </div>
-    <a href="{{ route('synchronizer.wizard.step1') }}" class="btn btn-primary btn-sm">
-        <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-        Add server
+    <a href="{{ route('synchronizer.wizard.step1') }}" class="btn btn-primary">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        New Server
     </a>
 </div>
 
@@ -109,7 +109,7 @@
             <button type="button" onclick="closeDeleteModal()" class="btn btn-muted btn-sm">Cancel</button>
             <form id="delete-form" method="POST">
                 @csrf @method('DELETE')
-                <button type="submit" class="btn btn-danger btn-sm">Remove server</button>
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
             </form>
         </div>
     </div>

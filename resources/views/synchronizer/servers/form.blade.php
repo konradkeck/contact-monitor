@@ -4,8 +4,14 @@
 @section('content')
 
 <div class="page-header">
-    <span class="page-title">{{ $server ? 'Edit Server' : 'Add Server' }}</span>
-    <a href="{{ route('synchronizer.servers.index') }}" class="btn btn-secondary btn-sm">Back</a>
+    <div>
+        <div class="page-breadcrumb">
+            <a href="{{ route('synchronizer.servers.index') }}">Servers</a>
+            <span class="sep">/</span>
+            <span class="cur">{{ $server ? 'Edit Server' : 'New Server' }}</span>
+        </div>
+        <h1 class="page-title mt-1">{{ $server ? 'Edit Server' : 'New Server' }}</h1>
+    </div>
 </div>
 
 @if($errors->any())

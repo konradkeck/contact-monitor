@@ -3,21 +3,25 @@
 
 @section('content')
 
-{{-- Breadcrumb --}}
-<div class="flex items-center gap-2 text-sm text-gray-500 mb-5">
-    @if($backLink ?? null)
-        <a href="{{ $backLink['url'] }}" class="hover:text-gray-700">← {{ $backLink['label'] }}</a>
-        <span class="text-gray-300">/</span>
-    @endif
-    <a href="{{ route('companies.index') }}" class="hover:text-gray-700">{{ ($backLink ?? null) ? 'Companies' : '← Companies' }}</a>
-    <span class="text-gray-300">/</span>
-    <h1 class="text-xl font-bold text-gray-900">{{ $company->name }}</h1>
-    <div class="flex-1"></div>
-    <button type="button" onclick="showCompanyFilterModal()"
-            title="Add to filter list"
-            class="btn btn-secondary btn-sm">
-        🚫 Filter
-    </button>
+{{-- Page header --}}
+<div class="page-header">
+    <div>
+        <div class="page-breadcrumb">
+            @if($backLink ?? null)
+                <a href="{{ $backLink['url'] }}">{{ $backLink['label'] }}</a>
+                <span class="sep">/</span>
+            @endif
+            <a href="{{ route('companies.index') }}">Companies</a>
+            <span class="sep">/</span>
+            <span class="cur">{{ $company->name }}</span>
+        </div>
+        <h1 class="page-title mt-1">{{ $company->name }}</h1>
+    </div>
+    <div class="flex items-center gap-2">
+        <button type="button" onclick="showCompanyFilterModal()" class="btn btn-secondary btn-sm">
+            🚫 Filter
+        </button>
+    </div>
 </div>
 
 {{-- MAIN GRID --}}

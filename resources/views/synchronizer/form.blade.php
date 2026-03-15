@@ -4,14 +4,20 @@
 @section('content')
 
 <div class="page-header">
-    <div class="flex items-center gap-3">
-        <a href="{{ route('synchronizer.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">← Connections</a>
-        @if($isEdit)
-            <span class="text-gray-300">/</span>
-            <a href="{{ route('synchronizer.connections.show', $conn['id']) }}" class="text-gray-400 hover:text-gray-600 text-sm">{{ $conn['name'] }}</a>
-        @endif
-        <span class="text-gray-300">/</span>
-        <span class="page-title">{{ $isEdit ? 'Edit' : 'New connection' }}</span>
+    <div>
+        <div class="page-breadcrumb">
+            <a href="{{ route('synchronizer.index') }}">Connections</a>
+            @if($isEdit)
+                <span class="sep">/</span>
+                <a href="{{ route('synchronizer.connections.show', $conn['id']) }}">{{ $conn['name'] }}</a>
+                <span class="sep">/</span>
+                <span class="cur">Edit</span>
+            @else
+                <span class="sep">/</span>
+                <span class="cur">New Connection</span>
+            @endif
+        </div>
+        <h1 class="page-title mt-1">{{ $isEdit ? 'Edit Connection' : 'New Connection' }}</h1>
     </div>
 </div>
 

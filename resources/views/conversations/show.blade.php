@@ -5,28 +5,27 @@
 
 <div style="max-width:80%">
 
-{{-- Breadcrumb --}}
-<div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
-    @if($backLink ?? null)
-        <a href="{{ $backLink['url'] }}" class="hover:text-gray-700">← {{ $backLink['label'] }}</a>
-        <span class="text-gray-300">/</span>
-    @endif
-    <a href="{{ route('conversations.index') }}" class="hover:text-gray-700">{{ ($backLink ?? null) ? 'Conversations' : '← Conversations' }}</a>
-</div>
-
-{{-- Header --}}
-<div class="flex items-start justify-between mb-5">
+{{-- Page header --}}
+<div class="page-header">
     <div class="flex items-center gap-3">
         {{-- Large icon(s) --}}
-        <span class="inline-flex items-center gap-1">
+        <span class="inline-flex items-center gap-1 shrink-0">
             {!! \App\Integrations\IntegrationRegistry::get($conversation->channel_type)->iconHtml('w-9 h-9', false) !!}
             @if($showSysLogo)
                 {!! \App\Integrations\IntegrationRegistry::get($conversation->system_type)->iconHtml('w-7 h-7', false) !!}
             @endif
         </span>
         <div>
-            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide">{{ $conversation->system_slug }}</div>
-            <h1 class="text-xl font-bold text-gray-900 leading-tight mt-0.5">
+            <div class="page-breadcrumb">
+                @if($backLink ?? null)
+                    <a href="{{ $backLink['url'] }}">{{ $backLink['label'] }}</a>
+                    <span class="sep">/</span>
+                @endif
+                <a href="{{ route('conversations.index') }}">Conversations</a>
+                <span class="sep">/</span>
+                <span class="cur">{{ $conversation->system_slug }}</span>
+            </div>
+            <h1 class="page-title mt-1 leading-tight">
                 @if($conversation->company)
                     <a href="{{ route('companies.show', $conversation->company) }}"
                        class="link">{{ $conversation->company->name }}</a>

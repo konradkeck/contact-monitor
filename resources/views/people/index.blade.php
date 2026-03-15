@@ -204,7 +204,7 @@
                                 Filter
                             </button>
                             @if($person->is_our_org)
-                                <span class="btn btn-sm bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                <span class="btn btn-sm btn-org">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
                                     Our Org
                                 </span>
@@ -218,7 +218,7 @@
                                 </button>
                             @endif
                             @endif
-                            <a href="{{ route('people.edit', $person) }}" class="text-xs text-gray-400 hover:text-gray-700 ml-1">Edit</a>
+                            <a href="{{ route('people.edit', $person) }}" class="row-action">Edit</a>
                             @endcan
                         </div>
                     </td>

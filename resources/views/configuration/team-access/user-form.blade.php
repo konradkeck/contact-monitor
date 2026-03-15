@@ -4,8 +4,14 @@
 @section('content')
 
 <div class="page-header">
-    <span class="page-title">{{ $user ? 'Edit User' : 'Add User' }}</span>
-    <a href="{{ route('team-access.index', ['tab' => 'users']) }}" class="btn btn-secondary btn-sm">Back</a>
+    <div>
+        <div class="page-breadcrumb">
+            <a href="{{ route('team-access.index', ['tab' => 'users']) }}">Team Access</a>
+            <span class="sep">/</span>
+            <span class="cur">{{ $user ? 'Edit User' : 'New User' }}</span>
+        </div>
+        <h1 class="page-title mt-1">{{ $user ? 'Edit User' : 'New User' }}</h1>
+    </div>
 </div>
 
 @if($errors->any())

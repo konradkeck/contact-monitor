@@ -3,9 +3,17 @@
 
 @section('content')
 <div class="max-w-xl">
-    <div class="mb-5">
-        <a href="{{ route('people.show', $person) }}" class="text-sm text-gray-500 hover:text-gray-700">← {{ $person->full_name }}</a>
-        <h1 class="text-xl font-bold text-gray-900 mt-1">Edit Person</h1>
+    <div class="page-header">
+        <div>
+            <div class="page-breadcrumb">
+                <a href="{{ route('people.index') }}">People</a>
+                <span class="sep">/</span>
+                <a href="{{ route('people.show', $person) }}">{{ $person->full_name }}</a>
+                <span class="sep">/</span>
+                <span class="cur">Edit</span>
+            </div>
+            <h1 class="page-title mt-1">Edit Person</h1>
+        </div>
     </div>
 
     <form action="{{ route('people.update', $person) }}" method="POST" class="bg-white rounded-lg border border-gray-200 p-5 space-y-4">

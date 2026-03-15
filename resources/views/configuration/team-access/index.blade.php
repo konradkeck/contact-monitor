@@ -9,20 +9,20 @@
         <p class="text-xs text-gray-400 mt-0.5">Manage who can access this system and what they can do.</p>
     </div>
     @if($activeTab === 'users')
-        <a href="{{ route('team-access.users.create') }}" class="btn btn-primary btn-sm">
-            <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Add User
+        <a href="{{ route('team-access.users.create') }}" class="btn btn-primary">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            New User
         </a>
     @else
-        <a href="{{ route('team-access.groups.create') }}" class="btn btn-primary btn-sm">
-            <svg class="w-3.5 h-3.5 mr-1 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-            Create Group
+        <a href="{{ route('team-access.groups.create') }}" class="btn btn-primary">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            New Group
         </a>
     @endif
 </div>
 
 {{-- Tabs --}}
-<div class="flex gap-0 border-b border-gray-200 mb-6">
+<div class="flex gap-0 border-b border-gray-200 mb-5">
     @foreach(['users' => 'Users ('.$users->count().')', 'groups' => 'Groups ('.$groups->count().')'] as $tab => $label)
         <a href="{{ request()->fullUrlWithQuery(['tab' => $tab]) }}"
            class="px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
@@ -64,7 +64,7 @@
                         </td>
                         <td class="px-4 py-2.5 text-right">
                             <div class="flex items-center justify-end gap-1.5">
-                                <a href="{{ route('team-access.users.edit', $user) }}" class="text-xs text-gray-400 hover:text-gray-700 ml-1">Edit</a>
+                                <a href="{{ route('team-access.users.edit', $user) }}" class="row-action">Edit</a>
                                 @if($user->id !== auth()->id())
                                     <form method="POST" action="{{ route('team-access.users.destroy', $user) }}"
                                           onsubmit="return confirm('Delete user {{ addslashes($user->name) }}?')">
@@ -128,7 +128,7 @@
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="flex items-center justify-end gap-1.5">
-                                <a href="{{ route('team-access.groups.edit', $group) }}" class="text-xs text-gray-400 hover:text-gray-700 ml-1">Edit</a>
+                                <a href="{{ route('team-access.groups.edit', $group) }}" class="row-action">Edit</a>
                                 @if($group->users_count === 0)
                                     <form method="POST" action="{{ route('team-access.groups.destroy', $group) }}"
                                           onsubmit="return confirm('Delete group {{ addslashes($group->name) }}?')">

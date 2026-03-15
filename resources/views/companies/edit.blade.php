@@ -3,9 +3,17 @@
 
 @section('content')
 <div class="max-w-xl">
-    <div class="mb-5">
-        <a href="{{ route('companies.show', $company) }}" class="text-sm text-gray-500 hover:text-gray-700">← {{ $company->name }}</a>
-        <h1 class="text-xl font-bold text-gray-900 mt-1">Edit Company</h1>
+    <div class="page-header">
+        <div>
+            <div class="page-breadcrumb">
+                <a href="{{ route('companies.index') }}">Companies</a>
+                <span class="sep">/</span>
+                <a href="{{ route('companies.show', $company) }}">{{ $company->name }}</a>
+                <span class="sep">/</span>
+                <span class="cur">Edit</span>
+            </div>
+            <h1 class="page-title mt-1">Edit Company</h1>
+        </div>
     </div>
 
     <form action="{{ route('companies.update', $company) }}" method="POST" class="bg-white rounded-lg border border-gray-200 p-5 space-y-4">

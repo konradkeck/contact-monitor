@@ -78,34 +78,33 @@
 @endcan
 
 {{-- ── PAGE HEADER ── --}}
-<div class="flex items-start justify-between mb-5">
+<div class="page-header">
     <div>
-        <div class="flex items-center gap-2 text-sm text-gray-500">
+        <div class="page-breadcrumb">
             @if($backLink ?? null)
-                <a href="{{ $backLink['url'] }}" class="hover:text-gray-700">← {{ $backLink['label'] }}</a>
-                <span class="text-gray-300">/</span>
+                <a href="{{ $backLink['url'] }}">{{ $backLink['label'] }}</a>
+                <span class="sep">/</span>
             @endif
-            <a href="{{ route('people.index') }}" class="hover:text-gray-700">{{ ($backLink ?? null) ? 'People' : '← People' }}</a>
+            <a href="{{ route('people.index') }}">People</a>
+            <span class="sep">/</span>
+            <span class="cur">{{ $person->full_name }}</span>
         </div>
-        <h1 class="text-xl font-bold text-gray-900 mt-1">{{ $person->full_name }}</h1>
+        <h1 class="page-title mt-1">{{ $person->full_name }}</h1>
     </div>
     <div class="flex items-center gap-2">
-        <button type="button"
-                onclick="showPersonFilterModal()"
-                class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-red-500 transition"
-                title="Filtered">🚫 Filter</button>
+        <button type="button" onclick="showPersonFilterModal()" class="btn btn-secondary btn-sm">
+            🚫 Filter
+        </button>
         @can('data_write')
         @if(!$person->is_our_org)
-        <button type="button" id="mark-our-org-btn"
-                onclick="markPersonOurOrg()"
-                class="px-3 py-1.5 border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm rounded hover:bg-indigo-100 transition">
-            Our Org</button>
+        <button type="button" id="mark-our-org-btn" onclick="markPersonOurOrg()" class="btn btn-org btn-sm">
+            Our Org
+        </button>
         @endif
-        <button type="button"
-                onclick="showPersonAssignCompany()"
-                class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50 text-gray-400 hover:text-brand-600 transition">
-            Assign company</button>
-        <a href="{{ route('people.edit', $person) }}" class="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-50">Edit</a>
+        <button type="button" onclick="showPersonAssignCompany()" class="btn btn-secondary btn-sm">
+            Assign Company
+        </button>
+        <a href="{{ route('people.edit', $person) }}" class="btn btn-secondary btn-sm">Edit</a>
         @endcan
     </div>
 </div>

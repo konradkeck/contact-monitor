@@ -4,17 +4,14 @@
 @section('content')
 
 {{-- ─── PAGE HEADER ─── --}}
-<div class="flex items-center justify-between mb-6">
-    <div class="flex items-center gap-3">
+<div class="page-header">
+    <div class="flex items-center gap-2.5">
         <x-channel-badge :type="$systemType" />
-        <h1 class="text-2xl font-bold text-gray-900">{{ $systemSlug }}</h1>
+        <h1 class="page-title">{{ $systemSlug }}</h1>
     </div>
-
     <form action="{{ route('data-relations.resolve-auto') }}" method="POST">
         @csrf
-        <button type="submit"
-                class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium
-                       text-gray-700 hover:border-brand-400 hover:text-brand-700 transition">
+        <button type="submit" class="btn btn-secondary btn-sm">
             ⚡ Auto-Resolve
         </button>
     </form>
@@ -122,7 +119,7 @@
                                             <a href="{{ route('people.show', $contact->person) }}" class="link font-medium">{{ $contact->person->full_name }}</a>
                                             <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline">
                                                 @csrf @method('DELETE')
-                                                <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
+                                                <button type="submit" class="row-action-danger">Unlink</button>
                                             </form>
                                         @else
                                             @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
@@ -132,7 +129,7 @@
                                         <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
                                             @csrf
                                             <button type="submit" title="{{ $contact->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
-                                                    class="btn btn-sm {{ $contact->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                                    class="btn btn-sm {{ $contact->is_team_member ? 'btn-org' : 'btn-muted' }}">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
                                                 Our Org
                                             </button>
@@ -179,7 +176,7 @@
                                 <a href="{{ route('companies.show', $account->company) }}" class="link font-medium">{{ $account->company->name }}</a>
                                 <form action="{{ route('data-relations.accounts.unlink', $account) }}" method="POST" class="inline">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
+                                    <button type="submit" class="row-action-danger">Unlink</button>
                                 </form>
                             </div>
                         </td>
@@ -197,7 +194,7 @@
                                             <a href="{{ route('people.show', $contact->person) }}" class="link font-medium">{{ $contact->person->full_name }}</a>
                                             <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline">
                                                 @csrf @method('DELETE')
-                                                <button type="submit" class="text-red-400 hover:text-red-600">unlink</button>
+                                                <button type="submit" class="row-action-danger">Unlink</button>
                                             </form>
                                         @else
                                             @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $contact)])
@@ -207,7 +204,7 @@
                                         <form action="{{ route('data-relations.identities.toggle-team-member', $contact) }}" method="POST" class="inline">
                                             @csrf
                                             <button type="submit" title="{{ $contact->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
-                                                    class="btn btn-sm {{ $contact->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                                    class="btn btn-sm {{ $contact->is_team_member ? 'btn-org' : 'btn-muted' }}">
                                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
                                                 Our Org
                                             </button>
@@ -263,7 +260,7 @@
                         <a href="{{ route('people.show', $identity->person) }}" class="link font-medium text-xs">{{ $identity->person->full_name }}</a>
                         <form action="{{ route('data-relations.identities.unlink', $identity) }}" method="POST" class="inline ml-2">
                             @csrf @method('DELETE')
-                            <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
+                            <button type="submit" class="row-action-danger">Unlink</button>
                         </form>
                     @else
                         @include('data-relations._ac-person', ['action' => route('data-relations.identities.link', $identity)])
@@ -274,7 +271,7 @@
                         <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
                             @csrf
                             <button type="submit" title="{{ $identity->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
-                                    class="btn btn-sm {{ $identity->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                    class="btn btn-sm {{ $identity->is_team_member ? 'btn-org' : 'btn-muted' }}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
                                 Our Org
                             </button>
@@ -355,7 +352,7 @@
                                 <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
                                     @csrf
                                     <button type="submit" title="{{ $identity->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
-                                            class="btn btn-sm {{ $identity->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                            class="btn btn-sm {{ $identity->is_team_member ? 'btn-org' : 'btn-muted' }}">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
                                         Our Org
                                     </button>
@@ -416,7 +413,7 @@
                                 <form action="{{ route('data-relations.identities.toggle-team-member', $identity) }}" method="POST" class="inline">
                                     @csrf
                                     <button type="submit" title="{{ $identity->is_team_member ? 'Our Org — click to remove' : 'Mark as Our Organization' }}"
-                                            class="btn btn-sm {{ $identity->is_team_member ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'btn-muted' }}">
+                                            class="btn btn-sm {{ $identity->is_team_member ? 'btn-org' : 'btn-muted' }}">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
                                         Our Org
                                     </button>
@@ -489,7 +486,7 @@
                         @if($conv->company_id)
                             <form action="{{ route('data-relations.conversations.unlink', $conv) }}" method="POST" class="inline">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-xs text-red-400 hover:text-red-600">unlink</button>
+                                <button type="submit" class="row-action-danger">Unlink</button>
                             </form>
                         @endif
                     </td>

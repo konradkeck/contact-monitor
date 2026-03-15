@@ -244,7 +244,7 @@
                     {{-- Actions --}}
                     <td class="px-4 py-3 text-right">
                         <div class="flex items-center justify-end gap-1.5">
-                            <a href="{{ route('conversations.show', $conv) }}" class="text-xs text-gray-400 hover:text-gray-700">View</a>
+                            <a href="{{ route('conversations.show', $conv) }}" class="row-action">View</a>
                             @can('data_write')
                             <button type="button"
                                     onclick="openFilterModalFor([{{ $conv->id }}])"
