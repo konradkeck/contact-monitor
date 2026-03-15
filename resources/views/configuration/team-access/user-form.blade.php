@@ -5,11 +5,11 @@
 
 <div class="page-header">
     <div>
-        <div class="page-breadcrumb">
+        <nav aria-label="Breadcrumb" class="page-breadcrumb">
             <a href="{{ route('team-access.index', ['tab' => 'users']) }}">Team Access</a>
             <span class="sep">/</span>
-            <span class="cur">{{ $user ? 'Edit User' : 'New User' }}</span>
-        </div>
+            <span class="cur" aria-current="page">{{ $user ? 'Edit User' : 'New User' }}</span>
+        </nav>
         <h1 class="page-title mt-1">{{ $user ? 'Edit User' : 'New User' }}</h1>
     </div>
 </div>

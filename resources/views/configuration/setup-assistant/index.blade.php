@@ -7,7 +7,7 @@
 
 <div class="page-header">
     <div>
-        <span class="page-title">Setup Assistant</span>
+        <h1 class="page-title">Setup Assistant</h1>
         <p class="text-xs text-gray-400 mt-0.5">Complete these steps to get Contact Monitor fully operational.</p>
     </div>
 </div>

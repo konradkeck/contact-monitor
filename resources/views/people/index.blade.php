@@ -4,7 +4,7 @@
 @section('content')
 
 <div class="page-header">
-    <span class="page-title">People</span>
+    <h1 class="page-title">People</h1>
     <div class="flex items-center gap-2">
         @if($showFiltered)
             <a href="{{ request()->fullUrlWithQuery(['show_filtered' => null]) }}"
@@ -30,8 +30,9 @@
     </div>
 </div>
 
-<div class="flex gap-0 border-b border-gray-200 mb-5">
+<div class="flex gap-0 border-b border-gray-200 mb-5" role="tablist" aria-label="People categories">
     <a href="{{ request()->fullUrlWithQuery(['tab' => 'clients', 'page' => null]) }}"
+       role="tab" aria-selected="{{ $tab === 'clients' ? 'true' : 'false' }}"
        class="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
               {{ $tab === 'clients' ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
         Clients
@@ -40,6 +41,7 @@
         </span>
     </a>
     <a href="{{ request()->fullUrlWithQuery(['tab' => 'our_org', 'page' => null]) }}"
+       role="tab" aria-selected="{{ $tab === 'our_org' ? 'true' : 'false' }}"
        class="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
               {{ $tab === 'our_org' ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
         Our Organization
@@ -54,7 +56,7 @@
     <input type="hidden" name="sort" value="{{ $sort }}">
     <input type="hidden" name="dir"  value="{{ $dir }}">
     <div class="flex gap-2 max-w-sm">
-        <input type="text" name="q" value="{{ $search }}" placeholder="Search by name or identity…" class="input" style="max-width:240px">
+        <input type="text" name="q" value="{{ $search }}" placeholder="Search by name or identity…" class="input max-w-[240px]">
         <button type="submit" class="btn btn-secondary">Search</button>
         @if($search)
             <a href="{{ route('people.index', ['sort' => $sort, 'dir' => $dir]) }}" class="btn btn-muted">Clear</a>
@@ -67,7 +69,7 @@
 <div class="card overflow-hidden">
     {{-- Bulk action bar --}}
     <div id="people-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
-        <span id="people-bulk-count" class="text-sm font-medium bulk-bar-text"></span>
+        <span id="people-bulk-count" class="text-sm font-medium bulk-bar-text" aria-live="polite"></span>
         @can('data_write')
         @if($tab === 'clients')
         <button type="button" onclick="peopleOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
@@ -80,23 +82,23 @@
     <table class="w-full text-sm">
         <thead class="tbl-header">
             <tr>
-                <th class="px-3 py-2.5 w-8">
-                    <input type="checkbox" id="people-select-all" class="rounded border-gray-300 cursor-pointer"
+                <th scope="col" class="px-3 py-2.5 w-8">
+                    <input type="checkbox" id="people-select-all" aria-label="Select all" class="rounded border-gray-300 cursor-pointer"
                            onchange="peopleToggleAll(this)">
                 </th>
-                <th class="px-4 py-2.5 text-left w-56">
+                <th scope="col" class="px-4 py-2.5 text-left w-56">
                     <a href="{{ $sortLink('first_name') }}" class="flex items-center justify-between gap-2 hover:text-gray-700">
                         Name <span class="shrink-0 opacity-50">{{ $sortIcon('first_name') }}</span>
                     </a>
                 </th>
-                <th class="px-4 py-2.5 text-left w-36">Communication</th>
-                <th class="px-4 py-2.5 text-left">Companies</th>
-                <th class="px-4 py-2.5 text-left w-[28rem]">
+                <th scope="col" class="px-4 py-2.5 text-left w-36">Communication</th>
+                <th scope="col" class="px-4 py-2.5 text-left">Companies</th>
+                <th scope="col" class="px-4 py-2.5 text-left w-[28rem]">
                     <a href="{{ $sortLink('updated_at') }}" class="flex items-center justify-between gap-2 hover:text-gray-700">
                         Last Contact <span class="shrink-0 opacity-50">{{ $sortIcon('updated_at') }}</span>
                     </a>
                 </th>
-                <th class="px-4 py-2.5 w-12"></th>
+                <th scope="col" class="px-4 py-2.5 w-12"></th>
             </tr>
         </thead>
         <tbody>

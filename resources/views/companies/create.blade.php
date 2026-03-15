@@ -5,11 +5,11 @@
 <div class="max-w-xl">
     <div class="page-header">
         <div>
-            <div class="page-breadcrumb">
+            <nav aria-label="Breadcrumb" class="page-breadcrumb">
                 <a href="{{ route('companies.index') }}">Companies</a>
                 <span class="sep">/</span>
-                <span class="cur">New Company</span>
-            </div>
+                <span class="cur" aria-current="page">New Company</span>
+            </nav>
             <h1 class="page-title mt-1">New Company</h1>
         </div>
     </div>

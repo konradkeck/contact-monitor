@@ -82,7 +82,7 @@
 <div class="page-header">
     <div>
         <div class="flex items-center gap-4">
-            <span class="page-title">Connections</span>
+            <h1 class="page-title">Connections</h1>
         @if($servers->count() > 1)
             <form method="GET" action="{{ route('synchronizer.index') }}" id="server-form">
                 <select name="server" class="input text-xs py-1 px-2 w-auto"

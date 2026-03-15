@@ -33,15 +33,10 @@
                     @continue
                 @endif
 
-                @if($section['type'] === 'ai')
-                    <span title="Coming soon"
-                          class="flex items-center px-4 py-2 rounded text-sm font-medium opacity-40 cursor-not-allowed text-gray-400">
-                        {{ $label }}
-                        <img src="{{ asset('ai-icon.svg') }}" class="ml-1 w-5 h-5 shrink-0" alt="">
-                    </span>
-                @else
+                @if($section['type'] !== 'ai')
                     <a href="{{ $section['href'] }}"
                        @if($section['disabled']) title="{{ $disabledMsg }}" onclick="return false" @endif
+                       @if($section['isActive']) aria-current="page" @endif
                        class="flex items-center px-4 py-2 rounded text-sm font-medium transition
                               {{ $section['isActive'] ? 'bg-white/12 text-white' : 'text-slate-300 hover:text-white hover:bg-white/10' }}
                               {{ $section['disabled'] ? 'opacity-40 cursor-not-allowed' : '' }}">
@@ -101,7 +96,7 @@
             <span class="sidebar-section pt-1">General</span>
 
             {{-- Setup Assistant --}}
-            <a href="{{ route('setup-assistant.index') }}" class="sidebar-link {{ $saActive ? 'is-active' : '' }}">
+            <a href="{{ route('setup-assistant.index') }}" class="sidebar-link {{ $saActive ? 'is-active' : '' }}" {{ $saActive ? 'aria-current="page"' : '' }}>
                 <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                 </svg>
@@ -116,7 +111,7 @@
             </a>
 
             {{-- Team Access --}}
-            <a href="{{ route('team-access.index') }}" class="sidebar-link {{ $taActive ? 'is-active' : '' }}">
+            <a href="{{ route('team-access.index') }}" class="sidebar-link {{ $taActive ? 'is-active' : '' }}" {{ $taActive ? 'aria-current="page"' : '' }}>
                 <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                 </svg>
@@ -129,12 +124,12 @@
             <span class="sidebar-section">Synchronization</span>
             @foreach($syncItems as $item)
                 @if($item['disabled'])
-                    <span class="sidebar-link is-disabled select-none" title="{{ $disabledMsg }}">
+                    <span class="sidebar-link is-disabled select-none" title="{{ $disabledMsg }}" aria-disabled="true" tabindex="-1" role="link">
                         <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                         {{ $item['label'] }}
                     </span>
                 @else
-                    <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}">
+                    <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}" {{ $item['active'] ? 'aria-current="page"' : '' }}>
                         <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                         <span class="flex-1">{{ $item['label'] }}</span>
                         @if($item['dot'] ?? false)
@@ -149,7 +144,7 @@
             {{-- Data Relations --}}
             <span class="sidebar-section">Data Relations</span>
             @foreach($drItems as $item)
-                <a href="{{ $item['href'] }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}">
+                <a href="{{ $item['href'] }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}" {{ $item['active'] ? 'aria-current="page"' : '' }}>
                     <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                     <span class="flex-1">{{ $item['label'] }}</span>
                     @if($item['dot'] ?? false)
@@ -162,7 +157,7 @@
 
             {{-- Segmentation --}}
             <span class="sidebar-section">Segmentation</span>
-            <a href="{{ route('segmentation.index') }}" class="sidebar-link {{ $segActive ? 'is-active' : '' }}">
+            <a href="{{ route('segmentation.index') }}" class="sidebar-link {{ $segActive ? 'is-active' : '' }}" {{ $segActive ? 'aria-current="page"' : '' }}>
                 <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
                 </svg>
@@ -174,7 +169,7 @@
             <span class="sidebar-section pt-1">Browse Data</span>
 
             @foreach($sidebarItems as $item)
-                <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}">
+                <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}" {{ $item['active'] ? 'aria-current="page"' : '' }}>
                     <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         {!! $item['icon'] !!}
                     </svg>

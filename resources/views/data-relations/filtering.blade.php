@@ -5,7 +5,7 @@
 
 <div class="page-header">
     <div>
-        <span class="page-title">Filtering</span>
+        <h1 class="page-title">Filtering</h1>
         <p class="text-xs text-gray-400 mt-0.5">Block unwanted email addresses, domains, and companies from appearing in your data. Add filters here to suppress noise from automated senders, internal tools, and known spam sources.</p>
     </div>
 </div>

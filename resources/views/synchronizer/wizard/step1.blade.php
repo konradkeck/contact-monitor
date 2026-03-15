@@ -4,7 +4,7 @@
 @section('content')
 
 <div class="page-header">
-    <span class="page-title">Add Synchronizer Server</span>
+    <h1 class="page-title">Add Synchronizer Server</h1>
     <a href="{{ route('synchronizer.servers.index') }}" class="btn btn-secondary btn-sm">Cancel</a>
 </div>
 

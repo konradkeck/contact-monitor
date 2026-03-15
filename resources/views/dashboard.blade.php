@@ -10,7 +10,7 @@
 
     {{-- Page header + date range picker --}}
     <div class="page-header">
-        <span class="page-title">Dashboard</span>
+        <h1 class="page-title">Dashboard</h1>
         <form id="dash-date-form" method="GET">
             <div class="drp-wrap" id="dash-date-range-wrap">
                 <input id="dash-date-range" type="text" placeholder="Date range…"
@@ -23,7 +23,7 @@
     </div>
 
     {{-- Stats cards --}}
-    <div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <a href="{{ route('conversations.index') }}" class="card p-5 hover:shadow-sm transition">
             <p class="text-3xl font-bold text-gray-900">{{ number_format($conversationsCount) }}</p>
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mt-1">Conversations</p>
@@ -50,8 +50,8 @@
             <table class="w-full text-sm">
                 <thead class="tbl-header">
                     <tr>
-                        <th class="px-4 py-2 text-left">Person</th>
-                        <th class="px-4 py-2 text-right w-24">Conversations</th>
+                        <th scope="col" class="px-4 py-2 text-left">Person</th>
+                        <th scope="col" class="px-4 py-2 text-right w-24">Conversations</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -83,8 +83,8 @@
             <table class="w-full text-sm">
                 <thead class="tbl-header">
                     <tr>
-                        <th class="px-4 py-2 text-left">Member</th>
-                        <th class="px-4 py-2 text-right w-24">Conversations</th>
+                        <th scope="col" class="px-4 py-2 text-left">Member</th>
+                        <th scope="col" class="px-4 py-2 text-right w-24">Conversations</th>
                     </tr>
                 </thead>
                 <tbody>

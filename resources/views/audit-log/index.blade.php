@@ -4,7 +4,7 @@
 @section('content')
 <div class="page-header">
     <div>
-        <span class="page-title">Audit Log</span>
+        <h1 class="page-title">Audit Log</h1>
         <p class="text-xs text-gray-400 mt-0.5">Immutable record of system actions.</p>
     </div>
 </div>

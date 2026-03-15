@@ -4,7 +4,7 @@
 @section('content')
 
 <div class="page-header">
-    <span class="page-title">Companies</span>
+    <h1 class="page-title">Companies</h1>
     <div class="flex items-center gap-2">
         @if($showFiltered)
             <a href="{{ request()->fullUrlWithQuery(['show_filtered' => null]) }}"
@@ -30,8 +30,9 @@
     </div>
 </div>
 
-<div class="flex gap-0 border-b border-gray-200 mb-5">
+<div class="flex gap-0 border-b border-gray-200 mb-5" role="tablist" aria-label="Company categories">
     <a href="{{ request()->fullUrlWithQuery(['tab' => 'clients', 'page' => null]) }}"
+       role="tab" aria-selected="{{ $tab === 'clients' ? 'true' : 'false' }}"
        class="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
               {{ $tab === 'clients' ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
         Clients
@@ -40,6 +41,7 @@
         </span>
     </a>
     <a href="{{ request()->fullUrlWithQuery(['tab' => 'our_org', 'page' => null]) }}"
+       role="tab" aria-selected="{{ $tab === 'our_org' ? 'true' : 'false' }}"
        class="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
               {{ $tab === 'our_org' ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
         Our Organization
@@ -58,7 +60,7 @@
     <div class="flex gap-2 mb-4 items-center">
         <div class="flex gap-2 flex-1 max-w-md">
             <input type="text" name="q" value="{{ $search }}" placeholder="Search by name, domain, alias…"
-                   class="input" style="max-width:280px">
+                   class="input max-w-[280px]">
             <button type="submit" class="btn btn-secondary">Search</button>
             @if($hasFilters)
                 <a href="{{ route('companies.index') }}" class="btn btn-muted">Clear</a>
@@ -162,7 +164,7 @@
     <div class="card overflow-visible relative">
         {{-- Bulk action bar --}}
         <div id="companies-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
-            <span id="companies-bulk-count" class="text-sm font-medium bulk-bar-text"></span>
+            <span id="companies-bulk-count" class="text-sm font-medium bulk-bar-text" aria-live="polite"></span>
             <button type="button" onclick="companiesOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
             <button type="button" onclick="companiesClearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
         </div>
@@ -185,27 +187,27 @@
             </colgroup>
             <thead class="tbl-header">
                 <tr>
-                    <th class="px-3 py-2.5 w-8">
-                        <input type="checkbox" id="companies-select-all" class="rounded border-gray-300 cursor-pointer"
+                    <th scope="col" class="px-3 py-2.5 w-8">
+                        <input type="checkbox" id="companies-select-all" aria-label="Select all" class="rounded border-gray-300 cursor-pointer"
                                onchange="companiesToggleAll(this)">
                     </th>
-                    <th class="px-4 py-2.5 text-left">
+                    <th scope="col" class="px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('name') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Company</span><span class="shrink-0 opacity-60">{{ $sortIcon('name') }}</span>
                         </a>
                     </th>
-                    <th class="px-4 py-2.5 text-left">
+                    <th scope="col" class="px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('domain') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Domain</span><span class="shrink-0 opacity-60">{{ $sortIcon('domain') }}</span>
                         </a>
                     </th>
-                    <th class="px-4 py-2.5 text-left">
+                    <th scope="col" class="px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('contacts') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Contacts</span><span class="shrink-0 opacity-60">{{ $sortIcon('contacts') }}</span>
                         </a>
                     </th>
                     @if($brandProducts->isEmpty())
-                        <th class="px-4 py-2.5 text-left">
+                        <th scope="col" class="px-4 py-2.5 text-left">
                             <span class="text-xs text-gray-500 font-normal italic">
                                 Configure <a href="{{ route('segmentation.index') }}"
                                              class="underline hover:text-gray-700 transition">Segmentation</a> to evaluate
@@ -213,7 +215,7 @@
                         </th>
                     @else
                         @foreach($brandProducts as $bp)
-                            <th class="px-2 py-2.5 text-left">
+                            <th scope="col" class="px-2 py-2.5 text-left">
                                 <a href="{{ $sortUrl('bp_score_'.$bp->id) }}"
                                    class="flex items-center justify-between gap-1 hover:text-gray-900 text-xs">
                                     <span class="leading-tight truncate">{{ $bp->name }}{{ $bp->variant ? ' · '.$bp->variant : '' }}</span>
@@ -222,12 +224,12 @@
                             </th>
                         @endforeach
                     @endif
-                    <th class="px-4 py-2.5 text-left">
+                    <th scope="col" class="px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('updated_at') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Updated</span><span class="shrink-0 opacity-60">{{ $sortIcon('updated_at') }}</span>
                         </a>
                     </th>
-                    <th class="px-4 py-2.5 text-left">
+                    <th scope="col" class="px-4 py-2.5 text-left">
                         <a href="{{ $sortUrl('last_conv') }}" class="flex items-center justify-between gap-2 hover:text-gray-900">
                             <span>Channels</span><span class="shrink-0 opacity-60">{{ $sortIcon('last_conv') }}</span>
                         </a>
@@ -275,9 +277,9 @@
                                 <div class="flex-1"></div>
                                 <button type="button"
                                         onclick="companiesOpenFilterModal([{{ $company->id }}])"
-                                        title="Filtered"
-                                        class="shrink-0 text-xs text-gray-300 hover:text-red-500 transition leading-none opacity-0 group-hover/row:opacity-100 focus:opacity-100">
-                                    🚫
+                                        title="Filter"
+                                        class="shrink-0 text-gray-300 hover:text-red-500 transition leading-none opacity-0 group-hover/row:opacity-100 focus:opacity-100">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
                                 </button>
                                 <x-notes-popup :notes="$company->notes" linkable-type="company" :linkable-id="$company->id" :entity-name="$company->name" />
                             </div>

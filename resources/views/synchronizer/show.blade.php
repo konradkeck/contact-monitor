@@ -50,7 +50,7 @@
     <div class="flex items-center gap-3">
         <a href="{{ route('synchronizer.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">&larr; Connections</a>
         <span class="text-gray-300">/</span>
-        <span class="page-title">{{ $conn['name'] }}</span>
+        <h1 class="page-title">{{ $conn['name'] }}</h1>
         <span class="badge" style="background:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['bg'] }}; color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['color'] }}; border-color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['border'] }}">
             {{ $conn['type'] }}
         </span>

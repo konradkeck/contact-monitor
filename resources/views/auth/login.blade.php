@@ -23,7 +23,7 @@
         <h1 class="text-base font-semibold text-gray-900 mb-6">Sign in to your account</h1>
 
         @if($errors->any())
-            <div class="mb-5 px-4 py-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm flex items-start gap-2">
+            <div id="login-error" role="alert" class="mb-5 px-4 py-3 bg-red-50 border border-red-200 text-red-800 rounded-lg text-sm flex items-start gap-2">
                 <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.007v.008H12v-.008zm9.303-3.376c-.866 1.5.217 3.374 1.948 3.374H2.749c-1.73 0-2.813-1.874-1.948-3.374L10.052 3.378c.866-1.5 3.032-1.5 3.898 0L21.303 13.374z"/></svg>
                 <span>{{ $errors->first() }}</span>
             </div>
@@ -35,13 +35,15 @@
             <div>
                 <label class="label" for="email">Email address</label>
                 <input id="email" type="email" name="email" value="{{ old('email') }}"
-                       class="input" required autofocus autocomplete="email">
+                       class="input" required autofocus autocomplete="email"
+                       @if($errors->any()) aria-invalid="true" aria-describedby="login-error" @endif>
             </div>
 
             <div>
                 <label class="label" for="password">Password</label>
                 <input id="password" type="password" name="password"
-                       class="input" required autocomplete="current-password">
+                       class="input" required autocomplete="current-password"
+                       @if($errors->any()) aria-invalid="true" aria-describedby="login-error" @endif>
             </div>
 
             <div class="flex items-center justify-between pt-1">

@@ -5,7 +5,7 @@
 
 <div class="page-header">
     <div>
-        <span class="page-title">Mapping</span>
+        <h1 class="page-title">Mapping</h1>
         <p class="text-xs text-gray-400 mt-0.5">Link external accounts and identities to companies and people.</p>
     </div>
     <a href="{{ route('our-company.index') }}" class="btn btn-secondary">Our Organization</a>

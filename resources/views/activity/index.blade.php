@@ -4,7 +4,7 @@
 @section('content')
 
 <div class="page-header">
-    <span class="page-title">Activities</span>
+    <h1 class="page-title">Activities</h1>
 </div>
 
 <div class="flex gap-5 items-start">

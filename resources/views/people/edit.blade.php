@@ -5,13 +5,13 @@
 <div class="max-w-xl">
     <div class="page-header">
         <div>
-            <div class="page-breadcrumb">
+            <nav aria-label="Breadcrumb" class="page-breadcrumb">
                 <a href="{{ route('people.index') }}">People</a>
                 <span class="sep">/</span>
                 <a href="{{ route('people.show', $person) }}">{{ $person->full_name }}</a>
                 <span class="sep">/</span>
-                <span class="cur">Edit</span>
-            </div>
+                <span class="cur" aria-current="page">Edit</span>
+            </nav>
             <h1 class="page-title mt-1">Edit Person</h1>
         </div>
     </div>

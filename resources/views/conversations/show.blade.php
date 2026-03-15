@@ -16,15 +16,15 @@
             @endif
         </span>
         <div>
-            <div class="page-breadcrumb">
+            <nav aria-label="Breadcrumb" class="page-breadcrumb">
                 @if($backLink ?? null)
                     <a href="{{ $backLink['url'] }}">{{ $backLink['label'] }}</a>
                     <span class="sep">/</span>
                 @endif
                 <a href="{{ route('conversations.index') }}">Conversations</a>
                 <span class="sep">/</span>
-                <span class="cur">{{ $conversation->system_slug }}</span>
-            </div>
+                <span class="cur" aria-current="page">{{ $conversation->system_slug }}</span>
+            </nav>
             <h1 class="page-title mt-1 leading-tight">
                 @if($conversation->company)
                     <a href="{{ route('companies.show', $conversation->company) }}"

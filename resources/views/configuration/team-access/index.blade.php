@@ -5,7 +5,7 @@
 
 <div class="page-header">
     <div>
-        <span class="page-title">Team Access</span>
+        <h1 class="page-title">Team Access</h1>
         <p class="text-xs text-gray-400 mt-0.5">Manage who can access this system and what they can do.</p>
     </div>
     @if($activeTab === 'users')

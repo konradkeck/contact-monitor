@@ -4,7 +4,7 @@
 @section('content')
 <div class="page-header">
     <div>
-        <span class="page-title">Segmentation</span>
+        <h1 class="page-title">Segmentation</h1>
         <p class="text-xs text-gray-400 mt-0.5">Define the products and service lines your company offers, then track which pipeline stage each client is in. Use this to segment your customer base and understand adoption across your portfolio.</p>
     </div>
     <a href="{{ route('segmentation.create') }}" class="btn btn-primary">+ New Segmentation</a>

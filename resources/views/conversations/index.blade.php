@@ -5,14 +5,14 @@
 
 {{-- ─── HEADER ─── --}}
 <div class="page-header">
-    <span class="page-title">Conversations</span>
+    <h1 class="page-title">Conversations</h1>
 </div>
 
 {{-- ─── SEARCH ─── --}}
 <form method="GET" class="mb-4 flex gap-2 items-center">
     <input type="hidden" name="tab" value="{{ $tab }}">
     <input type="text" name="q" value="{{ $q }}" placeholder="Search by company or channel…"
-           class="input" style="max-width:280px">
+           class="input max-w-[280px]">
     <button type="submit" class="btn btn-secondary">Search</button>
     @if($q)
         <a href="{{ request()->fullUrlWithQuery(['q' => '', 'page' => null]) }}" class="btn btn-muted">Clear</a>
@@ -105,7 +105,7 @@
 <div class="card overflow-hidden">
     {{-- Bulk action bar (hidden until selection) --}}
     <div id="bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
-        <span id="bulk-count" class="text-sm font-medium bulk-bar-text"></span>
+        <span id="bulk-count" class="text-sm font-medium bulk-bar-text" aria-live="polite"></span>
         @can('data_write')
         <button type="button" onclick="openFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
         @endcan
@@ -114,18 +114,18 @@
     <table class="w-full text-sm">
         <thead class="tbl-header">
             <tr>
-                <th class="px-3 py-2.5 w-8">
-                    <input type="checkbox" id="select-all" class="rounded border-gray-300 cursor-pointer"
+                <th scope="col" class="px-3 py-2.5 w-8">
+                    <input type="checkbox" id="select-all" aria-label="Select all" class="rounded border-gray-300 cursor-pointer"
                            onchange="toggleAll(this)">
                 </th>
-                <th class="px-4 py-2.5 text-left">Channel</th>
-                <th class="px-4 py-2.5 text-left">Subject</th>
-                <th class="px-4 py-2.5 text-left">Company</th>
-                <th class="px-4 py-2.5 text-left">People</th>
-                <th class="px-4 py-2.5 text-left">Team</th>
-                <th class="px-4 py-2.5 text-center">Msgs</th>
-                <th class="px-4 py-2.5 text-left">Last activity</th>
-                <th class="px-4 py-2.5"></th>
+                <th scope="col" class="px-4 py-2.5 text-left">Channel</th>
+                <th scope="col" class="px-4 py-2.5 text-left">Subject</th>
+                <th scope="col" class="px-4 py-2.5 text-left">Company</th>
+                <th scope="col" class="px-4 py-2.5 text-left">People</th>
+                <th scope="col" class="px-4 py-2.5 text-left">Team</th>
+                <th scope="col" class="px-4 py-2.5 text-center">Msgs</th>
+                <th scope="col" class="px-4 py-2.5 text-left">Last activity</th>
+                <th scope="col" class="px-4 py-2.5"></th>
             </tr>
         </thead>
         <tbody>

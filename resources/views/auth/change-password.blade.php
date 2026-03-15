@@ -4,7 +4,7 @@
 @section('content')
 <div class="max-w-md">
     <div class="page-header">
-        <span class="page-title">Change Password</span>
+        <h1 class="page-title">Change Password</h1>
     </div>
 
     <div class="bg-white rounded-xl border border-gray-200 px-6 py-6">

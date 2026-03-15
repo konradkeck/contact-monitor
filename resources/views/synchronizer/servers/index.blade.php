@@ -5,7 +5,7 @@
 
 <div class="page-header">
     <div>
-        <span class="page-title">Synchronizer Servers</span>
+        <h1 class="page-title">Synchronizer Servers</h1>
         <p class="text-xs text-gray-400 mt-0.5">Register the external Synchronizer services that pull data from your integrations and push it here. Each server runs independently and can manage multiple connections.</p>
     </div>
     <a href="{{ route('synchronizer.wizard.step1') }}" class="btn btn-primary">

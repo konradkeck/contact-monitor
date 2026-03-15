@@ -5,18 +5,18 @@
 
 <div class="page-header">
     <div>
-        <div class="page-breadcrumb">
+        <nav aria-label="Breadcrumb" class="page-breadcrumb">
             <a href="{{ route('synchronizer.index') }}">Connections</a>
             @if($isEdit)
                 <span class="sep">/</span>
                 <a href="{{ route('synchronizer.connections.show', $conn['id']) }}">{{ $conn['name'] }}</a>
                 <span class="sep">/</span>
-                <span class="cur">Edit</span>
+                <span class="cur" aria-current="page">Edit</span>
             @else
                 <span class="sep">/</span>
-                <span class="cur">New Connection</span>
+                <span class="cur" aria-current="page">New Connection</span>
             @endif
-        </div>
+        </nav>
         <h1 class="page-title mt-1">{{ $isEdit ? 'Edit Connection' : 'New Connection' }}</h1>
     </div>
 </div>

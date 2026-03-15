@@ -4,7 +4,7 @@
 @section('content')
 
 <div class="page-header">
-    <span class="page-title">Configure New Server</span>
+    <h1 class="page-title">Configure New Server</h1>
     <a href="{{ route('synchronizer.wizard.step1') }}" class="btn btn-secondary btn-sm">Back</a>
 </div>
 

@@ -6,20 +6,21 @@
 {{-- Page header --}}
 <div class="page-header">
     <div>
-        <div class="page-breadcrumb">
+        <nav aria-label="Breadcrumb" class="page-breadcrumb">
             @if($backLink ?? null)
                 <a href="{{ $backLink['url'] }}">{{ $backLink['label'] }}</a>
                 <span class="sep">/</span>
             @endif
             <a href="{{ route('companies.index') }}">Companies</a>
             <span class="sep">/</span>
-            <span class="cur">{{ $company->name }}</span>
-        </div>
+            <span class="cur" aria-current="page">{{ $company->name }}</span>
+        </nav>
         <h1 class="page-title mt-1">{{ $company->name }}</h1>
     </div>
     <div class="flex items-center gap-2">
         <button type="button" onclick="showCompanyFilterModal()" class="btn btn-secondary btn-sm">
-            🚫 Filter
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
+            Filter
         </button>
     </div>
 </div>
@@ -69,7 +70,7 @@
             </div>
 
             {{-- Analysis placeholder --}}
-            <div class="-mt-4 mx-4 bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3">
+            <div class="-mt-4 mx-4 mb-4 bg-white rounded-lg border border-gray-200 shadow-sm px-4 py-3">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Company Analysis</p>
                 <p class="text-xs text-gray-300 italic">AI summary coming soon…</p>
             </div>

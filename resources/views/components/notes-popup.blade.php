@@ -1,17 +1,19 @@
 {{-- Popup (fixed — unaffected by parent overflow:hidden or form context) --}}
 <div id="{{ $popupId }}"
      class="fixed inset-0 z-50 hidden"
-     onclick="if(event.target===this)this.classList.add('hidden')">
+     role="dialog" aria-modal="true" aria-labelledby="{{ $popupId }}-title"
+     onclick="if(event.target===this)npClose('{{ $popupId }}')">
     <div class="absolute inset-0 bg-black/20"></div>
     <div class="absolute modal-center bg-yellow-50 border border-yellow-200 rounded-xl shadow-xl w-80 max-h-[480px] overflow-hidden flex flex-col"
          onclick="event.stopPropagation()">
 
         <div class="px-4 py-3 border-b border-yellow-200 flex items-center justify-between shrink-0">
-            <span class="text-sm font-semibold text-yellow-800">
+            <span id="{{ $popupId }}-title" class="text-sm font-semibold text-yellow-800">
                 Notes{{ $entityName ? ' — '.$entityName : '' }}
             </span>
             <button type="button"
-                    onclick="document.getElementById('{{ $popupId }}').classList.add('hidden')"
+                    aria-label="Close notes"
+                    onclick="npClose('{{ $popupId }}')"
                     class="text-yellow-400 hover:text-yellow-700 text-xl leading-none">×</button>
         </div>
 
@@ -74,6 +76,16 @@
 </button>
 
 <script>
+function npClose(popupId) {
+    document.getElementById(popupId).classList.add('hidden');
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('[role="dialog"]:not(.hidden)').forEach(function(el) {
+            el.classList.add('hidden');
+        });
+    }
+});
 function npSubmitNote(popupId, linkableType, linkableId) {
     var input = document.getElementById(popupId + '-input');
     var content = input.value.trim();

@@ -80,20 +80,21 @@
 {{-- ── PAGE HEADER ── --}}
 <div class="page-header">
     <div>
-        <div class="page-breadcrumb">
+        <nav aria-label="Breadcrumb" class="page-breadcrumb">
             @if($backLink ?? null)
                 <a href="{{ $backLink['url'] }}">{{ $backLink['label'] }}</a>
                 <span class="sep">/</span>
             @endif
             <a href="{{ route('people.index') }}">People</a>
             <span class="sep">/</span>
-            <span class="cur">{{ $person->full_name }}</span>
-        </div>
+            <span class="cur" aria-current="page">{{ $person->full_name }}</span>
+        </nav>
         <h1 class="page-title mt-1">{{ $person->full_name }}</h1>
     </div>
     <div class="flex items-center gap-2">
         <button type="button" onclick="showPersonFilterModal()" class="btn btn-secondary btn-sm">
-            🚫 Filter
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
+            Filter
         </button>
         @can('data_write')
         @if(!$person->is_our_org)

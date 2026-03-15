@@ -5,7 +5,7 @@
 
 <div class="page-header">
     <div>
-        <span class="page-title">Our Organization</span>
+        <h1 class="page-title">Our Organization</h1>
         <p class="text-xs text-gray-400 mt-0.5">Define which people and domains belong to your own team. This separates internal activity from customer interactions so timelines and statistics only reflect external communications.</p>
     </div>
 </div>
