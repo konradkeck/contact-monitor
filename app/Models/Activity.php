@@ -136,6 +136,15 @@ class Activity extends Model
     }
 
     /**
+     * Accessor so Blade can use $activity->display without @php.
+     * Returns the _display object set by prepareTimelineDisplay() in controllers.
+     */
+    public function getDisplayAttribute(): ?object
+    {
+        return $this->_display ?? null;
+    }
+
+    /**
      * Compute all display variables needed by the timeline-items partial.
      * Returns an object with: url, isCustomer, chType, sysType, sysSlug, badgeTitle,
      * sourceLabel, titleText, modalUrl, rowClickable, ticketNotFound, useBadge, hoverText.

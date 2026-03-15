@@ -3,7 +3,7 @@
   Returned by GET /conversations/{id}/modal[?date=YYYY-MM-DD] — loaded via fetch() in timeline-items.
   Variables: $conversation, $messages (collection), $replies, $date (optional), $discordMentionMap
 --}}
-<div class="p-5">
+<div class="p-5" data-scroll-bottom>
 
     {{-- Header --}}
     <div class="mb-4 pr-6">
@@ -53,10 +53,24 @@
 
     {{-- Messages --}}
     <div class="mb-4">
+        @if($preview ?? false)
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-xs text-gray-400">
+                    Showing last {{ $messages->whereNull('thread_key')->count() ?: $messages->count() }} message(s)
+                </span>
+                @if($conversation->message_count > ($isChat ? 20 : 3))
+                    <span class="text-xs text-gray-300">·</span>
+                    <a href="{{ route('conversations.show', $conversation) }}" class="text-xs text-brand-600 hover:underline">
+                        {{ $conversation->message_count }} total
+                    </a>
+                @endif
+            </div>
+        @endif
         @include('conversations.partials.messages', [
             'messages'          => $messages,
             'replies'           => $replies,
             'discordMentionMap' => $discordMentionMap,
+            'slackMentionMap'   => $slackMentionMap,
         ])
     </div>
 

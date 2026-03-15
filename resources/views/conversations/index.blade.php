@@ -70,25 +70,52 @@
             </div>
             {{-- Channels --}}
             @if($convSystems->isNotEmpty() && !$companyId)
-            <div class="sm:col-span-1 lg:col-span-2 min-w-0">
+            <div class="min-w-0"
+                 x-data="{
+                     open: false,
+                     selected: {{ json_encode($activeSystems) }},
+                     label() {
+                         if (!this.selected.length) return 'All channels';
+                         if (this.selected.length === 1) return '1 channel';
+                         return this.selected.length + ' channels';
+                     },
+                     toggle(val) {
+                         const i = this.selected.indexOf(val);
+                         if (i === -1) this.selected.push(val);
+                         else this.selected.splice(i, 1);
+                     }
+                 }"
+                 @click.outside="open = false">
                 <label class="label mb-1">Channels</label>
-                <div class="flex flex-wrap gap-2">
-                    @foreach($convSystems as $sys)
-                        <label class="flex items-center gap-1.5 cursor-pointer select-none border border-gray-200 rounded-lg px-2 py-1 hover:border-gray-300 hover:bg-gray-50 transition text-xs
-                                      {{ in_array($sys->channel_type . '|' . $sys->system_slug, $activeSystems) ? 'border-brand-400 bg-brand-50' : '' }}">
-                            <input type="checkbox" name="systems[]"
-                                   value="{{ $sys->channel_type }}|{{ $sys->system_slug }}"
-                                   class="rounded border-gray-300"
-                                   {{ in_array($sys->channel_type . '|' . $sys->system_slug, $activeSystems) ? 'checked' : '' }}>
-                            <span class="inline-flex items-center gap-1">
-                                <x-channel-badge :type="$sys->channel_type" :label="false" />
-                                @if($sys->system_type && get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type)) !== get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type)))
-                                    {!! \App\Integrations\IntegrationRegistry::get($sys->system_type)->iconHtml('w-4 h-4', false) !!}
-                                @endif
-                            </span>
-                            <span class="text-gray-600">{{ $sys->system_slug }}</span>
-                        </label>
-                    @endforeach
+                <div class="relative">
+                    <button type="button" @click="open = !open"
+                            class="input w-full flex items-center justify-between gap-2 cursor-pointer text-left"
+                            :class="selected.length ? 'border-brand-400 bg-brand-50 text-brand-800' : ''">
+                        <span class="text-sm" x-text="label()"></span>
+                        <svg class="w-4 h-4 text-gray-400 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div x-show="open" x-cloak
+                         class="absolute z-30 mt-1 w-full min-w-[220px] bg-white border border-gray-200 rounded-xl shadow-lg py-1 max-h-60 overflow-y-auto">
+                        @foreach($convSystems as $sys)
+                            <label class="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gray-50 transition select-none"
+                                   :class="selected.includes('{{ $sys->channel_type . '|' . $sys->system_slug }}') ? 'bg-brand-50' : ''">
+                                <input type="checkbox" name="systems[]"
+                                       value="{{ $sys->channel_type . '|' . $sys->system_slug }}"
+                                       class="rounded border-gray-300 shrink-0"
+                                       {{ in_array($sys->channel_type . '|' . $sys->system_slug, $activeSystems) ? 'checked' : '' }}
+                                       @change="toggle('{{ $sys->channel_type . '|' . $sys->system_slug }}')">
+                                <span class="inline-flex items-center gap-1.5 flex-1 min-w-0">
+                                    <x-channel-badge :type="$sys->channel_type" :label="false" />
+                                    @if($sys->system_type && get_class(\App\Integrations\IntegrationRegistry::get($sys->system_type)) !== get_class(\App\Integrations\IntegrationRegistry::get($sys->channel_type)))
+                                        {!! \App\Integrations\IntegrationRegistry::get($sys->system_type)->iconHtml('w-4 h-4', false) !!}
+                                    @endif
+                                    <span class="text-sm text-gray-700 truncate">{{ $sys->system_slug }}</span>
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
                 </div>
             </div>
             @endif
@@ -153,15 +180,13 @@
 
                     {{-- Subject + when --}}
                     <td class="px-4 py-3 max-w-[200px]">
-                        @if($conv->subject)
-                            <a href="{{ route('conversations.show', $conv) }}"
-                               class="link text-xs truncate block" title="{{ $conv->subject }}">
-                                {{ $conv->subject }}
-                            </a>
-                        @else
-                            <a href="{{ route('conversations.show', $conv) }}"
-                               class="text-gray-300 text-xs truncate block">—</a>
-                        @endif
+                        <button type="button"
+                                onclick="openActivityModal(this)"
+                                data-modal-src="{{ route('conversations.modal', $conv) }}?preview=1"
+                                class="link text-xs truncate block text-left w-full"
+                                title="{{ $conv->subject ?: 'No subject' }}">
+                            {{ $conv->subject ?: '—' }}
+                        </button>
                         @if($conv->last_message_at)
                             <span class="block text-[10px] text-gray-400 mt-0.5">{{ $conv->last_message_at->diffForHumans() }}</span>
                         @endif

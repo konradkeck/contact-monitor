@@ -59,19 +59,31 @@ class Conversation extends Model
     }
 
     /**
-     * Replace Discord mention IDs (<@123>) with display names.
+     * Replace mention IDs with display names.
+     * Discord: <@123456> / <@!123456> → @name (discordMentionMap keyed by numeric ID)
+     * Slack:   <@U0AGR11DLE4>          → @name (slackMentionMap keyed by lowercase value_normalized)
      */
-    public function resolveMentions(?string $text, array $discordMentionMap = []): string
+    public function resolveMentions(?string $text, array $discordMentionMap = [], array $slackMentionMap = []): string
     {
+        $text = $text ?? '';
+
         if ($this->channel_type === 'discord') {
             return preg_replace_callback(
                 '/<@!?(\d+)>/',
                 fn ($m) => '@'.($discordMentionMap[$m[1]] ?? $m[1]),
-                $text ?? ''
+                $text
             );
         }
 
-        return $text ?? '';
+        if ($this->channel_type === 'slack') {
+            return preg_replace_callback(
+                '/<@([A-Z0-9]+)>/',
+                fn ($m) => '@'.($slackMentionMap[strtolower($m[1])] ?? $m[1]),
+                $text
+            );
+        }
+
+        return $text;
     }
 
     /**

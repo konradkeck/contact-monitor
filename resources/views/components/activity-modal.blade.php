@@ -34,6 +34,10 @@ function openActivityModal(btn) {
                 document.head.appendChild(s);
                 document.head.removeChild(s);
             });
+            // Scroll to bottom if the content requests it
+            if (body.querySelector('[data-scroll-bottom]')) {
+                body.scrollTop = body.scrollHeight;
+            }
         })
         .catch(() => { body.className = 'min-h-[80px] flex items-center justify-center'; body.innerHTML = '<span class="text-red-400 text-sm">Failed to load.</span>'; });
 }

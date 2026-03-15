@@ -109,10 +109,10 @@ class ConversationController extends Controller
             });
         }
 
-        if ($f_date_from !== '') {
+        if (!empty($f_date_from)) {
             $query->whereDate('last_message_at', '>=', $f_date_from);
         }
-        if ($f_date_to !== '') {
+        if (!empty($f_date_to)) {
             $query->whereDate('last_message_at', '<=', $f_date_to);
         }
 
@@ -257,6 +257,19 @@ class ConversationController extends Controller
                 ->all();
         }
 
+        // Slack: build value_normalized → display_name map for resolving <@UXXXXXX> mentions
+        $slackMentionMap = [];
+        if ($conversation->channel_type === 'slack') {
+            $slackMentionMap = DB::table('identities')
+                ->where('type', 'slack_user')
+                ->where('system_slug', $conversation->system_slug)
+                ->get(['value_normalized', 'meta_json'])
+                ->mapWithKeys(fn ($row) => [
+                    $row->value_normalized => json_decode($row->meta_json ?? '{}', true)['display_name'] ?? $row->value_normalized,
+                ])
+                ->all();
+        }
+
         $backLink = $this->resolveBackLink($request);
 
         $showSysLogo = $conversation->system_type
@@ -277,7 +290,7 @@ class ConversationController extends Controller
 
         return view('conversations.show', compact(
             'conversation', 'notes', 'allIdentities', 'threads', 'replies', 'backLink',
-            'discordMentionMap', 'showSysLogo', 'debugInfo'
+            'discordMentionMap', 'slackMentionMap', 'showSysLogo', 'debugInfo'
         ));
     }
 
@@ -285,11 +298,39 @@ class ConversationController extends Controller
     {
         $date = $request->get('date'); // optional YYYY-MM-DD for Discord/Slack daily aggregates
 
+        $isChat = in_array($conversation->channel_type, ['slack', 'discord']);
+        $preview = $request->boolean('preview');
+
         $msgQuery = $conversation->messages()
             ->with(['identity', 'attachments'])
             ->orderBy('occurred_at');
 
-        if ($date) {
+        if ($preview) {
+            // Index page quick-view: last 3 for email/ticket, last 20 top-level for chat
+            if ($isChat) {
+                $topLevel = $conversation->messages()
+                    ->with(['identity', 'attachments'])
+                    ->whereNull('thread_key')
+                    ->orderByDesc('occurred_at')
+                    ->limit(20)
+                    ->get();
+                $replyRows = $topLevel->isNotEmpty()
+                    ? $conversation->messages()
+                        ->with(['identity', 'attachments'])
+                        ->whereNotNull('thread_key')
+                        ->whereIn('thread_key', $topLevel->pluck('id'))
+                        ->orderBy('occurred_at')
+                        ->get()
+                    : collect();
+                $messages = $topLevel->merge($replyRows);
+            } else {
+                $messages = $conversation->messages()
+                    ->with(['identity', 'attachments'])
+                    ->orderByDesc('occurred_at')
+                    ->limit(3)
+                    ->get();
+            }
+        } elseif ($date) {
             $messages = $msgQuery->whereDate('occurred_at', $date)->limit(10)->get();
         } else {
             $messages = $msgQuery->limit(1)->get();
@@ -304,6 +345,18 @@ class ConversationController extends Controller
         if ($conversation->channel_type === 'discord') {
             $discordMentionMap = DB::table('identities')
                 ->where('type', 'discord_user')
+                ->where('system_slug', $conversation->system_slug)
+                ->get(['value_normalized', 'meta_json'])
+                ->mapWithKeys(fn ($row) => [
+                    $row->value_normalized => json_decode($row->meta_json ?? '{}', true)['display_name'] ?? $row->value_normalized,
+                ])
+                ->all();
+        }
+
+        $slackMentionMap = [];
+        if ($conversation->channel_type === 'slack') {
+            $slackMentionMap = DB::table('identities')
+                ->where('type', 'slack_user')
                 ->where('system_slug', $conversation->system_slug)
                 ->get(['value_normalized', 'meta_json'])
                 ->mapWithKeys(fn ($row) => [
@@ -330,8 +383,8 @@ class ConversationController extends Controller
         }
 
         return view('conversations.modal', compact(
-            'conversation', 'messages', 'replies', 'date', 'discordMentionMap',
-            'isEmail', 'isTicket', 'emailFrom', 'emailTo', 'emailCc', 'fromGravatarHash'
+            'conversation', 'messages', 'replies', 'date', 'discordMentionMap', 'slackMentionMap',
+            'isEmail', 'isTicket', 'isChat', 'preview', 'emailFrom', 'emailTo', 'emailCc', 'fromGravatarHash'
         ));
     }
 

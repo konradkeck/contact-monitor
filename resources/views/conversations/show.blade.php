@@ -91,6 +91,7 @@
     'messages'          => $conversation->messages,
     'replies'           => $replies,
     'discordMentionMap' => $discordMentionMap,
+    'slackMentionMap'   => $slackMentionMap,
 ])
 
 </div>

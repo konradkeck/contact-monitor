@@ -59,7 +59,7 @@
                             @if($msg->body_html)
                                 <x-isolated-html :content="$msg->body_html" class="text-sm text-gray-700 leading-relaxed" />
                             @elseif($msg->body_text)
-                                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ $conversation->resolveMentions($msg->body_text, $discordMentionMap) }}</p>
+                                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ $conversation->resolveMentions($msg->body_text, $discordMentionMap, $slackMentionMap ?? []) }}</p>
                             @endif
 
                             @if($msg->allAttachments()->isNotEmpty())
@@ -92,7 +92,7 @@
                                                 <div>
                                                     <span class="text-xs font-semibold text-gray-700">{{ $reply->author_name }}</span>
                                                     <span class="text-xs text-gray-400 ml-1">{{ $reply->occurred_at->format('H:i') }}</span>
-                                                    <p class="text-xs text-gray-600 leading-relaxed">{{ $conversation->resolveMentions($reply->body_text, $discordMentionMap) }}</p>
+                                                    <p class="text-xs text-gray-600 leading-relaxed">{{ $conversation->resolveMentions($reply->body_text, $discordMentionMap, $slackMentionMap ?? []) }}</p>
                                                 </div>
                                             </div>
                                         @endforeach

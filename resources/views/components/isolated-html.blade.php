@@ -1,5 +1,3 @@
-@props(['content', 'class' => ''])
-@php $id = 'ih-' . uniqid(); @endphp
 <div id="{{ $id }}" class="{{ $class }}"></div>
 <script>
 (function() {
