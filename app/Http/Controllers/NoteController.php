@@ -7,12 +7,13 @@ use App\Models\Company;
 use App\Models\Note;
 use App\Models\NoteLink;
 use App\Models\Person;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class NoteController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         abort_if(! auth()->user()->can('notes_write'), 403);
 
@@ -30,6 +31,7 @@ class NoteController extends Controller
         ];
 
         $note = Note::create([
+            'user_id' => auth()->id(),
             'content' => $data['content'],
             'source' => $data['source'] ?? 'manual',
         ]);
@@ -54,6 +56,42 @@ class NoteController extends Controller
             default => route('dashboard'),
         };
 
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok'   => true,
+                'note' => [
+                    'id'      => $note->id,
+                    'content' => $note->content,
+                    'user'    => $note->user?->name,
+                ],
+            ]);
+        }
+
         return redirect($redirect)->with('success', 'Note added.');
+    }
+
+    public function destroy(Request $request, Note $note): \Illuminate\Http\Response|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        abort_if(! auth()->user()->can('notes_write'), 403);
+
+        $link = $note->links()->first();
+        $note->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true]);
+        }
+
+        // Redirect back to entity
+        if ($link) {
+            $redirect = match (class_basename($link->linkable_type)) {
+                'Company'      => route('companies.show', $link->linkable_id),
+                'Person'       => route('people.show', $link->linkable_id),
+                'Conversation' => route('conversations.show', $link->linkable_id),
+                default        => route('dashboard'),
+            };
+            return redirect($redirect)->with('success', 'Note deleted.');
+        }
+
+        return redirect()->back()->with('success', 'Note deleted.');
     }
 }

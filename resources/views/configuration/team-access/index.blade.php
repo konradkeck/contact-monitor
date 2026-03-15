@@ -48,8 +48,14 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($users as $user)
-                    <tr class="hover:bg-gray-50 group">
-                        <td class="px-4 py-2.5 font-medium text-gray-800">{{ $user->name }}</td>
+                    <tr class="tbl-row">
+                        <td class="px-4 py-2.5">
+                            <div class="flex items-center gap-2">
+                                <img src="{{ 'https://www.gravatar.com/avatar/' . md5(strtolower(trim($user->email ?? ''))) . '?s=28&d=mp' }}"
+                                     class="w-7 h-7 rounded-full shrink-0" alt="">
+                                <span class="font-medium text-gray-800">{{ $user->name }}</span>
+                            </div>
+                        </td>
                         <td class="px-4 py-2.5 text-gray-500 text-xs font-mono">{{ $user->email }}</td>
                         <td class="px-4 py-2.5">
                             <span class="badge {{ match($user->group?->name) { 'Admin' => 'badge-blue', 'Analyst' => 'badge-green', default => 'badge-gray' } }}">
@@ -57,14 +63,13 @@
                             </span>
                         </td>
                         <td class="px-4 py-2.5 text-right">
-                            <div class="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href="{{ route('team-access.users.edit', $user) }}"
-                                   class="text-xs text-brand-600 hover:underline">Edit</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <a href="{{ route('team-access.users.edit', $user) }}" class="text-xs text-gray-400 hover:text-gray-700 ml-1">Edit</a>
                                 @if($user->id !== auth()->id())
                                     <form method="POST" action="{{ route('team-access.users.destroy', $user) }}"
                                           onsubmit="return confirm('Delete user {{ addslashes($user->name) }}?')">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-xs text-red-400 hover:text-red-600">Delete</button>
+                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                                     </form>
                                 @endif
                             </div>
@@ -96,7 +101,7 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @foreach($groups as $group)
-                    <tr class="hover:bg-gray-50 group">
+                    <tr class="tbl-row">
                         <td class="px-4 py-3 font-semibold text-gray-800">{{ $group->name }}</td>
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap gap-1">
@@ -122,14 +127,13 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <div class="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href="{{ route('team-access.groups.edit', $group) }}"
-                                   class="text-xs text-brand-600 hover:underline">Edit</a>
+                            <div class="flex items-center justify-end gap-1.5">
+                                <a href="{{ route('team-access.groups.edit', $group) }}" class="text-xs text-gray-400 hover:text-gray-700 ml-1">Edit</a>
                                 @if($group->users_count === 0)
                                     <form method="POST" action="{{ route('team-access.groups.destroy', $group) }}"
                                           onsubmit="return confirm('Delete group {{ addslashes($group->name) }}?')">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="text-xs text-red-400 hover:text-red-600">Delete</button>
+                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                                     </form>
                                 @else
                                     <span class="text-xs text-gray-300" title="Cannot delete: users assigned">Delete</span>

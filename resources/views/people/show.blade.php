@@ -110,7 +110,7 @@
     </div>
 </div>
 
-<div class="grid grid-cols-3 gap-5">
+<div class="grid grid-cols-4 gap-5">
 
     {{-- ── LEFT COLUMN ── --}}
     <div class="space-y-4">
@@ -199,8 +199,10 @@
                     @foreach($person->identities as $identity)
                         <li class="px-4 py-2 flex items-center justify-between gap-2">
                             <div class="flex items-center gap-2 min-w-0">
-                                @if(isset(\App\View\Components\IdentityIcon::getMap()[$identity->type]))
-                                    <x-identity-icon :type="$identity->type" :value="$identity->value" />
+                                @if(isset(\App\View\Components\IdentityIcon::getMap()[$identity->type]) || in_array($identity->meta_json['system_type'] ?? '', ['whmcs','metricscube']))
+                                    <x-identity-icon :type="$identity->type" :value="$identity->value"
+                                        :sys-type="$identity->meta_json['system_type'] ?? ''"
+                                        :sys-slug="$identity->system_slug" />
                                 @else
                                     <span class="text-xs text-gray-400 shrink-0 w-5 text-center">?</span>
                                 @endif
@@ -224,9 +226,6 @@
                                         <span class="font-mono text-xs text-gray-600 truncate">{{ $identity->value }}</span>
                                     @endif
                                 @endif
-                                @if($identity->system_slug !== 'default')
-                                    <x-badge color="gray">{{ $identity->system_slug }}</x-badge>
-                                @endif
                             </div>
                             @can('data_write')
                             <form action="{{ route('people.identities.destroy', [$person, $identity]) }}" method="POST" class="shrink-0">
@@ -241,41 +240,7 @@
         </div>
 
         {{-- Notes --}}
-        <div>
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Notes</p>
-            <div class="bg-yellow-50 border border-yellow-200 rounded-xl overflow-hidden shadow-sm">
-                @if($notes->isEmpty())
-                    <p class="px-4 py-3 text-sm text-yellow-600 italic">No notes yet.</p>
-                @else
-                    <ul class="divide-y divide-yellow-100 max-h-72 overflow-y-auto">
-                        @foreach($notes as $note)
-                            <li class="px-4 py-3">
-                                <p class="text-sm text-yellow-900 leading-snug">{{ $note->content }}</p>
-                                <p class="text-xs text-yellow-500 mt-1.5"
-                                   title="{{ $note->created_at->format('D, j M Y \a\t H:i') }}">
-                                    {{ $note->created_at->diffForHumans() }}
-                                </p>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-                @can('notes_write')
-                <div class="px-4 py-3">
-                    <form action="{{ route('notes.store') }}" method="POST">
-                        @csrf
-                        <input type="hidden" name="linkable_type" value="person">
-                        <input type="hidden" name="linkable_id" value="{{ $person->id }}">
-                        <textarea name="content" rows="2" placeholder="Add a note…"
-                                  class="w-full bg-white border border-yellow-200 rounded-lg px-3 py-2 text-sm
-                                         placeholder-yellow-300 text-gray-700 resize-none focus:outline-none
-                                         focus:ring-2 focus:ring-yellow-300"></textarea>
-                        <button class="mt-2 w-full py-1.5 bg-yellow-400 hover:bg-yellow-500 text-yellow-900
-                                       font-semibold text-xs rounded-lg transition">+ Add note</button>
-                    </form>
-                </div>
-                @endcan
-            </div>
-        </div>
+        <x-notes-section :notes="$notes" linkable-type="person" :linkable-id="$person->id" />
 
         {{-- Conversations --}}
         @if($convGroups->isNotEmpty())
@@ -309,6 +274,7 @@
 
     {{-- ── RIGHT: TIMELINE (col-span-2) ── --}}
     <div class="col-span-2">
+
         <div id="timeline-box" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
             {{-- Tab bar --}}
@@ -411,13 +377,12 @@
                     ✕ Clear
                 </button>
 
-                {{-- Date range (flatpickr) --}}
-                <div class="flex items-center gap-1">
+                {{-- Date range --}}
+                <div class="drp-wrap" id="tl-date-range-wrap">
                     <input id="tl-date-range" type="text" placeholder="Date range…"
                            class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-600 bg-white
-                                  focus:outline-none focus:ring-2 focus:ring-brand-300 cursor-pointer w-44">
-                    <button id="tl-date-clear" type="button" onclick="clearDateFilter()"
-                            class="hidden text-lg leading-none text-gray-400 hover:text-gray-600 transition px-1">×</button>
+                                  focus:outline-none cursor-pointer w-44">
+                    <button type="button" class="drp-clear hidden text-base leading-none text-gray-400 hover:text-gray-600 px-1">×</button>
                 </div>
 
             </div>
@@ -443,6 +408,76 @@
         </div>{{-- /timeline-box --}}
     </div>
 
+    {{-- ── RIGHT COLUMN: Quick Reports ── --}}
+    <div class="space-y-3">
+
+        {{-- Quick Reports header + datepicker --}}
+        <div class="flex items-center justify-between gap-3 px-1">
+            <p class="text-sm font-semibold text-gray-700">Quick Reports</p>
+            <div class="drp-wrap" id="ag-date-range-wrap">
+                <input id="ag-date-range" type="text" placeholder="Last 365 days"
+                       class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-600 bg-white
+                              focus:outline-none cursor-pointer w-32">
+                <button type="button" class="drp-clear hidden text-base leading-none text-gray-400 hover:text-gray-600 px-1">×</button>
+            </div>
+        </div>
+
+        {{-- Graph 1: Hourly Activity --}}
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div class="px-3 py-2 border-b border-gray-100">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Hourly Activity</h3>
+                <p class="text-[10px] text-gray-400 mt-0.5">Messages sent per hour of day</p>
+            </div>
+            <div class="px-3 pt-2.5 pb-2">
+                <div class="relative" id="ag-wrap">
+                    <div id="ag-tip"
+                         class="absolute hidden z-10 px-2 py-1 rounded text-[10px] font-medium text-white pointer-events-none"
+                         style="background:rgba(30,30,30,0.85);bottom:calc(100% + 4px);transform:translateX(-50%)"></div>
+                    <div id="ag-chart" class="flex items-end gap-px" style="height:64px">
+                        @for($h = 0; $h < 24; $h++)
+                            <div class="ag-bar flex-1 rounded-sm cursor-default" data-hour="{{ $h }}"
+                                 style="height:2px;background:rgba(164,0,87,0.25)"></div>
+                        @endfor
+                    </div>
+                </div>
+                <div class="flex justify-between text-[9px] text-gray-300 mt-1">
+                    <span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span>
+                </div>
+                <p id="ag-total" class="text-[9px] text-gray-400 mt-1"></p>
+            </div>
+        </div>
+
+        {{-- Graph 2: Weekly Availability --}}
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div class="px-3 py-2 border-b border-gray-100">
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Weekly Availability</h3>
+                <p class="text-[10px] text-gray-400 mt-0.5">Active hours per day of week</p>
+            </div>
+            <div class="px-3 pt-3 pb-2">
+                <div class="flex gap-1.5">
+                    {{-- Hour labels --}}
+                    <div class="flex flex-col justify-between text-[9px] text-gray-300 pr-0.5 shrink-0" style="height:120px">
+                        <span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span>
+                    </div>
+                    {{-- 7 day columns --}}
+                    @foreach([1=>'Mon',2=>'Tue',3=>'Wed',4=>'Thu',5=>'Fri',6=>'Sat',7=>'Sun'] as $dow => $label)
+                    <div class="flex-1 flex flex-col items-center">
+                        <div id="av-col-{{ $dow }}" class="w-full flex flex-col" style="height:120px">
+                            @for($h = 0; $h < 24; $h++)
+                                <div class="av-cell flex-1"
+                                     data-dow="{{ $dow }}" data-hour="{{ $h }}"
+                                     style="background:rgba(243,244,246,0.9)"></div>
+                            @endfor
+                        </div>
+                        <span class="text-[9px] text-gray-400 mt-1.5">{{ substr($label,0,1) }}</span>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+    </div>{{-- /right graphs --}}
+
 </div>
 
 <script>
@@ -451,7 +486,6 @@
     const container = document.getElementById('timeline-container');
     const loading   = document.getElementById('timeline-loading');
     const clearBtn  = document.getElementById('tl-clear-btn');
-    const dateClear = document.getElementById('tl-date-clear');
     const baseUrl   = container.dataset.url;
 
     let fetching         = false;
@@ -589,24 +623,8 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         setTab('conversations');
-        fp = flatpickr('#tl-date-range', {
-            mode: 'range',
-            dateFormat: 'Y-m-d',
-            altInput: true,
-            altFormat: 'j M Y',
-            allowInput: false,
-            onChange(selectedDates) {
-                if (selectedDates.length === 2) {
-                    dateFrom = localDateStr(selectedDates[0]);
-                    dateTo   = localDateStr(selectedDates[1]);
-                    dateClear.classList.remove('hidden');
-                    resetTimeline();
-                } else if (selectedDates.length === 0) {
-                    dateFrom = dateTo = '';
-                    dateClear.classList.add('hidden');
-                    resetTimeline();
-                }
-            }
+        fp = drp.init('tl-date-range', function(from, to) {
+            dateFrom = from; dateTo = to; resetTimeline();
         });
     });
 
@@ -709,5 +727,98 @@ function markPersonOurOrg() {
         body: JSON.stringify({}),
     }).then(r => r.json()).then(d => { if (d.ok) window.location.reload(); else if (btn) btn.disabled = false; });
 }
+</script>
+<script>
+// ── Activity Graphs ───────────────────────────────────────────────────────
+(function() {
+    var agFrom = '', agTo = '';
+    var urlHourly = '{{ route('people.hourly-activity', $person) }}';
+    var urlAvail  = '{{ route('people.activity-availability', $person) }}';
+
+    function qs(from, to) {
+        return (from && to) ? '?from=' + from + '&to=' + to : '';
+    }
+
+    function loadHourly() {
+        fetch(urlHourly + qs(agFrom, agTo))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var hours = data.hours;
+                var max = Math.max.apply(null, Object.values(hours).concat([1]));
+                var chartH = document.getElementById('ag-chart').offsetHeight || 56;
+                document.querySelectorAll('.ag-bar').forEach(function(bar) {
+                    var h = parseInt(bar.dataset.hour);
+                    var val = hours[h] || 0;
+                    var px = val > 0 ? Math.max(Math.round((val / max) * chartH), 4) : 2;
+                    bar.style.height = px + 'px';
+                    bar.style.opacity = val > 0 ? '1' : '0.25';
+                    bar._val = val;
+                });
+                var total = document.getElementById('ag-total');
+                if (total) {
+                    total.textContent = data.total > 0
+                        ? data.total + ' messages in period'
+                        : 'No messages in this period';
+                }
+            });
+    }
+
+    function loadAvailability() {
+        fetch(urlAvail + qs(agFrom, agTo))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var days = data.days;
+                var maxCount = 1;
+                for (var d = 1; d <= 7; d++) {
+                    if (!days[d]) continue;
+                    for (var h = 0; h < 24; h++) {
+                        if (days[d][h] > maxCount) maxCount = days[d][h];
+                    }
+                }
+                var hasAny = false;
+                document.querySelectorAll('.av-cell').forEach(function(cell) {
+                    var dow  = parseInt(cell.dataset.dow);
+                    var hour = parseInt(cell.dataset.hour);
+                    var cnt  = (days[dow] && days[dow][hour]) ? days[dow][hour] : 0;
+                    if (cnt > 0) {
+                        hasAny = true;
+                        var opacity = (0.3 + 0.7 * (cnt / maxCount)).toFixed(2);
+                        cell.style.background = 'rgba(164,0,87,' + opacity + ')';
+                        cell.style.borderRadius = '1px';
+                        cell.title = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][dow-1]
+                            + ' ' + hour + ':00 — ' + cnt + (cnt === 1 ? ' week' : ' weeks');
+                    } else {
+                        cell.style.background = 'rgba(243,244,246,0.8)';
+                        cell.title = '';
+                    }
+                });
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        /* Hourly chart tooltip */
+        var tip = document.getElementById('ag-tip');
+        document.querySelectorAll('.ag-bar').forEach(function(bar) {
+            bar.addEventListener('mouseenter', function(e) {
+                if (!tip) return;
+                var h = parseInt(bar.dataset.hour);
+                var val = bar._val !== undefined ? bar._val : 0;
+                tip.textContent = h + ':00 — ' + val + (val === 1 ? ' msg' : ' msgs');
+                var barRect  = bar.getBoundingClientRect();
+                var wrapRect = document.getElementById('ag-wrap').getBoundingClientRect();
+                tip.style.left = (barRect.left - wrapRect.left + barRect.width / 2) + 'px';
+                tip.classList.remove('hidden');
+            });
+            bar.addEventListener('mouseleave', function() {
+                if (tip) tip.classList.add('hidden');
+            });
+        });
+
+        drp.init('ag-date-range', function(from, to) {
+            agFrom = from; agTo = to;
+            if (agFrom && agTo) { loadHourly(); loadAvailability(); }
+        }, { defaultDays: 365 });
+    });
+}());
 </script>
 @endsection

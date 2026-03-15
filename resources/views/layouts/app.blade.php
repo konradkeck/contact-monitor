@@ -58,9 +58,8 @@
         <div class="ml-auto relative" x-data="{ open: false }" @click.outside="open = false">
             <button @click="open = !open"
                     class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-200 hover:text-white hover:bg-white/10 transition">
-                <div class="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-xs font-semibold text-white">
-                    {{ strtoupper(substr(auth()->user()->name ?? '?', 0, 1)) }}
-                </div>
+                <img src="{{ 'https://www.gravatar.com/avatar/' . md5(strtolower(trim(auth()->user()->email ?? ''))) . '?s=32&d=mp' }}"
+                     class="w-6 h-6 rounded-full" alt="">
                 <span class="hidden sm:inline">{{ auth()->user()->name }}</span>
                 <svg class="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
             </button>
@@ -179,7 +178,10 @@
                     <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         {!! $item['icon'] !!}
                     </svg>
-                    {{ $item['label'] }}
+                    <span class="flex-1">{{ $item['label'] }}</span>
+                    @if(isset($item['count']))
+                        <span class="text-xs opacity-50 shrink-0">{{ number_format($item['count']) }}</span>
+                    @endif
                 </a>
             @endforeach
         @endif
@@ -249,5 +251,121 @@
 
 @stack('scripts')
 <x-activity-modal />
+<script>
+window.drp = (function () {
+    var CDN = 'https://cdn.jsdelivr.net/npm/@easepick/bundle@1.2.1/dist/index.css';
+
+    var COMPACT = [
+        ':host{--day-width:30px;--day-height:26px}',
+        '.container{font-size:11px !important}',
+        '.calendar{padding:5px !important}',
+        '.calendar>.header{padding:3px 4px !important}',
+        '.month-name{font-size:11px !important}',
+        '.previous-button,.next-button{padding:1px 5px !important;font-size:13px !important}',
+        '.dayname{font-size:10px !important;padding:2px 0 !important}',
+        '.day{font-size:11px !important;padding:2px 0 !important}',
+        '.preset-plugin-container{padding:6px !important;width:110px !important;flex-direction:column !important;justify-content:flex-start !important;gap:2px !important}',
+        '.preset-plugin-container>button{padding:9px 10px !important;font-size:11px !important;margin:0 !important;display:block;width:100% !important;text-align:left !important;white-space:nowrap !important}',
+    ].join('');
+
+    function ld(d) {
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+    function parseYmd(s) {
+        var p = s.split('-'); return new Date(+p[0], +p[1]-1, +p[2]);
+    }
+
+    function init(inputId, onApply, opts) {
+        opts = opts || {};
+        var EP = window._EP;
+        var input = document.getElementById(inputId);
+        var wrap  = document.getElementById(inputId + '-wrap');
+        var clearBtn = wrap ? wrap.querySelector('.drp-clear') : null;
+
+        var n = new Date();
+        var presets = opts.presets || {
+            'Today':          [new Date(n.getFullYear(), n.getMonth(), n.getDate()), n],
+            'Last 7 days':    [new Date(+n - 6*86400000),   n],
+            'Last 30 days':   [new Date(+n - 29*86400000),  n],
+            'Last 90 days':   [new Date(+n - 89*86400000),  n],
+            'Last 365 days':  [new Date(+n - 364*86400000), n],
+            'This year':      [new Date(n.getFullYear(), 0, 1), n],
+        };
+
+        var startDate, endDate, fireInitial = false;
+        if (opts.defaultDays) {
+            startDate = new Date(+n - (opts.defaultDays - 1) * 86400000);
+            endDate   = n;
+            fireInitial = true;
+        } else if (opts.defaultFrom && opts.defaultTo) {
+            startDate = parseYmd(opts.defaultFrom);
+            endDate   = parseYmd(opts.defaultTo);
+        }
+
+        var cfg = {
+            element: input,
+            css: function () {
+                var sr = this.ui.shadowRoot, wrapper = this.ui.wrapper;
+                var link = document.createElement('link');
+                link.href = CDN; link.rel = 'stylesheet';
+                var done = function () { wrapper.style.display = ''; };
+                link.addEventListener('load', done);
+                link.addEventListener('error', done);
+                sr.append(link);
+                var style = document.createElement('style');
+                style.textContent = COMPACT;
+                sr.append(style);
+            },
+            plugins: [EP.RangePlugin, EP.PresetPlugin],
+            format: 'D MMM YYYY',
+            zIndex: 9999,
+            calendars: 1,
+            RangePlugin: { tooltip: true },
+            PresetPlugin: { position: 'left', customPreset: presets },
+            setup: function (picker) {
+                picker.on('show', function () {
+                    /* Fix easepick's broken right-overflow detection */
+                    var inp = document.getElementById(inputId);
+                    var wrapper = picker.ui.wrapper;
+                    var container = picker.ui.container;
+                    var iRect = inp.getBoundingClientRect();
+                    var wRect = wrapper.getBoundingClientRect();
+                    var cRect = container.getBoundingClientRect();
+                    if (iRect.left + cRect.width > window.innerWidth - 8) {
+                        container.style.left = Math.round(iRect.right - wRect.left - cRect.width) + 'px';
+                    }
+                });
+                picker.on('select', function (e) {
+                    var s = e.detail.start, en = e.detail.end;
+                    if (s && en) {
+                        if (clearBtn) clearBtn.classList.remove('hidden');
+                        onApply(ld(new Date(s)), ld(new Date(en)));
+                    }
+                });
+            }
+        };
+        if (startDate) {
+            cfg.RangePlugin.startDate = startDate;
+            cfg.RangePlugin.endDate   = endDate;
+        }
+
+        var picker = new EP.easepick.create(cfg);
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function () {
+                picker.clear();
+                clearBtn.classList.add('hidden');
+                onApply('', '');
+            });
+        }
+
+        if (fireInitial) { onApply(ld(startDate), ld(endDate)); }
+
+        return picker;
+    }
+
+    return { init: init };
+}());
+</script>
 </body>
 </html>

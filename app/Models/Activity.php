@@ -167,6 +167,18 @@ class Activity extends Model
             $url = '/conversations/' . $mcMapEntry['id'];
         }
 
+        // Email / slack / discord extra fields
+        $isEmail    = ($chType === 'email');
+        $isSlack    = ($chType === 'slack');
+        $isDiscord  = ($chType === 'discord');
+        $isOutbound = (bool) ($meta['is_outbound'] ?? false);
+
+        // Participants for slack/discord (from pre-loaded map)
+        $participants = null;
+        if (($isSlack || $isDiscord) && $convExtId && isset($convSubjectMap[$convExtId]['participants'])) {
+            $participants = $convSubjectMap[$convExtId]['participants'];
+        }
+
         // Source label
         $sourceLabel = null;
         $ticketNum   = null;
@@ -241,7 +253,8 @@ class Activity extends Model
         return (object) compact(
             'url', 'isCustomer', 'chType', 'sysType', 'sysSlug', 'badgeTitle',
             'sourceLabel', 'titleText', 'modalUrl', 'rowClickable', 'ticketNotFound',
-            'useBadge', 'hoverText'
+            'useBadge', 'hoverText',
+            'isEmail', 'isSlack', 'isDiscord', 'isOutbound', 'participants'
         );
     }
 }

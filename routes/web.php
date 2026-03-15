@@ -51,6 +51,8 @@ Route::middleware('auth')->group(function () {
         Route::get('people', [PersonController::class, 'index'])->name('people.index');
         Route::get('people/{person}', [PersonController::class, 'show'])->name('people.show')->whereNumber('person');
         Route::get('people/{person}/timeline', [PersonController::class, 'timeline'])->name('people.timeline')->whereNumber('person');
+        Route::get('people/{person}/hourly-activity', [PersonController::class, 'hourlyActivity'])->name('people.hourly-activity')->whereNumber('person');
+        Route::get('people/{person}/activity-availability', [PersonController::class, 'activityAvailability'])->name('people.activity-availability')->whereNumber('person');
 
         // Conversations (read)
         Route::get('conversations/filter-modal', [ConversationController::class, 'filterModal'])->name('conversations.filter-modal');
@@ -109,6 +111,7 @@ Route::middleware('auth')->group(function () {
 
         // Notes (notes_write permission)
         Route::post('notes', [NoteController::class, 'store'])->name('notes.store');
+        Route::delete('notes/{note}', [NoteController::class, 'destroy'])->name('notes.destroy');
 
         // Audit log
         Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');

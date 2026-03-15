@@ -23,13 +23,17 @@ class PersonController extends Controller
         $search = $request->get('q');
         $sort = $request->get('sort', 'updated_at');
         $dir = $request->get('dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $tab = $request->get('tab', 'clients');
+        if (! in_array($tab, ['clients', 'our_org'])) {
+            $tab = 'clients';
+        }
 
         if (! in_array($sort, ['first_name', 'updated_at', 'identities'])) {
             $sort = 'updated_at';
         }
 
         $query = Person::query()
-            ->where('is_our_org', false)
+            ->where('is_our_org', $tab === 'our_org')
             ->when($search, function ($q) use ($search) {
                 $term = '%'.strtolower($search).'%';
                 $q->where(function ($sub) use ($term) {
@@ -244,9 +248,14 @@ class PersonController extends Controller
             'discord' => 'bg-indigo-100 text-indigo-700',
         ];
 
+        $tabCounts = [
+            'clients' => Person::where('is_our_org', false)->count(),
+            'our_org' => Person::where('is_our_org', true)->count(),
+        ];
+
         return view('people.index', compact(
             'people', 'search', 'sort', 'dir', 'filteredCount', 'filteredReasons', 'showFiltered',
-            'contactBadge', 'sortLink', 'sortIcon', 'channelBadge',
+            'contactBadge', 'sortLink', 'sortIcon', 'channelBadge', 'tab', 'tabCounts',
         ));
     }
 
@@ -274,13 +283,19 @@ class PersonController extends Controller
     {
         $person->load(['identities', 'companies']);
 
-        $notes = $person->notes()->orderByDesc('created_at')->get();
+        $notes = $person->notes()->with('user')->orderByDesc('created_at')->get();
 
         $allCompanies = Company::orderBy('name')->get()
             ->reject(fn ($c) => $person->companies->pluck('id')->contains($c->id));
 
-        $timelinePage = $this->personActivitiesQuery($person)
-            ->cursorPaginate(25);
+        $filterDomains  = SystemSetting::get('filter_domains', []);
+        $filterEmails   = SystemSetting::get('filter_emails', []);
+        $filterSubjects = SystemSetting::get('filter_subjects', []);
+        $filteredExtIds = $this->filteredConversationExtIds($filterDomains, $filterEmails, $filterSubjects);
+
+        $timelineQuery = $this->personActivitiesQuery($person);
+        $this->excludeFilteredActivities($timelineQuery, $filterDomains, $filterEmails, $filterSubjects);
+        $timelinePage = $timelineQuery->cursorPaginate(25);
 
         $convSubjectMap = $this->buildConvSubjectMap($timelinePage->items());
         $this->prepareTimelineDisplay($timelinePage->items(), $convSubjectMap);
@@ -314,8 +329,8 @@ class PersonController extends Controller
             'system_slug' => $g->system_slug,
         ])->unique(fn ($g) => $g->channel_type.'|'.$g->system_slug)->values();
 
-        $filteredConvCount = DB::table('conversations as c')
-            ->where('c.is_archived', true)
+        $filteredConvCount = empty($filteredExtIds) ? 0 : DB::table('conversations as c')
+            ->whereIn('c.external_thread_id', $filteredExtIds)
             ->whereExists(fn ($q) => $q->select(DB::raw(1))
                 ->from('conversation_messages as cm')
                 ->join('identities as i', 'i.id', '=', 'cm.identity_id')
@@ -352,7 +367,18 @@ class PersonController extends Controller
 
     public function timeline(Request $request, Person $person)
     {
+        $filterDomains  = SystemSetting::get('filter_domains', []);
+        $filterEmails   = SystemSetting::get('filter_emails', []);
+        $filterSubjects = SystemSetting::get('filter_subjects', []);
+        $filteredExtIds = $this->filteredConversationExtIds($filterDomains, $filterEmails, $filterSubjects);
+
         $query = $this->personActivitiesQuery($person);
+
+        if ($request->boolean('is_filtered')) {
+            $this->includeOnlyFilteredActivities($query, $filterDomains, $filterEmails, $filterSubjects);
+        } else {
+            $this->excludeFilteredActivities($query, $filterDomains, $filterEmails, $filterSubjects);
+        }
 
         if ($types = $request->get('types')) {
             $query->whereIn('type', (array) $types);
@@ -376,17 +402,6 @@ class PersonController extends Controller
         }
         if ($to = $request->get('to')) {
             $query->whereDate('occurred_at', '<=', $to);
-        }
-        if ($request->boolean('is_filtered')) {
-            $query->whereRaw("
-                meta_json->>'conversation_external_id' IS NOT NULL
-                AND EXISTS (
-                    SELECT 1 FROM conversations c
-                    WHERE c.external_thread_id = activities.meta_json->>'conversation_external_id'
-                      AND c.system_slug        = activities.meta_json->>'system_slug'
-                      AND c.is_archived        = true
-                )
-            ");
         }
 
         $page = $query->cursorPaginate(25, ['*'], 'cursor', $request->get('cursor'));
@@ -552,6 +567,76 @@ class PersonController extends Controller
                 $q->orWhere('person_id', $person->id);
             })
             ->orderByDesc('occurred_at');
+    }
+
+    public function hourlyActivity(Request $request, Person $person): JsonResponse
+    {
+        $from = $request->filled('from')
+            ? \Carbon\Carbon::parse($request->input('from'))->startOfDay()
+            : now()->subDays(6)->startOfDay();
+        $to = $request->filled('to')
+            ? \Carbon\Carbon::parse($request->input('to'))->endOfDay()
+            : now()->endOfDay();
+
+        $identityIds = $person->identities()->pluck('id');
+
+        // Count messages by hour (0-23) for this person's identities as sender
+        $rows = DB::table('conversation_messages')
+            ->whereIn('identity_id', $identityIds)
+            ->whereBetween('occurred_at', [$from, $to])
+            ->whereNull('deleted_at')
+            ->selectRaw("EXTRACT(HOUR FROM occurred_at)::int as hour, COUNT(*) as count")
+            ->groupBy('hour')
+            ->orderBy('hour')
+            ->get()
+            ->keyBy('hour');
+
+        $hours = [];
+        for ($h = 0; $h < 24; $h++) {
+            $hours[$h] = (int) ($rows[$h]->count ?? 0);
+        }
+
+        return response()->json(['hours' => $hours, 'total' => array_sum($hours)]);
+    }
+
+    public function activityAvailability(Request $request, Person $person): JsonResponse
+    {
+        $from = $request->filled('from')
+            ? \Carbon\Carbon::parse($request->input('from'))->startOfDay()
+            : now()->subDays(6)->startOfDay();
+        $to = $request->filled('to')
+            ? \Carbon\Carbon::parse($request->input('to'))->endOfDay()
+            : now()->endOfDay();
+
+        $identityIds = $person->identities()->pluck('id');
+
+        // Min/max active hour per (ISO week, day-of-week)
+        $rows = DB::table('conversation_messages')
+            ->whereIn('identity_id', $identityIds)
+            ->whereBetween('occurred_at', [$from, $to])
+            ->whereNull('deleted_at')
+            ->selectRaw("
+                EXTRACT(ISODOW FROM occurred_at)::int          AS dow,
+                DATE_TRUNC('week', occurred_at)::date::text    AS week_start,
+                MIN(EXTRACT(HOUR FROM occurred_at)::int)       AS min_hour,
+                MAX(EXTRACT(HOUR FROM occurred_at)::int)       AS max_hour
+            ")
+            ->groupBy(DB::raw("EXTRACT(ISODOW FROM occurred_at), DATE_TRUNC('week', occurred_at)"))
+            ->get();
+
+        // For each dow (1=Mon … 7=Sun): count how many weeks had activity at each hour
+        $days = [];
+        for ($d = 1; $d <= 7; $d++) {
+            $days[$d] = array_fill(0, 24, 0);
+        }
+        foreach ($rows as $row) {
+            $dow = (int) $row->dow;
+            for ($h = (int) $row->min_hour; $h <= (int) $row->max_hour; $h++) {
+                $days[$dow][$h]++;
+            }
+        }
+
+        return response()->json(['days' => $days]);
     }
 
     public function unlinkCompany(Person $person, Company $company): RedirectResponse

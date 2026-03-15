@@ -27,6 +27,10 @@ class CompanyController extends Controller
         $search = $request->get('q');
         $sort = $request->get('sort', 'updated_at');
         $dir = $request->get('dir', 'desc') === 'asc' ? 'asc' : 'desc';
+        $tab = $request->get('tab', 'clients');
+        if (! in_array($tab, ['clients', 'our_org'])) {
+            $tab = 'clients';
+        }
 
         $brandProducts = BrandProduct::orderBy('name')->get();
         $channelTypes = \App\Models\Conversation::distinct()->orderBy('channel_type')->pluck('channel_type');
@@ -41,6 +45,7 @@ class CompanyController extends Controller
         }
 
         $query = Company::query()
+            ->when($tab === 'our_org', fn ($q) => $q->whereHas('people', fn ($p) => $p->where('is_our_org', true)))
             ->when($search, function ($q) use ($search) {
                 $term = '%'.strtolower($search).'%';
                 $q->where(function ($sub) use ($term) {
@@ -215,12 +220,17 @@ class CompanyController extends Controller
         }
         $hasFilters = $search || $activeFilterCount > 0;
 
+        $tabCounts = [
+            'clients' => Company::count(),
+            'our_org' => Company::whereHas('people', fn ($p) => $p->where('is_our_org', true))->count(),
+        ];
+
         return view('companies.index', compact(
             'companies', 'search', 'sort', 'dir', 'brandProducts', 'channelTypes',
             'filteredCount', 'filteredReasons', 'showFiltered',
             'scoreColorMap', 'convTypeMap', 'convIcons',
             'sortUrl', 'sortIcon', 'fmtDate',
-            'activeFilterCount', 'hasFilters'
+            'activeFilterCount', 'hasFilters', 'tab', 'tabCounts'
         ));
     }
 
@@ -263,7 +273,7 @@ class CompanyController extends Controller
             'brandStatuses.brandProduct',
         ]);
 
-        $notes = Note::whereHas('links', fn ($q) => $q->where('linkable_type', Company::class)->where('linkable_id', $company->id)
+        $notes = Note::with('user')->whereHas('links', fn ($q) => $q->where('linkable_type', Company::class)->where('linkable_id', $company->id)
         )->orderByDesc('created_at')->limit(10)->get();
 
         // Group conversations by (channel_type, system_slug) — one row per source
@@ -279,11 +289,17 @@ class CompanyController extends Controller
 
         $conversationCount = $convGroups->sum('conv_count');
 
+        $filterDomains  = SystemSetting::get('filter_domains', []);
+        $filterEmails   = SystemSetting::get('filter_emails', []);
+        $filterSubjects = SystemSetting::get('filter_subjects', []);
+        $filteredExtIds = $this->filteredConversationExtIds($filterDomains, $filterEmails, $filterSubjects);
+
         // First page of timeline
-        $timelinePage = $company->activities()
+        $timelineQuery = $company->activities()
             ->with('person')
-            ->orderByDesc('occurred_at')
-            ->cursorPaginate(25);
+            ->orderByDesc('occurred_at');
+        $this->excludeFilteredActivities($timelineQuery, $filterDomains, $filterEmails, $filterSubjects);
+        $timelinePage = $timelineQuery->cursorPaginate(25);
 
         $convSubjectMap = $this->buildConvSubjectMap($timelinePage->items());
         $this->prepareTimelineDisplay($timelinePage->items(), $convSubjectMap);
@@ -300,9 +316,10 @@ class CompanyController extends Controller
             )
             ->distinct()->get()->sortBy('channel_type')->values();
 
-        $filteredConvCount = DB::table('conversations')
+        $filteredConvCount = empty($filteredExtIds) ? 0 : DB::table('conversations')
             ->where('company_id', $company->id)
-            ->where('is_archived', true)->count();
+            ->whereIn('external_thread_id', $filteredExtIds)
+            ->count();
 
         $activityTypes = DB::table('activities')
             ->where('company_id', $company->id)
@@ -400,9 +417,20 @@ class CompanyController extends Controller
 
     public function timeline(Request $request, Company $company)
     {
+        $filterDomains  = SystemSetting::get('filter_domains', []);
+        $filterEmails   = SystemSetting::get('filter_emails', []);
+        $filterSubjects = SystemSetting::get('filter_subjects', []);
+        $filteredExtIds = $this->filteredConversationExtIds($filterDomains, $filterEmails, $filterSubjects);
+
         $query = $company->activities()
             ->with('person')
             ->orderByDesc('occurred_at');
+
+        if ($request->boolean('is_filtered')) {
+            $this->includeOnlyFilteredActivities($query, $filterDomains, $filterEmails, $filterSubjects);
+        } else {
+            $this->excludeFilteredActivities($query, $filterDomains, $filterEmails, $filterSubjects);
+        }
 
         if ($types = $request->get('types')) {
             $query->whereIn('type', (array) $types);
@@ -426,17 +454,6 @@ class CompanyController extends Controller
         }
         if ($to = $request->get('to')) {
             $query->whereDate('occurred_at', '<=', $to);
-        }
-        if ($request->boolean('is_filtered')) {
-            $query->whereRaw("
-                meta_json->>'conversation_external_id' IS NOT NULL
-                AND EXISTS (
-                    SELECT 1 FROM conversations c
-                    WHERE c.external_thread_id = activities.meta_json->>'conversation_external_id'
-                      AND c.system_slug        = activities.meta_json->>'system_slug'
-                      AND c.is_archived        = true
-                )
-            ");
         }
 
         $page = $query->cursorPaginate(25, ['*'], 'cursor', $request->get('cursor'));

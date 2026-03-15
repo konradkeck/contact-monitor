@@ -109,12 +109,11 @@
             ✕ Clear
         </button>
 
-        <div class="flex items-center gap-1">
+        <div class="drp-wrap" id="tl-date-range-wrap">
             <input id="tl-date-range" type="text" placeholder="Date range…"
                    class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-600 bg-white
-                          focus:outline-none focus:ring-2 focus:ring-brand-300 cursor-pointer w-44">
-            <button id="tl-date-clear" type="button" onclick="clearDateFilter()"
-                    class="hidden text-lg leading-none text-gray-400 hover:text-gray-600 transition px-1">×</button>
+                          focus:outline-none cursor-pointer w-44">
+            <button type="button" class="drp-clear hidden text-base leading-none text-gray-400 hover:text-gray-600 px-1">×</button>
         </div>
 
     </div>
@@ -163,7 +162,6 @@
     const loading   = document.getElementById('timeline-loading');
     const statsBody = document.getElementById('stats-body');
     const clearBtn  = document.getElementById('tl-clear-btn');
-    const dateClear = document.getElementById('tl-date-clear');
 
     let fetching       = false;
     let reqId          = 0;
@@ -296,24 +294,8 @@
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-        fp = flatpickr('#tl-date-range', {
-            mode: 'range',
-            dateFormat: 'Y-m-d',
-            altInput: true,
-            altFormat: 'j M Y',
-            allowInput: false,
-            onChange(selectedDates) {
-                if (selectedDates.length === 2) {
-                    dateFrom = localDateStr(selectedDates[0]);
-                    dateTo   = localDateStr(selectedDates[1]);
-                    dateClear.classList.remove('hidden');
-                    reload();
-                } else if (selectedDates.length === 0) {
-                    dateFrom = dateTo = '';
-                    dateClear.classList.add('hidden');
-                    reload();
-                }
-            }
+        fp = drp.init('tl-date-range', function(from, to) {
+            dateFrom = from; dateTo = to; reload();
         });
     });
 

@@ -30,7 +30,27 @@
     </div>
 </div>
 
+<div class="flex gap-0 border-b border-gray-200 mb-5">
+    <a href="{{ request()->fullUrlWithQuery(['tab' => 'clients', 'page' => null]) }}"
+       class="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
+              {{ $tab === 'clients' ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+        Clients
+        <span class="px-1.5 py-0.5 rounded-full text-xs {{ $tab === 'clients' ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500' }}">
+            {{ number_format($tabCounts['clients']) }}
+        </span>
+    </a>
+    <a href="{{ request()->fullUrlWithQuery(['tab' => 'our_org', 'page' => null]) }}"
+       class="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition
+              {{ $tab === 'our_org' ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+        Our Organization
+        <span class="px-1.5 py-0.5 rounded-full text-xs {{ $tab === 'our_org' ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500' }}">
+            {{ number_format($tabCounts['our_org']) }}
+        </span>
+    </a>
+</div>
+
 <form method="GET" class="mb-4">
+    <input type="hidden" name="tab" value="{{ $tab }}">
     <input type="hidden" name="sort" value="{{ $sort }}">
     <input type="hidden" name="dir"  value="{{ $dir }}">
     <div class="flex gap-2 max-w-sm">
@@ -49,9 +69,11 @@
     <div id="people-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
         <span id="people-bulk-count" class="text-sm font-medium bulk-bar-text"></span>
         @can('data_write')
+        @if($tab === 'clients')
         <button type="button" onclick="peopleOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
         <button type="button" onclick="peopleOpenAssignCompanyModal()" class="btn btn-secondary btn-sm">Assign Company…</button>
         <button type="button" onclick="peopleBulkMarkOurOrg()" class="btn btn-secondary btn-sm">Mark as our company</button>
+        @endif
         @endcan
         <button type="button" onclick="peopleClearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
     </div>
@@ -173,6 +195,7 @@
                     <td class="px-4 py-3 text-right">
                         <div class="flex items-center justify-end gap-1.5">
                             @can('data_write')
+                            @if($tab === 'clients')
                             <button type="button"
                                     onclick="peopleOpenFilterModal([{{ $person->id }}])"
                                     class="btn btn-sm btn-danger"
@@ -193,6 +216,7 @@
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/></svg>
                                     Our Org
                                 </button>
+                            @endif
                             @endif
                             <a href="{{ route('people.edit', $person) }}" class="text-xs text-gray-400 hover:text-gray-700 ml-1">Edit</a>
                             @endcan

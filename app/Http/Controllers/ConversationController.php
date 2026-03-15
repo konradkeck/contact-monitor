@@ -276,7 +276,7 @@ class ConversationController extends Controller
         if ($date) {
             $messages = $msgQuery->whereDate('occurred_at', $date)->limit(10)->get();
         } else {
-            $messages = $msgQuery->limit(5)->get();
+            $messages = $msgQuery->limit(1)->get();
         }
 
         // Group thread replies keyed by parent message id (for Slack/Discord threading)

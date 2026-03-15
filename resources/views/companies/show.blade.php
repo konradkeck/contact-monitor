@@ -99,43 +99,6 @@
             @endif
         </div>
 
-        {{-- Notes --}}
-        <div>
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Notes</p>
-            <div class="bg-yellow-50 border border-yellow-200 rounded-xl overflow-hidden shadow-sm">
-                @if($notes->isEmpty())
-                    <p class="px-4 py-3 text-sm text-yellow-600 italic">No notes yet.</p>
-                @else
-                    <ul class="divide-y divide-yellow-100 max-h-72 overflow-y-auto">
-                        @foreach($notes as $note)
-                            <li class="px-4 py-3">
-                                <p class="text-sm text-yellow-900 leading-snug">{{ $note->content }}</p>
-                                <p class="text-xs text-yellow-500 mt-1.5"
-                   title="{{ $note->created_at->format('D, j M Y \a\t H:i') }}">
-                    {{ $note->created_at->diffForHumans() }}
-                </p>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-                @can('notes_write')
-                <div class="px-4 py-3">
-                    <form action="{{ route('notes.store') }}" method="POST">
-                        @csrf
-                        <input type="hidden" name="linkable_type" value="company">
-                        <input type="hidden" name="linkable_id" value="{{ $company->id }}">
-                        <textarea name="content" rows="2" placeholder="Add a note…"
-                                  class="w-full bg-white border border-yellow-200 rounded-lg px-3 py-2 text-sm
-                                         placeholder-yellow-300 text-gray-700 resize-none focus:outline-none
-                                         focus:ring-2 focus:ring-yellow-300"></textarea>
-                        <button class="mt-2 w-full py-1.5 bg-yellow-400 hover:bg-yellow-500 text-yellow-900
-                                       font-semibold text-xs rounded-lg transition">+ Add note</button>
-                    </form>
-                </div>
-                @endcan
-            </div>
-        </div>
-
         {{-- External Accounts --}}
         <div>
             <div class="flex items-center justify-between mb-2 px-1">
@@ -174,13 +137,16 @@
             @endif
         </div>
 
+        {{-- Notes --}}
+        <x-notes-section :notes="$notes" linkable-type="company" :linkable-id="$company->id" />
+
     </div>{{-- /LEFT --}}
 
     {{-- ── RIGHT COLUMN (2/3) ── --}}
     <div class="col-span-2 space-y-5">
 
         {{-- Segmentation --}}
-        <div class="w-4/5">
+        <div class="w-full">
             <div class="flex items-center justify-between mb-3">
                 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Segmentation</p>
                 @if($availableBrands->isNotEmpty())
@@ -416,13 +382,11 @@
                     ✕ Clear
                 </button>
 
-                {{-- Date range (flatpickr) --}}
-                <div class="flex items-center gap-1">
+                {{-- Date range --}}
+                <div class="drp-wrap" id="tl-date-range-wrap">
                     <input id="tl-date-range" type="text" placeholder="Date range…"
                            class="text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-600 bg-white
-                                  focus:outline-none focus:ring-2 focus:ring-brand-300 cursor-pointer w-44">
-                    <button id="tl-date-clear" type="button" onclick="clearDateFilter()"
-                            class="hidden text-lg leading-none text-gray-400 hover:text-gray-600 transition px-1">×</button>
+                                  focus:outline-none cursor-pointer w-44">
                 </div>
 
             </div>
@@ -660,7 +624,6 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPopu
     const container = document.getElementById('timeline-container');
     const loading   = document.getElementById('timeline-loading');
     const clearBtn  = document.getElementById('tl-clear-btn');
-    const dateClear = document.getElementById('tl-date-clear');
     const companyId = {{ $company->id }};
 
     let fetching        = false;
@@ -806,24 +769,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllPopu
 
     document.addEventListener('DOMContentLoaded', () => {
         setTab('conversations');
-        fp = flatpickr('#tl-date-range', {
-            mode: 'range',
-            dateFormat: 'Y-m-d',
-            altInput: true,
-            altFormat: 'j M Y',
-            allowInput: false,
-            onChange(selectedDates) {
-                if (selectedDates.length === 2) {
-                    dateFrom = localDateStr(selectedDates[0]);
-                    dateTo   = localDateStr(selectedDates[1]);
-                    dateClear.classList.remove('hidden');
-                    resetTimeline();
-                } else if (selectedDates.length === 0) {
-                    dateFrom = dateTo = '';
-                    dateClear.classList.add('hidden');
-                    resetTimeline();
-                }
-            }
+        fp = drp.init('tl-date-range', function(from, to) {
+            dateFrom = from; dateTo = to; resetTimeline();
         });
     });
 

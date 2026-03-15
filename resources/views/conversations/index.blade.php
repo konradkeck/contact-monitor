@@ -119,6 +119,7 @@
                            onchange="toggleAll(this)">
                 </th>
                 <th class="px-4 py-2.5 text-left">Channel</th>
+                <th class="px-4 py-2.5 text-left">Subject</th>
                 <th class="px-4 py-2.5 text-left">Company</th>
                 <th class="px-4 py-2.5 text-left">People</th>
                 <th class="px-4 py-2.5 text-left">Team</th>
@@ -149,15 +150,27 @@
                         </a>
                     </td>
 
+                    {{-- Subject --}}
+                    <td class="px-4 py-3 max-w-[220px]">
+                        @if($conv->subject)
+                            <a href="{{ route('conversations.show', $conv) }}"
+                               class="link text-xs truncate block" title="{{ $conv->subject }}">
+                                {{ $conv->subject }}
+                            </a>
+                        @else
+                            <span class="text-gray-300 text-xs">—</span>
+                        @endif
+                    </td>
+
                     {{-- Company --}}
-                    <td class="px-4 py-3 font-medium max-w-[180px]">
+                    <td class="px-4 py-3 max-w-[160px]">
                         @if($conv->company)
                             <a href="{{ route('companies.show', $conv->company) }}"
-                               class="link truncate block">
+                               class="link text-xs truncate block">
                                 {{ $conv->company->name }}
                             </a>
                         @else
-                            <span class="text-gray-300">—</span>
+                            <span class="text-gray-300 text-xs">—</span>
                         @endif
                     </td>
 
@@ -229,24 +242,24 @@
                     </td>
 
                     {{-- Actions --}}
-                    <td class="px-4 py-3 text-right whitespace-nowrap">
-                        <a href="{{ route('conversations.show', $conv) }}"
-                           class="text-xs text-brand-600 hover:underline mr-2">View</a>
-                        @can('data_write')
-                        <button type="button"
-                                onclick="openFilterModalFor([{{ $conv->id }}])"
-                                class="text-xs text-gray-400 hover:text-red-600 transition"
-                                title="Filter">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="inline w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                            </svg>
-                        </button>
-                        @endcan
+                    <td class="px-4 py-3 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <a href="{{ route('conversations.show', $conv) }}" class="text-xs text-gray-400 hover:text-gray-700">View</a>
+                            @can('data_write')
+                            <button type="button"
+                                    onclick="openFilterModalFor([{{ $conv->id }}])"
+                                    class="btn btn-sm btn-danger"
+                                    title="Filter">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>
+                                Filter
+                            </button>
+                            @endcan
+                        </div>
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="px-4 py-8 text-center text-gray-400 italic">No conversations.</td>
+                    <td colspan="9" class="px-4 py-8 text-center text-gray-400 italic">No conversations.</td>
                 </tr>
             @endforelse
         </tbody>

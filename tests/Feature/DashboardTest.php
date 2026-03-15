@@ -49,6 +49,8 @@ class DashboardTest extends TestCase
         $response = $this->get('/');
 
         $response->assertStatus(200);
-        $response->assertViewHas('stats');
+        $response->assertViewHas('conversationsCount');
+        $response->assertViewHas('newCompaniesCount');
+        $response->assertViewHas('newPeopleCount');
     }
 }
