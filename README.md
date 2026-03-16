@@ -1,57 +1,71 @@
-# contact-monitor — CRM
+# Contact Monitor
 
-Internal CRM for managing companies, contacts, conversations and sales pipeline. Tracks brand product stages, conversation history across Slack/email/tickets, activities timeline, and campaign management.
+**Clarity of communication in your business. All in one place.**
+
+Connect all your communication channels into a single system. Plug in AI and enjoy a new level of understanding of how your organization communicates with clients.
+
+---
+
+## What is this?
+
+Contact Monitor is a self-hosted hub that pulls together every conversation your company has with clients — support tickets, emails, Slack messages, Discord threads — and maps them to company and person profiles. Instead of switching between five tools to understand a client relationship, you open one screen.
+
+**In plain terms:**
+
+- You stop asking "did anyone talk to this client recently?" — the answer is always in front of you
+- You see the full history of a company: who they are, what they bought, every message thread, every support ticket
+- You know when your team replied and when the client did — across every channel simultaneously
+- You track where clients are in your sales pipeline without manually updating a spreadsheet
+- New team members can get full context on any client in seconds, not hours
+
+**Integrations supported:**
+- **WHMCS** — clients, contacts, services, tickets
+- **Slack** — workspace channels and threads
+- **Discord** — server channels and threads
+- **Email (IMAP)** — any standard mailbox
+- **Gmail** — via Google OAuth
+- **MetricsCube** — client activity data
 
 ---
 
 ## Table of Contents
 
-- [Quick overview](#quick-overview)
-- [Step-by-step: fresh server setup](#step-by-step-fresh-server-setup)
-  - [1. Install Docker](#1-install-docker)
-  - [2. Clone the repository](#2-clone-the-repository)
-  - [3. Configure environment](#3-configure-environment)
-  - [4. Start the stack](#4-start-the-stack)
-  - [5. Run migrations](#5-run-migrations)
-  - [6. (Optional) Load sample data](#6-optional-load-sample-data)
-  - [7. Open the app](#7-open-the-app)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Configuration](#configuration)
+  - [1. Create your first user account](#1-create-your-first-user-account)
+  - [2. Connect the Synchronizer](#2-connect-the-synchronizer)
+  - [3. Add connections (WHMCS, Slack, Discord, Email)](#3-add-connections)
+  - [4. Run your first import](#4-run-your-first-import)
+  - [5. Map accounts and identities to profiles](#5-map-accounts-and-identities-to-profiles)
+  - [6. Set up your organization](#6-set-up-your-organization)
+  - [7. Filter out noise](#7-filter-out-noise)
+  - [8. Configure brand products](#8-configure-brand-products)
+- [Browsing the app](#browsing-the-app)
 - [Deploying updates](#deploying-updates)
-- [Architecture overview](#architecture-overview)
-- [Data model](#data-model)
 - [Running locally (development)](#running-locally-development)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## Quick overview
+## Requirements
 
-**Stack:** Laravel 12 · PHP 8.3 · PostgreSQL 16 · Tailwind CSS v4 · Vite
+- A Linux server (Ubuntu 22.04 or Debian 12 recommended)
+- Docker Engine + Docker Compose plugin
+- 1 GB RAM minimum, 2 GB recommended
+- The **Contact Monitor Synchronizer** service running (see [contact-monitor-synchronizer](../contact-monitor-synchronizer))
 
-**What it does:**
-- **Companies** — company profiles with domains, aliases, external account IDs (WHMCS, MetricsCube), brand product stages/scores, contacts, conversation history, activity timeline, notes
-- **People** — contact profiles with Gravatar avatars, multi-type identities (email, Slack, Discord, phone, LinkedIn, Twitter), company links, activity timeline
-- **Conversations** — per-channel message viewer: Slack/Discord (chat layout with threads), Email (bubble layout), Ticket (with status/priority badges)
-- **Activities** — filterable activity feed across all companies and people, sourced from meta_json
-- **Brand Products** — configure products to track (stage: lead/prospect/trial/active/churned, evaluation score 1–10)
-- **Campaigns** — AI prompt-based campaigns with run history
-
-**Runs on port 8090** (so it can coexist with Mielonka on 8080).
+The main app (this repo) stores and displays data. The synchronizer is a separate service that pulls data from your external tools and pushes it here. Both need to be running.
 
 ---
 
-## Step-by-step: fresh server setup
-
-These instructions assume a clean Linux server (Ubuntu 22.04 / Debian 12). Copy-paste each block exactly.
+## Installation
 
 ### 1. Install Docker
 
 ```bash
-# Install Docker Engine
 curl -fsSL https://get.docker.com | bash
-
-# Add your user to the docker group (so you don't need sudo)
 sudo usermod -aG docker $USER
-
-# Apply group change without logging out
 newgrp docker
 
 # Verify
@@ -59,267 +73,453 @@ docker --version
 docker compose version
 ```
 
-> If `docker compose version` fails, your Docker is too old. Run `sudo apt-get update && sudo apt-get install docker-compose-plugin` to install the plugin.
+> If `docker compose version` fails: `sudo apt-get install docker-compose-plugin`
 
 ### 2. Clone the repository
 
 ```bash
-# Create the directory where the app will live
 sudo mkdir -p /srv/contact-monitor
 sudo chown $USER:$USER /srv/contact-monitor
-
-# Clone
 git clone git@github.com:your-org/contact-monitor.git /srv/contact-monitor
-
-# Go into the directory — all following commands run from here
 cd /srv/contact-monitor
 ```
 
 ### 3. Configure environment
 
 ```bash
-# Copy the example config
 cp .env.example .env
-```
-
-Now open the file and edit it:
-
-```bash
 nano .env
 ```
 
-**Required changes — the file already has sensible defaults, you only need to set these two:**
+Set these values:
 
 ```env
-# Generate the APP_KEY in the next step — leave blank for now
+# Leave blank — filled in next step
 APP_KEY=
 
-# If you have a domain name or know the server's IP, set it here.
-# Otherwise leave it as localhost — you can change it later.
+# Your server's IP or domain name
 APP_URL=http://YOUR_SERVER_IP:8090
+
+# Recommended: change the DB password (also change in docker-compose.yml under the db service)
+DB_PASSWORD=choose_something_strong
 ```
 
-**Database password** — optional but recommended in production. If you change it here, also change it in `docker-compose.yml` under the `db` service:
+Everything else can stay as-is for a standard setup. Save with `Ctrl+O`, exit with `Ctrl+X`.
 
-```env
-DB_PASSWORD=change_me_to_something_strong
-```
-
-Save with `Ctrl+O`, then `Ctrl+X`.
-
-### 4. Start the stack
+### 4. Build and start
 
 ```bash
-# Build the Docker image (first time takes 2–3 minutes)
+# Build the Docker image (first time: 2–3 minutes)
 docker compose build --pull
 
-# Install PHP dependencies
+# Install dependencies
 docker compose run --rm app composer install --no-dev --optimize-autoloader
-
-# Install JS dependencies and build frontend assets
 docker compose run --rm app npm ci
 docker compose run --rm app npm run build
 
-# Generate the application key (writes APP_KEY= into .env automatically)
+# Generate application key (writes APP_KEY into .env automatically)
 docker compose run --rm app php artisan key:generate
 
-# Start the app and database
+# Start
 docker compose up -d
 ```
 
-Check that both containers are running:
-
+Check both containers are up:
 ```bash
 docker compose ps
+# contact-monitor_app   Up
+# contact-monitor_db    Up
 ```
 
-You should see `contact-monitor_app` and `contact-monitor_db` both with status `Up`.
-
-### 5. Run migrations
+### 5. Run database migrations
 
 ```bash
-# Wait 3 seconds for PostgreSQL to fully start, then migrate
 sleep 3 && docker compose exec app php artisan migrate --force
 ```
 
-### 6. (Optional) Load sample data
-
-This seeds 4 companies, 5 people, sample conversations (email + Slack + ticket with realistic messages), and activities. Useful for testing — **do not run on an instance that already has real data**.
-
-```bash
-docker compose exec app php artisan migrate:fresh --seed --force
-```
-
-### 7. Open the app
-
-Navigate to:
+### 6. Open the app
 
 ```
 http://YOUR_SERVER_IP:8090
 ```
 
-That's it — no login required, the app is open by default (internal tool).
+The app is ready. The first thing you'll see is the Setup Assistant — it will guide you through connecting the synchronizer and configuring your first data source.
+
+> **Optional:** Load sample data to explore the UI before connecting real sources:
+> ```bash
+> docker compose exec app php artisan migrate:fresh --seed --force
+> ```
+> This creates demo companies, people, and conversations. **Do not run on an instance with real data.**
+
+---
+
+## Configuration
+
+Follow these steps in order. Each step unlocks the next.
+
+---
+
+### 1. Create your first user account
+
+Go to **Configuration → Team Access → Users → Add User**.
+
+Set a name, email, and password. Assign the user to the **Admin** group (which has all permissions by default).
+
+The app uses email + password login. Passwords are case-sensitive; emails are not.
+
+---
+
+### 2. Connect the Synchronizer
+
+The synchronizer is a separate service that imports data from your external tools. Contact Monitor needs to know where it is.
+
+**Prerequisites:** The synchronizer must already be running. See [contact-monitor-synchronizer README](../contact-monitor-synchronizer/README.md) for setup instructions. It runs on port 8080.
+
+**In Contact Monitor:**
+
+1. Go to **Configuration → Synchronizer → Servers → Add Server**
+2. Enter:
+   - **Server URL:** `http://localhost:8080` (or the server's IP if running on a different machine)
+   - **API Token:** the `API_TOKEN` value from the synchronizer's `.env`
+3. Click **Test Connection** — you should see a green confirmation
+4. Save
+
+Contact Monitor will automatically exchange tokens with the synchronizer during the registration handshake. The synchronizer's `CONTACT_MONITOR_INGEST_SECRET` will be set automatically.
+
+> **Docker networking note:** If both services run as Docker containers on the same host, use `http://host.docker.internal:8080` instead of `localhost`.
+
+---
+
+### 3. Add connections
+
+Connections tell the synchronizer which external systems to pull data from. You manage them here, in Contact Monitor's admin panel — no need to touch the synchronizer directly.
+
+Go to **Configuration → Synchronizer → Connections → New Connection**.
+
+**WHMCS**
+
+Requires the **Contact Monitor for WHMCS** addon installed on your WHMCS instance. See [contact-monitor-for-whmcs README](../contact-monitor-for-whmcs/README.md).
+
+1. Choose type: **WHMCS**
+2. Enter a name (e.g. "My WHMCS") — this becomes the system slug
+3. Base URL: your WHMCS root URL (`https://billing.example.com`)
+4. API Token: the Bearer token from the WHMCS addon settings
+5. Select which entities to import: clients, contacts, services, tickets (default: all)
+6. Click **Test Connection**, then **Save**
+
+**Slack**
+
+1. Create a Slack App at [api.slack.com/apps](https://api.slack.com/apps). Add bot scopes: `channels:read`, `channels:history`, `groups:read`, `groups:history`, `files:read`. Install to workspace. Copy the Bot Token (`xoxb-...`).
+2. For private channels: run `/invite @your-bot-name` inside each channel.
+3. In Contact Monitor: choose type **Slack**, paste the Bot Token, optionally restrict to specific channel IDs.
+
+**Discord**
+
+1. Create a bot at [discord.com/developers](https://discord.com/developers/applications). Enable **Message Content Intent**. Invite the bot to your server with `Read Messages` and `Read Message History` permissions.
+2. Enable Developer Mode in Discord (User Settings → Advanced) to get guild/channel IDs.
+3. In Contact Monitor: choose type **Discord**, paste the Bot Token, optionally restrict to specific guild/channel IDs.
+
+**IMAP (any email)**
+
+Choose type **IMAP**. Enter host, port, username, password. Common setups:
+
+| Setup | Port | Encryption |
+|-------|------|------------|
+| IMAPS (standard) | 993 | ssl |
+| STARTTLS | 143 | tls |
+
+Optionally exclude specific mailboxes (e.g. Spam, Trash).
+
+**Gmail**
+
+Gmail requires OAuth and a publicly accessible HTTPS callback URL (use Cloudflare Tunnel — see [synchronizer README](../contact-monitor-synchronizer/README.md#cloudflare-tunnel-required-for-gmail-oauth)).
+
+1. Create an OAuth 2.0 Web Client in [Google Cloud Console](https://console.cloud.google.com/). Enable the Gmail API. Add the redirect URI shown in the connection form.
+2. In Contact Monitor: choose type **Gmail**, enter Client ID and Client Secret, enter the Gmail account email.
+3. After saving, open Edit → click **▶ Authorize with Google** and complete the consent flow.
+
+**Schedule**
+
+For every connection, configure a sync schedule (bottom of the connection form). Recommended starting points:
+- WHMCS: every 6 hours for partial, daily for full
+- Email/IMAP: every 15–30 minutes
+- Slack/Discord: every 30–60 minutes
+
+---
+
+### 4. Run your first import
+
+After adding a connection, run a **Full** import to pull all historical data.
+
+1. Go to **Configuration → Synchronizer → Connections**
+2. Click **▶ Run → Full** on your connection
+3. A log popup opens with real-time output — you can watch the import progress
+4. The first full import can take minutes to hours depending on data volume
+
+Once the import finishes, the synchronizer automatically pushes normalized data to Contact Monitor. You'll start seeing companies and people appear in the app.
+
+> Subsequent scheduled runs use **Partial** mode and only fetch data newer than the last checkpoint — these are fast (seconds to a few minutes).
+
+---
+
+### 5. Map accounts and identities to profiles
+
+After import, raw external records exist in the system but may not yet be linked to company/person profiles. The mapping step creates those connections.
+
+Go to **Configuration → Data Relations → Mapping**.
+
+The overview shows how many accounts and identities are unlinked per source system.
+
+**Mapping accounts → companies (WHMCS clients)**
+
+1. Click on your WHMCS system slug
+2. Each WHMCS client row shows the client data. If a matching company exists, it will be suggested. If not, you can create one.
+3. Click **Link** to associate the account with a company, or **Create company** to create a new one on the spot
+4. Sub-contacts appear inline under each client row — link them to people profiles the same way
+
+**Mapping identities → people (Slack, Discord, Email)**
+
+1. Click on your Slack/Discord/IMAP slug
+2. Each identity (email address, Slack user, Discord user) is listed
+3. Link to an existing person or create a new one
+4. Use **Auto-resolve** to let the system automatically link identities that share email addresses with already-linked profiles
+
+**Auto-resolve**
+
+The Auto-resolve button runs transitive matching across all sources — if a Slack user shares an email with a WHMCS contact, they get linked to the same person automatically. Run this after each major import.
+
+---
+
+### 6. Set up your organization
+
+Tell Contact Monitor who is on your team so internal communications are correctly classified.
+
+Go to **Configuration → Data Relations → Our Organization**.
+
+**Team Domains**
+
+Add your company's email domains (e.g. `example.com`). Any identity with a matching email domain will be automatically marked as a team member. This classifies their messages as internal/outbound in conversation views.
+
+**Team Members**
+
+Review the list of people flagged as your team. You can also go to **People → Our Organization** and use the bulk "Mark as Our Org" action to flag specific individuals.
+
+---
+
+### 7. Filter out noise
+
+Not all imported data is relevant. The filtering system lets you exclude specific contacts, companies, email domains, addresses, and conversation subjects from the main views.
+
+Go to **Configuration → Data Relations → Filtering**.
+
+| Tab | What it does |
+|-----|-------------|
+| **Domains** | Exclude entire email domains (e.g. `gmail.com`, `hotmail.com` for generic addresses) |
+| **Emails** | Exclude specific email addresses (e.g. `noreply@example.com`) |
+| **Subjects** | Exclude conversations matching specific subject lines |
+| **Contacts** | Exclude specific people profiles from appearing in activity feeds |
+
+Filtered conversations move to the **Filtered** tab in the Conversations section. They don't disappear — they're just separated from your main working view.
+
+You can also filter directly from the Conversations list: select conversations with the checkbox and click **Filter…** to create a rule from the current selection.
+
+---
+
+### 8. Configure brand products
+
+Brand products let you track where each client company is in your sales pipeline, with a stage and an evaluation score.
+
+Go to **Configuration → General Settings → Brand Products** (or wherever it appears in your setup).
+
+Add each product your company sells. For each company, you can then set:
+- **Stage**: Lead → Prospect → Trial → Active → Churned
+- **Score**: 0–100 evaluation
+- **Notes** and last evaluation date
+
+These appear on every company profile and in the companies index for quick overview.
+
+---
+
+## Browsing the app
+
+### Dashboard
+
+The landing page. Shows:
+- **Stats** for a configurable date range: conversations, new companies, new people, active people
+- **Most active contacts** — top 8 clients by activity volume in the period
+- **Most active team members** — top 8 team identities
+- **Recent notes** — the 10 most recent notes across all entities
+
+Use the date range picker (top right) to adjust the period.
+
+### Companies
+
+Your client list. Sortable by name, domain, number of contacts, channel types present, brand scores, and last update.
+
+Click any company to open its profile:
+- **Domains & Aliases** — all known domains and display names for this company
+- **Linked People** — all contacts with their role, start/end dates
+- **Brand Statuses** — pipeline stage + score per product
+- **Accounts** — external system IDs (WHMCS client ID, MetricsCube ID, etc.)
+- **Recent Conversations** — last 10 threads across all channels
+- **Notes** — internal notes visible only to your team
+- **Activity Timeline** — complete chronological feed of everything that happened with this company
+
+Click any conversation subject to get a quick preview popup without leaving the page.
+
+### People
+
+Your contacts list. Split into **Clients** and **Our Organization** tabs.
+
+Click any person to open their profile:
+- **Identities** — all known contact points (emails, Slack user, Discord user)
+- **Companies** — which companies they're linked to
+- **Activity charts** — hourly activity bar chart and day-of-week heatmap (useful for spotting when a client is most responsive)
+- **Recent Conversations**, **Notes**, **Activity Timeline**
+
+### Conversations
+
+All imported conversation threads in one place. Split into **Assigned** (linked to companies), **Unassigned** (not yet mapped), and **Filtered** (excluded from main view) tabs.
+
+Filter by date range and channel type. Click any subject to preview the conversation. Click **Show full discussion** to open the full message view with all messages, thread replies, and participant list.
+
+Message display adapts to the channel:
+- **Slack / Discord**: chat-style layout with avatar, username, timestamps, and thread replies
+- **Email / Tickets**: email-bubble layout with From/To/CC headers and status badges
+
+### Activity
+
+The global activity feed — everything that happened across all companies and people, in chronological order. Infinite scroll with cursor pagination.
+
+Filter by: date range, channel type, activity type.
+
+Search by company name, person name, or description text.
+
+Click the activity source to open the related conversation preview.
 
 ---
 
 ## Deploying updates
 
-Updates are deployed from your local machine with a single command. It pushes your latest commits, rebuilds on the server, and runs any new migrations.
-
-**Prerequisites:**
-- You can SSH into the server with `ssh production` (host configured in `~/.ssh/config`)
-- The app is already set up on the server at `/srv/contact-monitor`
-
-**Run from your local machine:**
+Run from your local machine:
 
 ```bash
 ./ops/deploy-production.sh
 ```
 
-The script does the following steps automatically:
-1. Checks for uncommitted local changes
-2. Pushes your branch to origin
-3. SSHs into the server, pulls the latest code
-4. Rebuilds the Docker image
-5. Reinstalls PHP and JS dependencies
-6. Rebuilds frontend assets
-7. Restarts containers
-8. Runs any new migrations
-9. Clears and rebuilds config/route/view caches
+The script: checks for uncommitted changes → pushes to origin → SSHs to server → pulls latest code → rebuilds Docker image → reinstalls dependencies → rebuilds frontend assets → restarts containers → runs new migrations → clears caches.
 
-**If deploy fails mid-way** — the most common causes:
-- `.env` not present on server → copy it: `ssh production "cp /srv/contact-monitor/.env.example /srv/contact-monitor/.env"` then edit it
-- Port 8090 already in use → check `ssh production "ss -tlnp | grep 8090"`
-- DB not ready → run `ssh production "cd /srv/contact-monitor && sleep 5 && docker compose exec app php artisan migrate --force"`
+**Prerequisites:**
+- SSH alias `production` configured in `~/.ssh/config` pointing to your server
+- App deployed at `/srv/contact-monitor` on the server
 
----
+**If deploy fails mid-way:**
 
-## Architecture overview
+```bash
+# .env missing on server
+ssh production "cp /srv/contact-monitor/.env.example /srv/contact-monitor/.env"
+# then edit it: ssh production "nano /srv/contact-monitor/.env"
 
+# Port 8090 already in use
+ssh production "ss -tlnp | grep 8090"
+
+# Migrations didn't run
+ssh production "cd /srv/contact-monitor && docker compose exec app php artisan migrate --force"
+
+# Containers not starting
+ssh production "cd /srv/contact-monitor && docker compose logs app"
 ```
-Browser
-  └─ :8090 → contact-monitor_app (php artisan serve inside Docker)
-               └─ PostgreSQL (contact-monitor_db container, :5434 on host)
-```
-
-**No queue worker, no scheduler.** All operations are synchronous — there are no background jobs. If you add features that require queued jobs in the future, add a `worker` service to `docker-compose.yml` (see Mielonka for reference).
-
-**Frontend:** Tailwind CSS v4 compiled by Vite at deploy time. The compiled assets land in `public/build/`. The `@vite` directive in the layout serves them. In production the hot-module-reload server does not run — only the compiled manifest is used.
-
-**Sessions and cache** are stored in the `sessions` and `cache` database tables (no Redis needed).
-
----
-
-## Data model
-
-18 tables. Key relationships:
-
-```
-companies
-  ├─ company_domains        (domain names, one marked is_primary)
-  ├─ company_aliases        (display name aliases, one marked is_primary)
-  ├─ accounts               (external IDs: WHMCS, MetricsCube, etc.)
-  ├─ company_brand_statuses (stage + score per brand product)
-  ├─ company_person         (pivot: which people work here)
-  ├─ conversations          (one per thread/email/ticket)
-  │    ├─ conversation_participants
-  │    └─ conversation_messages  (direction: customer/internal/system, thread_key for Slack threads)
-  └─ activities             (timeline events with meta_json payload)
-
-people
-  ├─ identities   (email, slack_id, discord_id, phone, linkedin, twitter)
-  └─ activities   (same table, person_id column)
-
-notes            (standalone)
-  └─ note_links  (polymorphic: company / person / conversation)
-
-brand_products   (PanelAlpha Cloud, EasyDCIM, etc.)
-campaigns
-  └─ campaign_runs
-
-audit_logs       (immutable action log)
-```
-
-**Conversation messages** have a `direction` enum: `customer` (inbound), `internal` (outbound/team), `system` (status change, bot message). Thread replies link to their parent via `thread_key = parent_message_id`.
-
-**Activities** carry a `meta_json` column for arbitrary data. The `Activity` model has `timelineLabel()`, `timelineColor()`, and `dotColor()` methods that map type strings to display settings — extend those when adding new activity types.
-
-**Notes** are standalone records linked to any entity via `note_links` (polymorphic). The `x-notes-section` component renders notes + add form for any entity.
 
 ---
 
 ## Running locally (development)
 
-No Docker needed for local dev — the app talks directly to your local PostgreSQL.
+No Docker needed for local dev.
 
-**Prerequisites:**
-- PHP 8.3 with `pdo_pgsql` extension (`php -m | grep pdo_pgsql`)
-- Composer
-- Node.js 20+
-- PostgreSQL running locally
+**Prerequisites:** PHP 8.3 with `pdo_pgsql`, Composer, Node.js 20+, PostgreSQL.
 
 ```bash
-cd /path/to/contact-monitor
-
-# Install dependencies
 composer install
 npm install
-
-# Configure environment
 cp .env.example .env
 ```
 
-Edit `.env` for local use:
-
+Edit `.env` for local:
 ```env
 APP_ENV=local
 APP_DEBUG=true
 APP_URL=http://localhost:8000
-
 DB_HOST=127.0.0.1
-DB_PORT=5432
 DB_DATABASE=contact-monitor
-DB_USERNAME=contact-monitor       # or your local postgres user
+DB_USERNAME=contact-monitor
 DB_PASSWORD=contact-monitor
 ```
 
-Create the database and user if they don't exist:
-
 ```bash
-sudo -u postgres psql -c "CREATE USER contact-monitor WITH PASSWORD 'contact-monitor';"
-sudo -u postgres psql -c "CREATE DATABASE contact-monitor OWNER contact-monitor;"
-```
+# Create DB
+sudo -u postgres psql -c "CREATE USER \"contact-monitor\" WITH PASSWORD 'contact-monitor';"
+sudo -u postgres psql -c "CREATE DATABASE \"contact-monitor\" OWNER \"contact-monitor\";"
 
-Run setup:
-
-```bash
+# Setup
 php artisan key:generate
 php artisan migrate
-php artisan db:seed          # load sample data
+php artisan db:seed    # load sample data
 
-# In one terminal — run Vite dev server (hot reload)
-npm run dev
-
-# In another terminal — run Laravel
-php artisan serve
+# Run (two terminals)
+npm run dev            # Vite hot reload
+php artisan serve      # Laravel on http://localhost:8000
 ```
 
-Open `http://localhost:8000`.
+Reset and re-seed: `php artisan migrate:fresh --seed`
 
-**To reset and re-seed:**
+---
+
+## Troubleshooting
+
+**No data showing after import**
+
+The synchronizer pushes data to Contact Monitor after each run. Check:
+1. `CONTACT_MONITOR_INGEST_SECRET` is set in the synchronizer `.env` (set automatically during server registration)
+2. The synchronizer worker is running: `docker compose -f /path/to/synchronizer/docker-compose.yml ps`
+3. Check synchronizer run logs: in Contact Monitor → Configuration → Synchronizer → Connections → Logs
+
+**Companies and people not linked to conversations**
+
+Go to **Configuration → Data Relations → Mapping** and complete the account/identity mapping. Then click **Auto-resolve**.
+
+**Internal messages showing as customer messages**
+
+Your team's email domains are not configured. Go to **Configuration → Data Relations → Our Organization → Team Domains** and add your company domain(s).
+
+**Conversations showing up that you don't want**
+
+Go to **Configuration → Data Relations → Filtering** and add the relevant domain, email, or subject to the appropriate filter list. Or select the conversations in the Conversations list and click **Filter…**.
+
+**Setup Assistant shows red dots**
+
+- **Red on "Add connector server"** — synchronizer not connected yet. Follow [step 2](#2-connect-the-synchronizer).
+- **Red on "Configure connections"** — no connections configured in the synchronizer. Follow [step 3](#3-add-connections).
+- **Yellow/red on "Configure mapping"** — less than 80% of accounts/identities are linked to profiles. Complete the mapping in Data Relations.
+- **Red on "Set your organization"** — no team members defined. Follow [step 6](#6-set-up-your-organization).
+
+**Page shows blank / 500 error after deploy**
 
 ```bash
-php artisan migrate:fresh --seed
+# Clear all caches
+docker exec contact-monitor_app php artisan view:clear
+docker exec contact-monitor_app php artisan config:clear
+docker exec contact-monitor_app php artisan route:clear
+
+# Check for missing migrations
+docker exec contact-monitor_app php artisan migrate --force
+
+# Check logs
+docker compose logs app
 ```
 
-**Checking the database directly:**
+**Port 8090 already in use**
 
 ```bash
-# Connect to local PostgreSQL
-psql -U contact-monitor -d contact-monitor
-
-# Useful queries
-\dt                                  -- list all tables
-SELECT * FROM companies LIMIT 5;
-SELECT * FROM conversation_messages ORDER BY occurred_at;
+ss -tlnp | grep 8090
+# Find the PID and kill it, or change the port in docker-compose.yml
 ```
