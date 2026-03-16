@@ -5,7 +5,10 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN apt-get update && apt-get install -y \
         libpq-dev \
         curl \
-    && docker-php-ext-install pdo pdo_pgsql \
+        git \
+        unzip \
+        libzip-dev \
+    && docker-php-ext-install pdo pdo_pgsql zip \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
