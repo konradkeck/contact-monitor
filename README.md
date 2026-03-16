@@ -476,50 +476,188 @@ Reset and re-seed: `php artisan migrate:fresh --seed`
 
 ## Troubleshooting
 
-**No data showing after import**
+### Containers
 
-The synchronizer pushes data to Contact Monitor after each run. Check:
-1. `CONTACT_MONITOR_INGEST_SECRET` is set in the synchronizer `.env` (set automatically during server registration)
-2. The synchronizer worker is running: `docker compose -f /path/to/synchronizer/docker-compose.yml ps`
-3. Check synchronizer run logs: in Contact Monitor → Configuration → Synchronizer → Connections → Logs
-
-**Companies and people not linked to conversations**
-
-Go to **Configuration → Data Relations → Mapping** and complete the account/identity mapping. Then click **Auto-resolve**.
-
-**Internal messages showing as customer messages**
-
-Your team's email domains are not configured. Go to **Configuration → Data Relations → Our Organization → Team Domains** and add your company domain(s).
-
-**Conversations showing up that you don't want**
-
-Go to **Configuration → Data Relations → Filtering** and add the relevant domain, email, or subject to the appropriate filter list. Or select the conversations in the Conversations list and click **Filter…**.
-
-**Setup Assistant shows red dots**
-
-- **Red on "Add connector server"** — synchronizer not connected yet. Follow [step 2](#2-connect-the-synchronizer).
-- **Red on "Configure connections"** — no connections configured in the synchronizer. Follow [step 3](#3-add-connections).
-- **Yellow/red on "Configure mapping"** — less than 80% of accounts/identities are linked to profiles. Complete the mapping in Data Relations.
-- **Red on "Set your organization"** — no team members defined. Follow [step 6](#6-set-up-your-organization).
-
-**Page shows blank / 500 error after deploy**
-
+**Check what's running**
 ```bash
-# Clear all caches
+docker compose ps
+# Both contact-monitor_app and contact-monitor_db should show "Up"
+```
+
+**Start everything**
+```bash
+docker compose up -d
+```
+
+**Stop everything**
+```bash
+docker compose down
+```
+
+**Restart the app only (after code/config change)**
+```bash
+docker compose restart app
+```
+
+**Rebuild image from scratch (after Dockerfile change or dep update)**
+```bash
+docker compose down
+docker compose build --no-cache --pull
+docker compose up -d
+```
+
+---
+
+### App won't start / crashes on startup
+
+**Check logs**
+```bash
+docker compose logs app
+docker compose logs app --tail=50    # last 50 lines
+docker compose logs -f app           # live follow
+```
+
+**Common causes:**
+
+`APP_KEY` missing or empty:
+```bash
+docker compose run --rm app php artisan key:generate
+docker compose restart app
+```
+
+`.env` not found or misconfigured — verify it exists and has the right values:
+```bash
+cat .env | grep -E "APP_KEY|APP_URL|DB_"
+```
+
+DB not ready yet (app starts before Postgres is accepting connections):
+```bash
+docker compose restart app
+# or wait 5s after `docker compose up -d` before checking
+```
+
+Port 8090 already in use by another process:
+```bash
+ss -tlnp | grep 8090
+# kill the conflicting process or change the port in docker-compose.yml
+```
+
+---
+
+### Database issues
+
+**Check DB is running**
+```bash
+docker compose ps db
+docker compose logs db
+```
+
+**Connect to the database directly**
+```bash
+docker exec -it contact-monitor_db psql -U contact-monitor -d contact-monitor
+# inside psql:
+\dt          # list tables
+\q           # quit
+```
+
+Or from the host (DB exposed on port 5434):
+```bash
+psql -h localhost -p 5434 -U contact-monitor -d contact-monitor
+```
+
+**Run pending migrations**
+```bash
+docker exec contact-monitor_app php artisan migrate --force
+```
+
+**Check migration status**
+```bash
+docker exec contact-monitor_app php artisan migrate:status
+```
+
+**DB data is gone after restart**
+
+Data is stored in a named Docker volume (`contact-monitor_pgdata`). It persists across `docker compose down/up`. It is destroyed only by:
+```bash
+docker compose down -v    # ← this deletes the volume — never run this in production
+```
+
+Check the volume exists:
+```bash
+docker volume ls | grep contact-monitor
+```
+
+---
+
+### App returns 500 / blank page
+
+Clear caches (usually fixes it after a bad deploy or `.env` change):
+```bash
 docker exec contact-monitor_app php artisan view:clear
 docker exec contact-monitor_app php artisan config:clear
 docker exec contact-monitor_app php artisan route:clear
-
-# Check for missing migrations
-docker exec contact-monitor_app php artisan migrate --force
-
-# Check logs
-docker compose logs app
+docker exec contact-monitor_app php artisan cache:clear
 ```
 
-**Port 8090 already in use**
+Check for PHP errors in logs:
+```bash
+docker compose logs app | grep -i error
+docker compose logs app | grep -i exception
+```
+
+Run any missing migrations:
+```bash
+docker exec contact-monitor_app php artisan migrate --force
+```
+
+---
+
+### After code changes (no full redeploy)
+
+Just clear views and restart the app:
+```bash
+docker exec contact-monitor_app php artisan view:clear
+docker compose restart app
+```
+
+If you changed CSS/JS:
+```bash
+docker compose run --rm app npm run build
+docker compose restart app
+```
+
+---
+
+### Full reset (nuclear option — destroys all data)
+
+Only use if you want to start completely fresh:
+```bash
+docker compose down -v          # stop containers AND delete DB volume
+docker compose up -d
+sleep 3
+docker exec contact-monitor_app php artisan migrate --force
+```
+
+---
+
+### Useful one-liners
 
 ```bash
-ss -tlnp | grep 8090
-# Find the PID and kill it, or change the port in docker-compose.yml
+# View last 100 app log lines
+docker compose logs app --tail=100
+
+# Open Laravel tinker (interactive PHP shell)
+docker exec -it contact-monitor_app php artisan tinker
+
+# Check what PHP extensions are loaded
+docker exec contact-monitor_app php -m
+
+# See environment variables the app sees
+docker exec contact-monitor_app php artisan env
+
+# Force-clear all compiled caches at once
+docker exec contact-monitor_app php artisan optimize:clear
+
+# Check DB connection from inside the app container
+docker exec contact-monitor_app php artisan tinker --execute="DB::select('SELECT 1');"
 ```
