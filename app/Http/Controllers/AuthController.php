@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Group;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +19,54 @@ class AuthController extends Controller
             return redirect()->intended(route('dashboard'));
         }
 
+        if (!User::exists()) {
+            return redirect()->route('setup');
+        }
+
         return view('auth.login');
+    }
+
+    public function showSetup(): View|RedirectResponse
+    {
+        if (User::exists()) {
+            return redirect()->route('login');
+        }
+
+        return view('auth.setup');
+    }
+
+    public function setup(Request $request): RedirectResponse
+    {
+        if (User::exists()) {
+            return redirect()->route('login');
+        }
+
+        $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'min:8', 'confirmed'],
+        ]);
+
+        foreach ([
+            'Admin'   => Group::adminPermissions(),
+            'Analyst' => Group::analystPermissions(),
+            'Viewer'  => Group::viewerPermissions(),
+        ] as $name => $perms) {
+            Group::firstOrCreate(['name' => $name], ['permissions' => $perms]);
+        }
+
+        $admin = Group::where('name', 'Admin')->first();
+
+        $user = User::create([
+            'name'     => explode('@', $request->email)[0],
+            'email'    => strtolower($request->email),
+            'password' => Hash::make($request->password),
+            'group_id' => $admin->id,
+        ]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->route('dashboard');
     }
 
     public function login(Request $request): RedirectResponse

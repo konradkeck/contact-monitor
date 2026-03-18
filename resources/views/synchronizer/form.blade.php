@@ -128,7 +128,11 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">API Token {{ $isEdit ? '(leave blank to keep current)' : '' }}</label>
-                <input type="password" name="settings[token]" value="" class="input font-mono" autocomplete="off">
+                <div class="flex gap-2">
+                    <input type="password" id="whmcs-token-input" name="settings[token]" value="" class="input font-mono flex-1" autocomplete="off">
+                    <button type="button" onclick="whmcsGenerateToken()" class="btn btn-secondary btn-sm shrink-0">Generate</button>
+                    <button type="button" id="whmcs-copy-btn" onclick="whmcsCopyToken()" class="btn btn-secondary btn-sm shrink-0">Copy</button>
+                </div>
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Entities (one per line)</label>
@@ -341,5 +345,29 @@
 
     </div>
 </form>
+
+@push('scripts')
+<script>
+function whmcsGenerateToken() {
+    const arr = new Uint8Array(32);
+    crypto.getRandomValues(arr);
+    const token = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    const input = document.getElementById('whmcs-token-input');
+    input.value = token;
+    input.type = 'text';
+}
+
+function whmcsCopyToken() {
+    const input = document.getElementById('whmcs-token-input');
+    if (!input.value) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+        const btn = document.getElementById('whmcs-copy-btn');
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = orig, 1500);
+    });
+}
+</script>
+@endpush
 
 @endsection
