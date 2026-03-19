@@ -29,6 +29,15 @@ class AuthAclTest extends TestCase
 
     public function test_login_page_is_accessible(): void
     {
+        // Requires at least one user to exist; otherwise /login redirects to /setup
+        $group = Group::create(['name' => 'Admin', 'permissions' => Group::adminPermissions()]);
+        User::create([
+            'name'     => 'Admin',
+            'email'    => 'admin@test.local',
+            'password' => bcrypt('password'),
+            'group_id' => $group->id,
+        ]);
+
         $this->get(route('login'))->assertStatus(200);
     }
 

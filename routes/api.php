@@ -29,10 +29,11 @@ Route::post('/synchronizer/register', function (Request $request) {
 
     // Auto-create the server with a unique per-server ingest secret
     \App\Models\SynchronizerServer::create([
-        'name' => 'Synchronizer',
-        'url' => $syncUrl,
-        'api_token' => $apiToken,
+        'name'        => 'Synchronizer',
+        'url'         => $syncUrl,
+        'api_token'   => $apiToken,
         'ingest_secret' => $ingestSecret,
+        'install_dir' => $request->input('install_dir') ?: null,
     ]);
 
     return response()->json(['ok' => true, 'ingest_secret' => $ingestSecret]);

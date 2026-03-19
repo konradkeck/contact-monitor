@@ -8,7 +8,8 @@ export CM_REG_TOKEN="{{ $pending->token }}"
 export CM_REG_URL="{{ $regUrl }}"
 
 INSTALL_DIR="${INSTALL_DIR:-./contact-monitor-synchronizer}"
-REPO_URL="git@github.com:konradkeck/contact-monitor-synchronizer.git"
+INSTALL_DIR="$(realpath "$INSTALL_DIR" 2>/dev/null || echo "$INSTALL_DIR")"
+REPO_URL="https://github.com/konradkeck/contact-monitor-synchronizer.git"
 
 echo "==> Installing Contact Monitor Synchronizer to $INSTALL_DIR"
 
@@ -62,6 +63,7 @@ API_TOKEN=${CM_API_TOKEN}
 
 CM_REGISTRATION_URL=${CM_REG_URL}
 CM_REGISTRATION_TOKEN=${CM_REG_TOKEN}
+INSTALL_DIR=${INSTALL_DIR}
 ENVEOF
 
 echo "==> Patching docker-compose.yml..."

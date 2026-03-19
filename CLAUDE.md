@@ -33,6 +33,9 @@ docker exec contact-monitor_app php artisan tinker
 # Run tests (SQLite in-memory)
 docker exec contact-monitor_app php artisan test
 
+# Run a specific test file
+docker exec contact-monitor_app php artisan test tests/Feature/SetupTest.php
+
 # Rebuild frontend assets
 docker exec contact-monitor_app npm run build
 
@@ -1062,3 +1065,38 @@ Tailwind CSS v4 compiled by Vite. Assets in `public/build/`. `@vite` directive i
 
 PHPUnit with two suites: `Unit` (`tests/Unit/`) and `Feature` (`tests/Feature/`)
 Test database: SQLite in-memory (`:memory:`) — configured in `phpunit.xml`
+
+### Testing Rules
+
+**Run tests before and after every change.** A test failure should block the change.
+
+**Update tests when adding features.** Every new route, controller method, or auth rule needs a corresponding test. No exceptions.
+
+**Test files by domain:**
+
+| File | Covers |
+|------|--------|
+| `SetupTest.php` | First-run setup flow (`/setup`), login-to-setup redirect when no users |
+| `AuthAclTest.php` | Login/logout, rate limiting, per-role permissions (Admin/Analyst/Viewer) |
+| `WizardRouteTest.php` | Synchronizer wizard routes — regression for the 500 bug caused by `Route::resource` matching `wizard` as `{server}` parameter |
+| `RoutesSmokeTest.php` | Every major page returns 200, not 500. Add new pages here when created. |
+| `ApiIngestTest.php` | `/api/ingest/batch` — `X-Ingest-Secret` authentication |
+| `DashboardTest.php` | Dashboard stats, require.setup middleware redirect |
+| `SynchronizerTest.php` | Synchronizer connections page, server listing |
+
+### Known SQLite limitations
+
+Tests run on SQLite. Some features use PostgreSQL-specific SQL that doesn't work in SQLite — those tests use `$this->markTestSkipped(...)`:
+
+- `DISTINCT ON (...)` — used in company/person show pages
+- `meta_json->>'key'` JSON operators — used in ActivityController queries
+- Window functions (`OVER`, `PARTITION BY`) — used in person show page
+
+Do not remove these skips. When the full test suite runs in CI against PostgreSQL, they will execute.
+
+### Pre-existing known failures (SQLite only)
+
+- `ActivitiesTest::test_activity_index_shows_activity` — PostgreSQL JSON operators in `ActivityController::index()`
+- `ActivitiesTest::test_activity_timeline_with_cursor_pagination` — same cause
+
+These are not regressions — they fail because the test database is SQLite. The features work correctly on PostgreSQL (production and staging).

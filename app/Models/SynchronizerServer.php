@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class SynchronizerServer extends Model
 {
-    protected $fillable = ['name', 'url', 'api_token', 'ingest_secret'];
+    protected $fillable = ['name', 'url', 'api_token', 'ingest_secret', 'install_dir'];
 }

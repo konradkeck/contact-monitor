@@ -68,7 +68,7 @@
                                 Edit
                             </a>
                             <button type="button" class="btn btn-danger btn-sm"
-                                onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}')">
+                                onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}', '{{ addslashes($server->url) }}')">
                                 <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </div>
@@ -85,7 +85,7 @@
                                 <a href="{{ route('synchronizer.servers.edit', $server) }}"
                                    class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50">Edit</a>
                                 <button type="button"
-                                        onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}')"
+                                        onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}', '{{ addslashes($server->url) }}')"
                                         class="flex w-full px-3 py-2 text-red-600 hover:bg-red-50 text-left">Delete</button>
                             </div>
                         </div>
@@ -117,9 +117,26 @@
             </div>
         </div>
 
-        <div class="rounded-lg p-3 mb-5 text-sm alert-warning">
-            <p class="font-medium text-amber-800 mb-1">To fully uninstall the synchronizer, run on the remote server:</p>
-            <code class="text-xs text-amber-900 font-mono block">cd contact-monitor-synchronizer &amp;&amp; docker compose down -v</code>
+        <div id="uninstall-box" class="rounded-lg p-3 mb-5 text-sm alert-warning space-y-3">
+            <p class="font-medium text-amber-800">To fully uninstall the synchronizer, run on the remote server:</p>
+            <div>
+                <p class="text-xs text-amber-700 mb-1">Stop containers and remove database volumes:</p>
+                <div class="flex items-center gap-2 bg-amber-100 rounded px-2 py-1.5">
+                    <code id="uninstall-cmd-1" class="text-xs text-amber-900 font-mono flex-1 break-all"></code>
+                    <button type="button" onclick="copyCmd('uninstall-cmd-1', this)" class="shrink-0 text-amber-600 hover:text-amber-900 transition" title="Copy">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <p class="text-xs text-amber-700 mb-1">Delete all synchronizer files from disk:</p>
+                <div class="flex items-center gap-2 bg-amber-100 rounded px-2 py-1.5">
+                    <code id="uninstall-cmd-2" class="text-xs text-amber-900 font-mono flex-1 break-all"></code>
+                    <button type="button" onclick="copyCmd('uninstall-cmd-2', this)" class="shrink-0 text-amber-600 hover:text-amber-900 transition" title="Copy">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <p class="text-sm text-gray-500 mb-5">
@@ -169,12 +186,29 @@ function truncate(s, n) {
     return s.length > n ? s.slice(0, n) + '…' : s;
 }
 
-function openDeleteModal(name, action) {
+function openDeleteModal(name, action, url, installDir) {
     document.getElementById('delete-server-name').textContent = name;
     document.getElementById('delete-form').action = action;
+
+    const dir = installDir || null;
+    document.getElementById('uninstall-cmd-1').textContent =
+        'cd ' + (dir || '~/contact-monitor-synchronizer') + ' && docker compose down -v';
+    document.getElementById('uninstall-cmd-2').textContent =
+        dir ? 'rm -rf ' + dir : 'rm -rf ~/contact-monitor-synchronizer';
+    document.getElementById('uninstall-box').style.display = dir ? '' : 'none';
+
     const m = document.getElementById('delete-modal');
     m.classList.remove('hidden');
     m.classList.add('flex');
+}
+
+function copyCmd(id, btn) {
+    const cmd = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(cmd).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<svg class="w-3.5 h-3.5 text-green-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+        setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    });
 }
 
 function closeDeleteModal() {

@@ -195,7 +195,8 @@ Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsCont
         Route::get('configuration/synchronizer-servers/{server}/ping', [SynchronizerServerController::class, 'ping'])->name('synchronizer.servers.ping');
         Route::resource('configuration/synchronizer-servers', SynchronizerServerController::class)
             ->names('synchronizer.servers')
-            ->parameters(['synchronizer-servers' => 'server']);
+            ->parameters(['synchronizer-servers' => 'server'])
+            ->except(['show']);
 
         // Setup Assistant
         Route::get('configuration/setup-assistant', [SetupAssistantController::class, 'index'])->name('setup-assistant.index');
@@ -217,9 +218,11 @@ Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsCont
     // Synchronizer Wizard (no configuration permission required — needed for initial server setup)
     Route::get('configuration/synchronizer-servers/wizard', [SynchronizerWizardController::class, 'step1'])->name('synchronizer.wizard.step1');
     Route::get('configuration/synchronizer-servers/wizard/configure-new', [SynchronizerWizardController::class, 'configureNew'])->name('synchronizer.wizard.configure-new');
-    Route::get('configuration/synchronizer-servers/wizard/install-script/{token}', [SynchronizerWizardController::class, 'installScript'])->name('synchronizer.wizard.install-script');
-    Route::get('configuration/synchronizer-servers/wizard/poll/{token}', [SynchronizerWizardController::class, 'pollRegistration'])->name('synchronizer.wizard.poll');
     Route::get('configuration/synchronizer-servers/wizard/connect-existing', [SynchronizerWizardController::class, 'connectExisting'])->name('synchronizer.wizard.connect-existing');
     Route::post('configuration/synchronizer-servers/wizard/inspect', [SynchronizerWizardController::class, 'inspectExisting'])->name('synchronizer.wizard.inspect');
     Route::post('configuration/synchronizer-servers/wizard/connect-save', [SynchronizerWizardController::class, 'connectSave'])->name('synchronizer.wizard.connect-save');
 });
+
+// Wizard install-script + poll — public (token in URL is the auth)
+Route::get('configuration/synchronizer-servers/wizard/install-script/{token}', [SynchronizerWizardController::class, 'installScript'])->name('synchronizer.wizard.install-script');
+Route::get('configuration/synchronizer-servers/wizard/poll/{token}', [SynchronizerWizardController::class, 'pollRegistration'])->name('synchronizer.wizard.poll');
