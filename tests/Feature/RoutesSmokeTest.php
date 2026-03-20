@@ -211,6 +211,21 @@ class RoutesSmokeTest extends TestCase
         $this->get(route('our-company.index'))->assertStatus(200);
     }
 
+    public function test_smart_notes_config_loads(): void
+    {
+        $this->get(route('smart-notes.config.index'))->assertStatus(200);
+    }
+
+    public function test_smart_notes_config_create_filter_loads(): void
+    {
+        $this->get(route('smart-notes.config.filters.create'))->assertStatus(200);
+    }
+
+    public function test_smart_notes_index_loads(): void
+    {
+        $this->get(route('smart-notes.index'))->assertStatus(200);
+    }
+
     public function test_change_password_page_loads(): void
     {
         $this->get(route('auth.change-password'))->assertStatus(200);

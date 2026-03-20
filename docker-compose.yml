@@ -8,7 +8,7 @@ services:
       - ./:/app
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
     ports:
-      - "8090:8000"
+      - "${APP_PORT:-8090}:8000"
     environment:
       PHP_CLI_SERVER_WORKERS: 8
     extra_hosts:
@@ -21,9 +21,9 @@ services:
     container_name: contact-monitor_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: contact-monitor
-      POSTGRES_USER: contact-monitor
-      POSTGRES_PASSWORD: contact-monitor
+      POSTGRES_DB: ${DB_DATABASE:-contact-monitor}
+      POSTGRES_USER: ${DB_USERNAME:-contact-monitor}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-contact-monitor}
     volumes:
       - contact-monitor_pgdata:/var/lib/postgresql/data
     ports:

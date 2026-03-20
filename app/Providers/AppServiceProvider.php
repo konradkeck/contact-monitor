@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Models\Account;
 use App\Models\Identity;
 use App\Models\Person;
+use App\Models\SmartNote;
 use App\Models\SynchronizerServer;
+use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -18,6 +20,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // ── On localhost, append APP_PORT to app.url ──────────────────────────
+        $port = env('APP_PORT');
+        $url  = rtrim(config('app.url'), '/');
+        if ($port && preg_match('#^https?://(localhost|127\.0\.0\.1)$#', $url)) {
+            config(['app.url' => $url . ':' . $port]);
+            url()->forceRootUrl($url . ':' . $port);
+        }
+
         // ── Permission gates ──────────────────────────────────────────────────
         foreach (['browse_data', 'data_write', 'notes_write', 'analyse', 'configuration'] as $perm) {
             Gate::define($perm, fn ($user) => $user->hasPermission($perm));
@@ -154,7 +164,7 @@ class AppServiceProvider extends ServiceProvider
             $isConfigRoute = request()->routeIs(
                 'synchronizer.*', 'data-relations.*', 'our-company.*',
                 'filtering.*', 'segmentation.*', 'configuration.*', 'team-access.*',
-                'setup-assistant.*'
+                'setup-assistant.*', 'smart-notes.config.*'
             );
 
             $topSections = [
@@ -211,6 +221,8 @@ class AppServiceProvider extends ServiceProvider
                      'icon' => '<circle cx="6" cy="17" r="2.75" stroke-width="1.75"/><circle cx="20" cy="4" r="2" stroke-width="1.75"/><circle cx="20" cy="15" r="2" stroke-width="1.75"/><circle cx="10" cy="5" r="2" stroke-width="1.75"/><path stroke-linecap="round" stroke-width="1.75" d="M8 15L18.5 5.5M8 16.5L18.5 14.5M7.5 14.5L9.5 7"/>'],
                     ['label' => 'Synchronizer Servers', 'route' => 'synchronizer.servers.index', 'match' => ['synchronizer.servers.*', 'synchronizer.wizard.*'], 'disabled' => false, 'dot' => $serverNeedsAttention,
                      'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>'],
+                    ['label' => 'Smart Notes', 'route' => 'smart-notes.config.index', 'match' => ['smart-notes.config.*'], 'disabled' => false, 'dot' => false, 'ai' => true,
+                     'icon' => ''],
                 ];
 
                 foreach ($syncItems as &$item) {
@@ -230,12 +242,21 @@ class AppServiceProvider extends ServiceProvider
                 $companiesCount = Cache::remember('layout.companies_count', 60, fn () => \App\Models\Company::notMerged()->count());
                 $peopleCount    = Cache::remember('layout.people_count',    60, fn () => Person::notMerged()->where('is_our_org', false)->count());
 
+                $smartNotesEnabled       = Cache::remember('layout.smart_notes_enabled', 60, fn () => (bool) SystemSetting::get('smart_notes_enabled', false));
+                $smartNotesUnrecognized  = $smartNotesEnabled ? Cache::remember('layout.smart_notes_unrecognized', 30, fn () => SmartNote::unrecognized()->count()) : 0;
+
                 $sidebarItems = [
                     ['label' => 'Dashboard',     'route' => 'dashboard',          'match' => ['dashboard'],         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>'],
                     ['label' => 'Companies',     'route' => 'companies.index',    'match' => ['companies.*'],       'count' => $companiesCount, 'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>'],
                     ['label' => 'People',        'route' => 'people.index',       'match' => ['people.*'],          'count' => $peopleCount,    'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>'],
                     ['label' => 'Conversations', 'route' => 'conversations.index','match' => ['conversations.*'],   'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>'],
                     ['label' => 'Activity',      'route' => 'activity.index',     'match' => ['activity.*'],        'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M13 10V3L4 14h7v7l9-11h-7z"/>'],
+                    ['label' => 'Smart Notes',   'route' => 'smart-notes.index',  'match' => ['smart-notes.index', 'smart-notes.recognize', 'smart-notes.save-recognition'],
+                     'disabled' => !$smartNotesEnabled,
+                     'disabledMsg' => 'Enable Smart Notes in Configuration → Smart Notes',
+                     'count' => $smartNotesUnrecognized ?: null,
+                     'ai' => true,
+                     'icon' => ''],
                 ];
 
                 foreach ($sidebarItems as &$item) {

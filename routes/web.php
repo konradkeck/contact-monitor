@@ -13,6 +13,8 @@ use App\Http\Controllers\SetupAssistantController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\OurCompanyController;
 use App\Http\Controllers\PersonController;
+use App\Http\Controllers\SmartNotesConfigController;
+use App\Http\Controllers\SmartNotesController;
 use App\Http\Controllers\SynchronizerController;
 use App\Http\Controllers\SynchronizerServerController;
 use App\Http\Controllers\SynchronizerWizardController;
@@ -123,6 +125,13 @@ Route::middleware('auth')->group(function () {
         Route::post('notes', [NoteController::class, 'store'])->name('notes.store');
         Route::delete('notes/{note}', [NoteController::class, 'destroy'])->name('notes.destroy');
 
+        // Smart Notes (Browse Data)
+        Route::get('smart-notes', [SmartNotesController::class, 'index'])->name('smart-notes.index');
+        Route::get('smart-notes/{smartNote}/recognize', [SmartNotesController::class, 'recognize'])->name('smart-notes.recognize');
+        Route::post('smart-notes/{smartNote}/recognize', [SmartNotesController::class, 'saveRecognition'])->name('smart-notes.save-recognition');
+        Route::delete('smart-notes/{smartNote}', [SmartNotesController::class, 'destroy'])->name('smart-notes.destroy');
+        Route::post('smart-notes/{smartNote}/unrecognize', [SmartNotesController::class, 'unrecognize'])->name('smart-notes.unrecognize');
+
         // Audit log
         Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
 
@@ -206,6 +215,14 @@ Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsCont
 
         // Setup Assistant
         Route::get('configuration/setup-assistant', [SetupAssistantController::class, 'index'])->name('setup-assistant.index');
+
+        // Smart Notes Configuration
+        Route::get('configuration/smart-notes', [SmartNotesConfigController::class, 'index'])->name('smart-notes.config.index');
+        Route::post('configuration/smart-notes/settings', [SmartNotesConfigController::class, 'saveSettings'])->name('smart-notes.config.settings');
+        Route::get('configuration/smart-notes/filters/create', [SmartNotesConfigController::class, 'createFilter'])->name('smart-notes.config.filters.create');
+        Route::post('configuration/smart-notes/filters', [SmartNotesConfigController::class, 'storeFilter'])->name('smart-notes.config.filters.store');
+        Route::delete('configuration/smart-notes/filters/{filter}', [SmartNotesConfigController::class, 'destroyFilter'])->name('smart-notes.config.filters.destroy');
+        Route::post('configuration/smart-notes/scan', [SmartNotesConfigController::class, 'scan'])->name('smart-notes.config.scan');
 
         // Team Access
         Route::get('configuration/team-access', [TeamAccessController::class, 'index'])->name('team-access.index');

@@ -53,6 +53,15 @@ docker exec contact-monitor_app npm run build
 - `contact-monitor_db` — PostgreSQL 16, port 5434 on host
 - `contact-monitor-synchronizer_app` — separate synchronizer service on port 8080
 
+### Installation Configuration Rule
+
+**The `.env` file is the ONLY place a user touches before installation. No exceptions.**
+
+- Never require editing `docker-compose.yml`, `Dockerfile`, or any other file
+- Never duplicate configuration between `.env` and any other file
+- All docker-compose values that a user might want to change **must** come from `.env` variables (e.g. `${APP_PORT:-8090}`)
+- `APP_URL` has no port — port lives only in `APP_PORT`. `AppServiceProvider` appends it automatically on localhost.
+
 ### Route Middleware Stack
 
 ```
@@ -106,12 +115,16 @@ companies
   ├─ company_person         (pivot: role, started_at, ended_at)
   ├─ conversations          → conversation_messages (direction: customer/internal/system)
   │                           conversation_participants (identity ↔ conversation)
-  └─ activities             (meta_json payload, occurred_at)
+  ├─ activities             (meta_json payload, occurred_at)
+  ├─ mergedInto             (BelongsTo Company — self-referential, nullable merged_into_id)
+  └─ mergedCompanies        (HasMany Company — companies merged into this one)
 
 people
   ├─ identities             (type: email / slack_user / discord_user; value_normalized auto-lowercased)
   ├─ company_person pivot
-  └─ activities
+  ├─ activities
+  ├─ mergedInto             (BelongsTo Person — self-referential, nullable merged_into_id)
+  └─ mergedPeople           (HasMany Person — people merged into this one)
 
 notes → note_links          (polymorphic: Company / Person / Conversation)
 
@@ -120,7 +133,23 @@ synchronizer_servers        (url, api_token, ingest_secret)
 system_settings             (key-value JSON store)
 filter_contacts             (pivot: person_id, reason)
 audit_logs                  (user_id, entity_type, entity_id, action, description)
+smart_note_filters          (type, criteria jsonb, as_internal_note, is_active)
+smart_notes                 (filter_id, source_type, content, sender_*, status, segments_json jsonb, softDeletes)
 ```
+
+### Merge (Companies & People)
+
+Merge is **non-destructive and visual only** — data is never moved or deleted.
+
+- `merged_into_id` FK (self-referential, nullOnDelete) on both `companies` and `people`
+- `Company::scopeNotMerged()` / `Person::scopeNotMerged()` — `whereNull('merged_into_id')` — **always apply on list/count queries**
+- `mergedInto()` BelongsTo, `mergedCompanies()` / `mergedPeople()` HasMany
+- When showing a merged entity's page: display amber banner "This company/person has been merged into [Primary]" with link
+- Conversations: resolve merged company → primary via `setRelation('company', $conv->company->mergedInto)` in controllers
+- People index: eager-load `companies.mergedInto`, resolve in controller (`map(fn($c) => $c->mergedInto ?? $c)->unique('id')`)
+- Company show: services (`$serviceSystems`) must include accounts from `$company->mergedCompanies` as well
+- Activity search: add `whereNull('merged_into_id')` to `orWhereHas('company', ...)` and `orWhereHas('person', ...)`
+- BuildsConvSubjectMap: `Person::notMerged()->where('is_our_org', true)` for our-org detection
 
 ### Models — Important Methods
 
@@ -140,6 +169,14 @@ audit_logs                  (user_id, entity_type, entity_id, action, descriptio
 **Identity**
 - `value_normalized` — auto-lowercased on save via model boot; use this for all lookups
 - `is_team_member` — derived/secondary; `Person.is_our_org` is the canonical flag
+
+**SmartNoteFilter**
+- `typeLabel()` — human-readable type name
+- `summaryLabel()` — short criteria description for list display
+
+**SmartNote**
+- `sourceLabel()` — human-readable source type
+- `scopeUnrecognized()` / `scopeRecognized()` — filter by status
 
 ### Activity Direction Classification (priority order)
 1. `meta_json['direction']` explicit override
@@ -448,6 +485,59 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 - CRUD for `SynchronizerServer` model (url, api_token, ingest_secret, name)
 - Test connectivity (ping)
 - Registration wizard (step-by-step: server URL → install script → poll registration)
+
+---
+
+### Configuration: Smart Notes (`/configuration/smart-notes`)
+
+**Controller:** `SmartNotesConfigController`
+**Tabs:** Notes Filtering | AI Recognition (disabled, "Coming soon")
+
+**Purpose:** Configure which messages are automatically captured as Smart Notes.
+
+**Filter types:**
+| Type | Criteria |
+|------|---------|
+| `email_address` | `{address, direction: any/to/from}` — matches email conversations with that address |
+| `email_subject` | `{keyword}` — matches conversations (email/ticket) with subject containing keyword |
+| `discord_any` | `{guild_id?, channel_id?}` — matches Discord conversations, optionally filtered |
+| `slack_any` | `{channel_id?}` — matches Slack conversations, optionally filtered |
+
+**Settings:** `SystemSetting::get/set('smart_notes_enabled', false)` — master on/off switch.
+
+**Scan:** `POST /configuration/smart-notes/scan` — scans existing conversations against active filters and creates SmartNotes for matches. Synchronous, returns count in flash message.
+
+**Sidebar:** "Smart Notes" appears in Configuration → Synchronization section with AI icon.
+
+---
+
+### Browse Data: Smart Notes (`/smart-notes`)
+
+**Controller:** `SmartNotesController`
+**Tabs:** Unrecognized | Recognized
+
+**Workflow:**
+1. Message matches a filter → captured as `SmartNote` with `status=unrecognized`
+2. User clicks "Recognize" → opens recognition page
+3. User splits content into segments, assigns each to Company or Person
+4. On save: creates actual `Note` records (linked via `NoteLink`), sets `status=recognized`
+5. Can unrecognize (reverts to unrecognized, deletes created notes)
+6. Can delete (soft delete)
+
+**Data model:**
+- `smart_note_filters` — filter rules (`type`, `criteria` jsonb, `as_internal_note`, `is_active`)
+- `smart_notes` — captured messages (`source_type`, `source_external_id`, `content`, `sender_*`, `occurred_at`, `as_internal_note`, `status`, `segments_json` jsonb, softDeletes)
+- `segments_json` — array of `{content, company_id, person_id, note_id, company_name, person_name}`
+
+**Models:** `SmartNoteFilter`, `SmartNote` (with `SoftDeletes`)
+
+**Sidebar (Browse Data):** "Smart Notes" with AI icon. Disabled (with hover tooltip) when `smart_notes_enabled=false`. Shows unrecognized count badge when > 0.
+
+**Notes created from Smart Notes:** `source='smart_note'`, `meta_json.smart_note_id` = SmartNote id, `meta_json.as_internal_note` = bool.
+
+**Unrecognize:** Uses `whereJsonContains('meta_json->smart_note_id', $id)` — **PostgreSQL only**, mark tests as skipped on SQLite.
+
+**Tests:** `tests/Feature/SmartNotesTest.php` (22 tests, 1 skipped on SQLite for JSON operator).
 
 ---
 
