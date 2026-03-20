@@ -15,9 +15,10 @@
         <p class="text-xs text-gray-500 mb-3">This downloads and sets up the synchronizer, then connects it to this Contact Monitor instance automatically.</p>
 
         <div class="relative">
-            <pre id="install-cmd" class="code-block rounded-lg text-xs p-4 overflow-x-auto leading-relaxed select-all">bash &lt;(curl -sSL {{ route('synchronizer.wizard.install-script', $pending->token) }})</pre>
+            <pre id="install-cmd" class="code-block rounded-lg text-xs p-4 overflow-x-auto leading-relaxed select-all">SYNC_APP_PORT=8080 SYNC_DB_PORT=5433 bash &lt;(curl -sSL {{ route('synchronizer.wizard.install-script', $pending->token) }})</pre>
             <button onclick="copyCmd()" class="absolute top-2 right-2 btn btn-secondary btn-sm" id="copy-btn">Copy</button>
         </div>
+        <p class="text-xs text-gray-400 mt-2">Change <code class="font-mono">SYNC_APP_PORT</code> and <code class="font-mono">SYNC_DB_PORT</code> if the defaults are already in use.</p>
     </div>
 
     <div class="card p-5">

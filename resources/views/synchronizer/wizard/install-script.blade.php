@@ -11,7 +11,13 @@ INSTALL_DIR="${INSTALL_DIR:-./contact-monitor-synchronizer}"
 INSTALL_DIR="$(realpath "$INSTALL_DIR" 2>/dev/null || echo "$INSTALL_DIR")"
 REPO_URL="https://github.com/konradkeck/contact-monitor-synchronizer.git"
 
+# Configurable ports — override before running if defaults are taken
+SYNC_APP_PORT="${SYNC_APP_PORT:-8080}"
+SYNC_DB_PORT="${SYNC_DB_PORT:-5433}"
+
 echo "==> Installing Contact Monitor Synchronizer to $INSTALL_DIR"
+echo "    App port : $SYNC_APP_PORT"
+echo "    DB port  : $SYNC_DB_PORT"
 
 if [ -d "$INSTALL_DIR/.git" ]; then
   echo "==> Repository already exists, pulling latest..."
@@ -39,7 +45,8 @@ APP_NAME=contact-monitor-synchronizer
 APP_ENV=production
 APP_KEY=${APP_KEY}
 APP_DEBUG=false
-APP_URL=http://localhost:8080
+APP_PORT=${SYNC_APP_PORT}
+APP_URL=http://localhost
 
 LOG_CHANNEL=stack
 LOG_STACK=single
@@ -48,6 +55,7 @@ LOG_LEVEL=warning
 DB_CONNECTION=pgsql
 DB_HOST=db
 DB_PORT=5432
+DB_EXPOSE_PORT=${SYNC_DB_PORT}
 DB_DATABASE=contact-monitor-synchronizer
 DB_USERNAME=contact-monitor-synchronizer
 DB_PASSWORD=${DB_PASS}
@@ -65,28 +73,6 @@ CM_REGISTRATION_URL=${CM_REG_URL}
 CM_REGISTRATION_TOKEN=${CM_REG_TOKEN}
 INSTALL_DIR=${INSTALL_DIR}
 ENVEOF
-
-echo "==> Patching docker-compose.yml..."
-python3 - "$DB_PASS" <<'PYEOF'
-import re, sys
-db_pass = sys.argv[1]
-with open('docker-compose.yml', 'r') as f:
-    content = f.read()
-
-# Replace hardcoded postgres password with generated one
-content = re.sub(r'(POSTGRES_PASSWORD:\s*)contact-monitor-synchronizer', rf'\g<1>{db_pass}', content)
-
-# Add extra_hosts so containers can reach the host machine
-extra = '    extra_hosts:\n      - "host.docker.internal:host-gateway"\n'
-if 'host.docker.internal' not in content:
-    content = re.sub(r'(    depends_on:\n      - db\n)', r'\1' + extra, content)
-    print("  extra_hosts added.")
-else:
-    print("  extra_hosts already present.")
-
-with open('docker-compose.yml', 'w') as f:
-    f.write(content)
-PYEOF
 
 echo "==> Building images..."
 docker compose build
@@ -114,4 +100,4 @@ echo "==> Registering with Contact Monitor..."
 docker compose exec -T app php artisan synchronizer:register
 
 echo ""
-echo "✓ Done."
+echo "✓ Done. Synchronizer running on port $SYNC_APP_PORT."

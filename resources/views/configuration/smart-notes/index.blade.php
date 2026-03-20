@@ -5,10 +5,7 @@
 
 <div class="page-header">
     <div>
-        <h1 class="page-title flex items-center gap-2">
-            <img src="/ai-icon.svg" class="w-5 h-5" alt="">
-            Smart Notes
-        </h1>
+        <h1 class="page-title">Smart Notes</h1>
     </div>
 </div>
 

@@ -221,8 +221,8 @@ class AppServiceProvider extends ServiceProvider
                      'icon' => '<circle cx="6" cy="17" r="2.75" stroke-width="1.75"/><circle cx="20" cy="4" r="2" stroke-width="1.75"/><circle cx="20" cy="15" r="2" stroke-width="1.75"/><circle cx="10" cy="5" r="2" stroke-width="1.75"/><path stroke-linecap="round" stroke-width="1.75" d="M8 15L18.5 5.5M8 16.5L18.5 14.5M7.5 14.5L9.5 7"/>'],
                     ['label' => 'Synchronizer Servers', 'route' => 'synchronizer.servers.index', 'match' => ['synchronizer.servers.*', 'synchronizer.wizard.*'], 'disabled' => false, 'dot' => $serverNeedsAttention,
                      'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>'],
-                    ['label' => 'Smart Notes', 'route' => 'smart-notes.config.index', 'match' => ['smart-notes.config.*'], 'disabled' => false, 'dot' => false, 'ai' => true,
-                     'icon' => ''],
+                    ['label' => 'Smart Notes', 'route' => 'smart-notes.config.index', 'match' => ['smart-notes.config.*'], 'disabled' => false, 'dot' => false, 'ai' => false,
+                     'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M7 8h10M7 12h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/>'],
                 ];
 
                 foreach ($syncItems as &$item) {
@@ -256,7 +256,7 @@ class AppServiceProvider extends ServiceProvider
                      'disabledMsg' => 'Enable Smart Notes in Configuration → Smart Notes',
                      'count' => $smartNotesUnrecognized ?: null,
                      'ai' => true,
-                     'icon' => ''],
+                     'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'],
                 ];
 
                 foreach ($sidebarItems as &$item) {

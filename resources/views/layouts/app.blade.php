@@ -201,20 +201,12 @@
             @foreach($syncItems as $item)
                 @if($item['disabled'])
                     <span class="sidebar-link is-disabled select-none" title="{{ $disabledMsg }}" aria-disabled="true" tabindex="-1" role="link">
-                        @if(!empty($item['ai']))
-                            <img src="/ai-icon.svg" class="sidebar-icon w-4 h-4 shrink-0 opacity-40" alt="">
-                        @else
-                            <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
-                        @endif
+                        <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                         {{ $item['label'] }}
                     </span>
                 @else
                     <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}" {{ $item['active'] ? 'aria-current="page"' : '' }}>
-                        @if(!empty($item['ai']))
-                            <img src="/ai-icon.svg" class="sidebar-icon w-4 h-4 shrink-0" alt="">
-                        @else
-                            <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
-                        @endif
+                        <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                         <span class="flex-1">{{ $item['label'] }}</span>
                         @if($item['dot'] ?? false)
                             <span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
@@ -253,23 +245,21 @@
             @foreach($sidebarItems as $item)
                 @if($item['disabled'] ?? false)
                     <span class="sidebar-link is-disabled select-none" title="{{ $item['disabledMsg'] ?? '' }}" aria-disabled="true" tabindex="-1" role="link">
-                        @if(!empty($item['ai']))
-                            <img src="/ai-icon.svg" class="sidebar-icon w-4 h-4 shrink-0 opacity-40" alt="">
-                        @else
-                            <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
-                        @endif
+                        <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                         <span class="flex-1">{{ $item['label'] }}</span>
+                        @if(!empty($item['ai']))
+                            <img src="/ai-icon.svg" class="w-3 h-3 shrink-0 opacity-30" alt="">
+                        @endif
                     </span>
                 @else
                     <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}" {{ $item['active'] ? 'aria-current="page"' : '' }}>
-                        @if(!empty($item['ai']))
-                            <img src="/ai-icon.svg" class="sidebar-icon w-4 h-4 shrink-0" alt="">
-                        @else
-                            <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
-                        @endif
+                        <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                         <span class="flex-1">{{ $item['label'] }}</span>
                         @if(isset($item['count']) && $item['count'] > 0)
                             <span class="text-xs opacity-50 shrink-0">{{ number_format($item['count']) }}</span>
+                        @endif
+                        @if(!empty($item['ai']))
+                            <img src="/ai-icon.svg" class="w-3 h-3 shrink-0 opacity-50" alt="">
                         @endif
                     </a>
                 @endif
