@@ -227,8 +227,8 @@ class AppServiceProvider extends ServiceProvider
                      'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-6h6v6"/>'],
                 ];
             } elseif (auth()->check() && auth()->user()->hasPermission('browse_data')) {
-                $companiesCount = Cache::remember('layout.companies_count', 60, fn () => \App\Models\Company::count());
-                $peopleCount    = Cache::remember('layout.people_count',    60, fn () => Person::where('is_our_org', false)->count());
+                $companiesCount = Cache::remember('layout.companies_count', 60, fn () => \App\Models\Company::notMerged()->count());
+                $peopleCount    = Cache::remember('layout.people_count',    60, fn () => Person::notMerged()->where('is_our_org', false)->count());
 
                 $sidebarItems = [
                     ['label' => 'Dashboard',     'route' => 'dashboard',          'match' => ['dashboard'],         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>'],
@@ -282,6 +282,10 @@ class AppServiceProvider extends ServiceProvider
                 $view->with('isSlack', in_array($conversation->channel_type, ['slack', 'discord']));
                 $view->with('isEmail', $conversation->channel_type === 'email');
                 $view->with('isTicket', $conversation->channel_type === 'ticket');
+                $view->with('usesMarkdown',
+                    ($conversation->channel_type === 'ticket' && $conversation->system_type === 'whmcs')
+                    || $conversation->channel_type === 'discord'
+                );
             }
             $view->with('replies', $data['replies'] ?? collect());
             $view->with('discordMentionMap', $data['discordMentionMap'] ?? []);

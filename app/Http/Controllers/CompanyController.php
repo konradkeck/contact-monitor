@@ -45,6 +45,7 @@ class CompanyController extends Controller
         }
 
         $query = Company::query()
+            ->notMerged()
             ->when($tab === 'our_org', fn ($q) => $q->whereHas('people', fn ($p) => $p->where('is_our_org', true)))
             ->when($search, function ($q) use ($search) {
                 $term = '%'.strtolower($search).'%';
@@ -163,7 +164,7 @@ class CompanyController extends Controller
         foreach ($companies as $company) {
             $company->_primaryDomain = $company->domains->firstWhere('is_primary', true) ?? $company->domains->first();
             $company->_extraDomains  = $company->domains->filter(fn ($d) => $d->id !== $company->_primaryDomain?->id);
-            $company->_contacts      = $company->people->filter(fn ($p) => ! $p->is_our_org);
+            $company->_contacts      = $company->people->filter(fn ($p) => ! $p->is_our_org && is_null($p->merged_into_id));
             $totalContacts           = $company->_contacts->count();
             $company->_visiblePeople = $totalContacts > 5 ? $company->_contacts->take(4) : $company->_contacts;
             $company->_extraPeople   = $totalContacts > 5 ? $totalContacts - 4 : 0;
@@ -221,8 +222,8 @@ class CompanyController extends Controller
         $hasFilters = $search || $activeFilterCount > 0;
 
         $tabCounts = [
-            'clients' => Company::count(),
-            'our_org' => Company::whereHas('people', fn ($p) => $p->where('is_our_org', true))->count(),
+            'clients' => Company::notMerged()->count(),
+            'our_org' => Company::notMerged()->whereHas('people', fn ($p) => $p->where('is_our_org', true))->count(),
         ];
 
         return view('companies.index', compact(
@@ -271,21 +272,32 @@ class CompanyController extends Controller
             'accounts',
             'people.identities',
             'brandStatuses.brandProduct',
+            'mergedInto',
+            'mergedCompanies.domains',
+            'mergedCompanies.accounts',
+            'mergedCompanies.people',
         ]);
 
         $notes = Note::with('user')->whereHas('links', fn ($q) => $q->where('linkable_type', Company::class)->where('linkable_id', $company->id)
         )->orderByDesc('created_at')->limit(10)->get();
 
+        // Include merged companies in conversation groups
+        $allCompanyIds = collect([$company->id])
+            ->merge($company->mergedCompanies->pluck('id'))
+            ->unique()->values()->all();
+
+        $allCompanyIdsPlaceholders = implode(',', array_fill(0, count($allCompanyIds), '?'));
+
         // Group conversations by (channel_type, system_slug) — one row per source
-        $convGroups = collect(DB::select('
+        $convGroups = collect(DB::select("
             SELECT DISTINCT ON (channel_type, system_slug)
                 channel_type, system_slug, id AS last_conv_id,
                 subject AS last_subject, last_message_at,
                 COUNT(*) OVER (PARTITION BY channel_type, system_slug) AS conv_count
             FROM conversations
-            WHERE company_id = ?
+            WHERE company_id IN ({$allCompanyIdsPlaceholders})
             ORDER BY channel_type, system_slug, last_message_at DESC
-        ', [$company->id]))->sortByDesc('last_message_at');
+        ", $allCompanyIds))->sortByDesc('last_message_at');
 
         $conversationCount = $convGroups->sum('conv_count');
 
@@ -355,20 +367,27 @@ class CompanyController extends Controller
             'followup'      => 'bg-slate-300',
         ];
 
-        $contacts = $company->people->filter(fn ($p) => ! $p->is_our_org);
+        $contacts = $company->people->filter(fn ($p) => ! $p->is_our_org && is_null($p->merged_into_id));
+        $mergedCompanies = $company->mergedCompanies;
 
         // Group services by system_slug (each WHMCS instance = separate tab)
+        // Include accounts from merged companies as well
         $serviceSystems = [];
-        foreach ($company->accounts as $acc) {
-            if (empty($acc->meta_json['services'])) {
-                continue;
-            }
-            $slug = $acc->system_slug;
-            if (! isset($serviceSystems[$slug])) {
-                $serviceSystems[$slug] = ['system_type' => $acc->system_type, 'services' => []];
-            }
-            foreach ($acc->meta_json['services'] as $svc) {
-                $serviceSystems[$slug]['services'][] = $svc;
+        $allAccountCollections = collect([$company->accounts])->merge(
+            $company->mergedCompanies->map(fn ($mc) => $mc->accounts)
+        );
+        foreach ($allAccountCollections as $accountCollection) {
+            foreach ($accountCollection as $acc) {
+                if (empty($acc->meta_json['services'])) {
+                    continue;
+                }
+                $slug = $acc->system_slug;
+                if (! isset($serviceSystems[$slug])) {
+                    $serviceSystems[$slug] = ['system_type' => $acc->system_type, 'services' => []];
+                }
+                foreach ($acc->meta_json['services'] as $svc) {
+                    $serviceSystems[$slug]['services'][] = $svc;
+                }
             }
         }
         foreach ($serviceSystems as $slug => &$sys) {
@@ -412,6 +431,7 @@ class CompanyController extends Controller
             'contacts',
             'serviceSystems',
             'svcWidgets',
+            'mergedCompanies',
         ));
     }
 
@@ -502,11 +522,61 @@ class CompanyController extends Controller
         }
 
         $companies = Company::where('name', 'ilike', "%{$q}%")
+            ->whereNull('merged_into_id')
             ->orderBy('name')
             ->limit(20)
             ->get(['id', 'name']);
 
         return response()->json($companies);
+    }
+
+    // ── Merge ───────────────────────────────────────────────────
+
+    public function mergeModal(Request $request): View
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->get('ids', [])))));
+        abort_if(count($ids) < 2, 400, 'Select at least 2 companies to merge.');
+
+        $companies = Company::with(['domains', 'aliases', 'accounts', 'people', 'conversations'])
+            ->whereIn('id', $ids)
+            ->whereNull('merged_into_id')
+            ->get();
+
+        abort_if($companies->count() < 2, 400, 'Not enough valid (non-merged) companies selected.');
+
+        return view('companies.merge-modal', compact('companies'));
+    }
+
+    public function merge(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'primary_id'  => 'required|integer|exists:companies,id',
+            'merge_ids'   => 'required|array|min:1',
+            'merge_ids.*' => 'integer|exists:companies,id',
+        ]);
+
+        $primaryId = (int) $data['primary_id'];
+        $mergeIds  = array_values(array_filter(array_map('intval', $data['merge_ids']), fn ($id) => $id !== $primaryId));
+
+        abort_if(empty($mergeIds), 400, 'No companies to merge.');
+
+        Company::whereIn('id', $mergeIds)->update(['merged_into_id' => $primaryId]);
+
+        $primary = Company::find($primaryId);
+        AuditLog::record('merged', $primary,
+            "Merged companies [" . implode(', ', $mergeIds) . "] into {$primaryId} ({$primary->name})",
+            ['primary_id' => $primaryId, 'merged_ids' => $mergeIds]
+        );
+
+        return response()->json(['ok' => true, 'redirect' => route('companies.show', $primaryId)]);
+    }
+
+    public function unmerge(Company $company): RedirectResponse
+    {
+        $company->update(['merged_into_id' => null]);
+        AuditLog::record('unmerged', $company, "Unmerged company: {$company->name}");
+
+        return back()->with('success', "{$company->name} has been unmerged.");
     }
 
     // ── Domains ────────────────────────────────────────────────

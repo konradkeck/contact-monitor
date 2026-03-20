@@ -130,45 +130,52 @@
                             </div>
                         </td>
                     </tr>
-                    @if($identitiesByExtId->get((string) $account->external_id, collect())->isNotEmpty())
-                    <tr class="bg-gray-50 border-t-0">
-                        <td colspan="{{ $systemType === 'whmcs' ? 6 : 4 }}" class="pr-6 pb-2 pt-0 pl-8">
-                            <div class="divide-y divide-gray-100">
-                                @foreach($identitiesByExtId->get((string) $account->external_id, collect()) as $contact)
-                                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5 text-xs" x-data="{ linkOpen: false }">
-                                    <span class="font-mono text-gray-500 truncate max-w-[200px] shrink-0">{{ $contact->value }}</span>
-                                    <span class="text-gray-400 truncate max-w-[160px] shrink-0 hidden sm:inline">{{ $contact->meta_json['display_name'] ?? '' }}</span>
-                                    <div class="flex items-center gap-2 flex-1 min-w-0">
-                                        @if($contact->person)
-                                            <a href="{{ route('people.show', $contact->person) }}" class="link font-medium truncate">{{ $contact->person->full_name }}</a>
-                                            <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline shrink-0">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="row-action-danger">Unlink</button>
-                                            </form>
-                                        @else
-                                            <span class="text-gray-400">—</span>
-                                            <button type="button" @click="linkOpen = true" class="btn btn-sm btn-primary shrink-0">Link</button>
-                                        @endif
+                    @foreach($identitiesByExtId->get((string) $account->external_id, collect()) as $contact)
+                    <tr class="border-t-0" style="background:oklch(97.5% 0 0)" x-data="{ linkOpen: false }">
+                        <td class="pl-5 pr-2 py-1.5 col-mobile-hidden">
+                            <span class="text-gray-300 text-xs select-none">↳</span>
+                        </td>
+                        <td class="px-4 py-1.5">
+                            <div class="flex flex-col gap-0.5">
+                                <span class="font-mono text-gray-600 text-xs truncate">{{ $contact->value }}</span>
+                                @if(!empty($contact->meta_json['display_name']))
+                                <span class="text-gray-400 text-xs truncate">{{ $contact->meta_json['display_name'] }}</span>
+                                @endif
+                            </div>
+                        </td>
+                        <td class="col-mobile-hidden"></td>
+                        @if($systemType === 'whmcs')
+                        <td class="col-mobile-hidden"></td>
+                        <td class="col-mobile-hidden"></td>
+                        @endif
+                        <td class="px-4 py-1.5 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                @if($contact->person)
+                                    <a href="{{ route('people.show', $contact->person) }}" class="link font-medium text-xs">{{ $contact->person->full_name }}</a>
+                                    <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline shrink-0">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="row-action-danger">Unlink</button>
+                                    </form>
+                                @else
+                                    <span class="text-gray-400 text-xs">—</span>
+                                    <button type="button" @click="linkOpen = true" class="btn btn-sm btn-primary shrink-0">Link</button>
+                                @endif
+                            </div>
+                            <div x-show="linkOpen" x-cloak @click.self="linkOpen = false" @keydown.escape.window="linkOpen = false" @close-link-popup="linkOpen = false"
+                                 class="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                                <div class="bg-white rounded-xl shadow-2xl p-4 w-80 max-w-[90vw]" @click.stop>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <span class="text-sm font-semibold text-gray-700">Link to person</span>
+                                        <button type="button" @click="linkOpen = false" class="text-gray-400 hover:text-gray-600 -mr-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        </button>
                                     </div>
-                                    {{-- Link popup --}}
-                                    <div x-show="linkOpen" x-cloak @click.self="linkOpen = false" @keydown.escape.window="linkOpen = false" @close-link-popup="linkOpen = false"
-                                         class="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                                        <div class="bg-white rounded-xl shadow-2xl p-4 w-80 max-w-[90vw]" @click.stop>
-                                            <div class="flex items-center justify-between mb-3">
-                                                <span class="text-sm font-semibold text-gray-700">Link to person</span>
-                                                <button type="button" @click="linkOpen = false" class="text-gray-400 hover:text-gray-600 -mr-1">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                                </button>
-                                            </div>
-                                            @include('data-relations._link-person-panel', ['linkUrl' => route('data-relations.identities.link-create', $contact)])
-                                        </div>
-                                    </div>
+                                    @include('data-relations._link-person-panel', ['linkUrl' => route('data-relations.identities.link-create', $contact)])
                                 </div>
-                                @endforeach
                             </div>
                         </td>
                     </tr>
-                    @endif
+                    @endforeach
                 @endforeach
             </tbody>
         </table>
@@ -183,15 +190,17 @@
     <div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
         <table class="w-full text-sm" style="table-layout:fixed;min-width:400px">
             <colgroup>
-                <col style="width:80px">
-                @if($systemType === 'whmcs')<col style="width:200px">@endif
+                <col style="width:110px">
+                @if($systemType === 'whmcs')<col style="width:220px">@endif
                 <col>
+                <col style="width:80px">
             </colgroup>
             <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
                 <tr>
-                    <th class="px-4 py-2 text-left font-medium col-mobile-hidden">External ID</th>
+                    <th class="px-4 py-2 text-left font-medium whitespace-nowrap col-mobile-hidden">External ID</th>
                     @if($systemType === 'whmcs')<th class="px-4 py-2 text-left font-medium col-mobile-hidden">Company name (WHMCS)</th>@endif
                     <th class="px-4 py-2 text-left font-medium">Company in Contact Monitor</th>
+                    <th class="px-4 py-2"></th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -200,54 +209,61 @@
                         <td class="px-4 py-2.5 font-mono text-xs text-gray-500 truncate col-mobile-hidden">{{ $account->external_id }}</td>
                         @if($systemType === 'whmcs')<td class="px-4 py-2.5 text-gray-600 text-xs truncate col-mobile-hidden">{{ ($account->meta_json ?? [])['company_name'] ?? '—' }}</td>@endif
                         <td class="px-4 py-2.5">
-                            <div class="flex items-center gap-2">
-                                <a href="{{ route('companies.show', $account->company) }}" class="link font-medium">{{ $account->company->name }}</a>
-                                <form action="{{ route('data-relations.accounts.unlink', $account) }}" method="POST" class="inline">
+                            <a href="{{ route('companies.show', $account->company) }}" class="link font-medium">{{ $account->company->name }}</a>
+                        </td>
+                        <td class="px-4 py-2.5 text-right">
+                            <form action="{{ route('data-relations.accounts.unlink', $account) }}" method="POST" class="inline">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="row-action-danger">Unlink</button>
+                            </form>
+                        </td>
+                    </tr>
+                    @foreach($identitiesByExtId->get((string) $account->external_id, collect()) as $contact)
+                    <tr class="border-t-0" style="background:oklch(97.5% 0 0)" x-data="{ linkOpen: false }">
+                        <td class="pl-5 pr-2 py-1.5 col-mobile-hidden">
+                            <span class="text-gray-300 text-xs select-none">↳</span>
+                        </td>
+                        @if($systemType === 'whmcs')
+                        <td class="px-4 py-1.5 col-mobile-hidden">
+                            <div class="flex flex-col gap-0.5">
+                                <span class="font-mono text-gray-600 text-xs truncate">{{ $contact->value }}</span>
+                                @if(!empty($contact->meta_json['display_name']))
+                                <span class="text-gray-400 text-xs truncate">{{ $contact->meta_json['display_name'] }}</span>
+                                @endif
+                            </div>
+                        </td>
+                        @endif
+                        <td class="px-4 py-1.5">
+                            @if($contact->person)
+                                <a href="{{ route('people.show', $contact->person) }}" class="link font-medium text-xs truncate">{{ $contact->person->full_name }}</a>
+                            @else
+                                <span class="text-gray-400 text-xs">—</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-1.5 text-right">
+                            @if($contact->person)
+                                <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline">
                                     @csrf @method('DELETE')
                                     <button type="submit" class="row-action-danger">Unlink</button>
                                 </form>
-                            </div>
-                        </td>
-                    </tr>
-                    @if($identitiesByExtId->get((string) $account->external_id, collect())->isNotEmpty())
-                    <tr class="bg-gray-50 border-t-0">
-                        <td colspan="{{ $systemType === 'whmcs' ? 3 : 2 }}" class="pr-6 pb-2 pt-0 pl-8">
-                            <div class="divide-y divide-gray-100">
-                                @foreach($identitiesByExtId->get((string) $account->external_id, collect()) as $contact)
-                                <div class="flex flex-wrap items-center gap-x-4 gap-y-1 py-1.5 text-xs" x-data="{ linkOpen: false }">
-                                    <span class="font-mono text-gray-500 truncate max-w-[200px] shrink-0">{{ $contact->value }}</span>
-                                    <span class="text-gray-400 truncate max-w-[160px] shrink-0 hidden sm:inline">{{ $contact->meta_json['display_name'] ?? '' }}</span>
-                                    <div class="flex items-center gap-2 flex-1 min-w-0">
-                                        @if($contact->person)
-                                            <a href="{{ route('people.show', $contact->person) }}" class="link font-medium truncate">{{ $contact->person->full_name }}</a>
-                                            <form action="{{ route('data-relations.identities.unlink', $contact) }}" method="POST" class="inline shrink-0">
-                                                @csrf @method('DELETE')
-                                                <button type="submit" class="row-action-danger">Unlink</button>
-                                            </form>
-                                        @else
-                                            <span class="text-gray-400">—</span>
-                                            <button type="button" @click="linkOpen = true" class="btn btn-sm btn-primary shrink-0">Link</button>
-                                        @endif
+                            @else
+                                <button type="button" @click="linkOpen = true" class="btn btn-sm btn-primary">Link</button>
+                            @endif
+                            <div x-show="linkOpen" x-cloak @click.self="linkOpen = false" @keydown.escape.window="linkOpen = false" @close-link-popup="linkOpen = false"
+                                 class="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                                <div class="bg-white rounded-xl shadow-2xl p-4 w-80 max-w-[90vw]" @click.stop>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <span class="text-sm font-semibold text-gray-700">Link to person</span>
+                                        <button type="button" @click="linkOpen = false" class="text-gray-400 hover:text-gray-600 -mr-1">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                                        </button>
                                     </div>
-                                    {{-- Link popup --}}
-                                    <div x-show="linkOpen" x-cloak @click.self="linkOpen = false" @keydown.escape.window="linkOpen = false" @close-link-popup="linkOpen = false"
-                                         class="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                                        <div class="bg-white rounded-xl shadow-2xl p-4 w-80 max-w-[90vw]" @click.stop>
-                                            <div class="flex items-center justify-between mb-3">
-                                                <span class="text-sm font-semibold text-gray-700">Link to person</span>
-                                                <button type="button" @click="linkOpen = false" class="text-gray-400 hover:text-gray-600 -mr-1">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                                                </button>
-                                            </div>
-                                            @include('data-relations._link-person-panel', ['linkUrl' => route('data-relations.identities.link-create', $contact)])
-                                        </div>
-                                    </div>
+                                    @include('data-relations._link-person-panel', ['linkUrl' => route('data-relations.identities.link-create', $contact)])
                                 </div>
-                                @endforeach
                             </div>
                         </td>
                     </tr>
-                    @endif
+                    @endforeach
                 @endforeach
             </tbody>
         </table>

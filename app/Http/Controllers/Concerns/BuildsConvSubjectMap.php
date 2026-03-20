@@ -86,10 +86,39 @@ trait BuildsConvSubjectMap
     /**
      * Pre-compute display data on each activity for the timeline-items partial.
      * Attaches a `_display` property to each activity model.
+     * Also sets `_directionOverride = 'internal'` on conversation activities whose
+     * meta_json['sender'] name matches a Person with is_our_org = true.
      */
     private function prepareTimelineDisplay(array $activities, array $convSubjectMap): void
     {
+        // Collect unique sender names from conversation activities
+        $senderNames = [];
         foreach ($activities as $activity) {
+            if ($activity->type === 'conversation' && ! empty($activity->meta_json['sender'])) {
+                $senderNames[] = $activity->meta_json['sender'];
+            }
+        }
+
+        // Batch-resolve which sender names belong to Our Org people
+        $ourOrgNames = [];
+        if (! empty($senderNames)) {
+            $uniqueSenders = array_unique($senderNames);
+            \App\Models\Person::notMerged()->where('is_our_org', true)
+                ->orWhereHas('identities', fn ($q) => $q->where('is_team_member', true))
+                ->get(['first_name', 'last_name'])
+                ->each(function ($p) use ($uniqueSenders, &$ourOrgNames) {
+                    if (in_array($p->full_name, $uniqueSenders, true)) {
+                        $ourOrgNames[$p->full_name] = true;
+                    }
+                });
+        }
+
+        foreach ($activities as $activity) {
+            if ($activity->type === 'conversation'
+                && ! empty($activity->meta_json['sender'])
+                && isset($ourOrgNames[$activity->meta_json['sender']])) {
+                $activity->_directionOverride = 'internal';
+            }
             $activity->_display = $activity->timelineDisplayData($convSubjectMap);
         }
     }

@@ -127,6 +127,11 @@
                 <input type="url" name="settings[base_url]" value="{{ $sv('base_url') }}" class="input" placeholder="https://whmcs.example.com">
             </div>
             <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Admin Directory <span class="text-gray-400 font-normal">(auto-detected)</span></label>
+                <input type="text" name="settings[admin_dir]" value="{{ $sv('admin_dir') ?: 'admin' }}" class="input font-mono" placeholder="admin">
+                <p class="text-xs text-gray-400 mt-0.5">Auto-detected from WHMCS on each test and sync. Override manually only if detection fails.</p>
+            </div>
+            <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">API Token {{ $isEdit ? '(leave blank to keep current)' : '' }}</label>
                 <div class="flex gap-2">
                     <input type="password" id="whmcs-token-input" name="settings[token]" value="" class="input font-mono flex-1" autocomplete="off">

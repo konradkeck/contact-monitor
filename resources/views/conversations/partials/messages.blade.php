@@ -6,6 +6,29 @@
     $replies            — Collection/array keyed by message id → reply messages (optional; for Slack/Discord threads)
     $discordMentionMap  — array of discord user_id → display_name (optional)
 --}}
+@once
+<script>
+function markPersonOurOrg(personId) {
+    fetch('/people/' + personId + '/mark-our-org', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        }
+    }).then(() => window.location.reload());
+}
+function unmarkPersonOurOrg(personId) {
+    fetch('/people/' + personId + '/unmark-our-org', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        }
+    }).then(() => window.location.reload());
+}
+</script>
+@endonce
+
 @if($messages->isEmpty())
     <div class="bg-white rounded-lg border border-gray-200 px-4 py-10 text-center text-gray-400 italic text-sm">
         No messages imported yet.
@@ -22,7 +45,7 @@
                 @if($msg->is_system_message)
                     <div class="flex justify-center py-2">
                         <span class="text-xs bg-gray-100 text-gray-500 rounded-full px-3 py-1">
-                            {{ $msg->body_text }}
+                            {{ html_entity_decode($msg->body_text, ENT_QUOTES | ENT_HTML5, 'UTF-8') }}
                         </span>
                     </div>
                 @else
@@ -41,6 +64,31 @@
                                 <span class="text-sm font-semibold {{ $msg->isTeamMessage() ? 'text-brand-700' : 'text-gray-800' }}">
                                     {{ $msg->author_name }}
                                 </span>
+                                @if($msg->identity?->person)
+                                    @if(!$msg->identity->person->is_our_org)
+                                        <span class="relative group/ourorg opacity-0 group-hover:opacity-100 transition shrink-0">
+                                            <button type="button"
+                                                    onclick="markPersonOurOrg({{ $msg->identity->person->id }})"
+                                                    class="text-xs text-brand-500 hover:text-brand-700 underline decoration-dotted underline-offset-2 cursor-pointer">
+                                                Set as Our Org
+                                            </button>
+                                            <span class="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/ourorg:block bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 w-52 z-20 leading-snug shadow-lg">
+                                                Mark as part of your organization. Their messages will appear on the internal side.
+                                            </span>
+                                        </span>
+                                    @else
+                                        <span class="relative group/ourorg shrink-0">
+                                            <button type="button"
+                                                    onclick="unmarkPersonOurOrg({{ $msg->identity->person->id }})"
+                                                    class="text-xs bg-brand-50 text-brand-600 border border-brand-200 rounded px-1.5 py-0.5 leading-none hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">
+                                                Our Org
+                                            </button>
+                                            <span class="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/ourorg:block bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 w-44 z-20 leading-snug shadow-lg">
+                                                Click to unmark as Our Organization.
+                                            </span>
+                                        </span>
+                                    @endif
+                                @endif
                                 <span class="text-xs text-gray-400">{{ $msg->occurred_at->format('d M Y · H:i') }}</span>
                                 @if($msg->edited_at)
                                     <span class="text-xs text-gray-300 italic">(edited)</span>
@@ -56,11 +104,11 @@
                                 @endif
                             </div>
 
-                            @if($msg->body_html)
-                                <x-isolated-html :content="$msg->body_html" class="text-sm text-gray-700 leading-relaxed" />
-                            @elseif($msg->body_text)
-                                <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ $conversation->resolveMentions($msg->body_text, $discordMentionMap, $slackMentionMap ?? []) }}</p>
-                            @endif
+                            <x-message-body
+                                :bodyHtml="$msg->body_html"
+                                :bodyText="$conversation->resolveMentions($msg->body_text ?? '', $discordMentionMap, $slackMentionMap ?? [])"
+                                :usesMarkdown="$usesMarkdown ?? false"
+                                class="text-sm text-gray-700 leading-relaxed" />
 
                             @if($msg->allAttachments()->isNotEmpty())
                                 <div class="flex flex-wrap gap-1.5 mt-2">
@@ -92,7 +140,11 @@
                                                 <div>
                                                     <span class="text-xs font-semibold text-gray-700">{{ $reply->author_name }}</span>
                                                     <span class="text-xs text-gray-400 ml-1">{{ $reply->occurred_at->format('H:i') }}</span>
-                                                    <p class="text-xs text-gray-600 leading-relaxed">{{ $conversation->resolveMentions($reply->body_text, $discordMentionMap, $slackMentionMap ?? []) }}</p>
+                                                    <x-message-body
+                                                        :bodyHtml="$reply->body_html"
+                                                        :bodyText="$conversation->resolveMentions($reply->body_text ?? '', $discordMentionMap, $slackMentionMap ?? [])"
+                                                        :usesMarkdown="$usesMarkdown ?? false"
+                                                        class="text-xs text-gray-600 leading-relaxed" />
                                                 </div>
                                             </div>
                                         @endforeach
@@ -134,7 +186,7 @@
             @if($msg->is_system_message)
                 <div class="flex justify-center">
                     <span class="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-4 py-1">
-                        {{ $msg->body_text }}
+                        {{ html_entity_decode($msg->body_text, ENT_QUOTES | ENT_HTML5, 'UTF-8') }}
                     </span>
                 </div>
             @else
@@ -154,12 +206,37 @@
                                 </div>
                             @endif
                             <div class="{{ $msg->isTeamMessage() ? 'text-right' : '' }}">
-                                <div>
+                                <div class="flex items-center gap-1.5 {{ $msg->isTeamMessage() ? 'flex-row-reverse' : '' }}">
                                     <span class="text-xs text-gray-500 font-medium">{{ $msg->author_name }}</span>
                                     @if($isEmail && $msg->identity?->value)
-                                        <span class="text-xs text-gray-400 ml-1">&lt;{{ $msg->identity->value }}&gt;</span>
+                                        <span class="text-xs text-gray-400">&lt;{{ $msg->identity->value }}&gt;</span>
                                     @endif
-                                    <span class="text-xs text-gray-300 ml-1">{{ $msg->occurred_at->format('d M · H:i') }}</span>
+                                    <span class="text-xs text-gray-300">{{ $msg->occurred_at->format('d M · H:i') }}</span>
+                                    @if($msg->identity?->person)
+                                        @if(!$msg->identity->person->is_our_org)
+                                            <span class="relative group/ourorg shrink-0">
+                                                <button type="button"
+                                                        onclick="markPersonOurOrg({{ $msg->identity->person->id }})"
+                                                        class="text-xs text-brand-500 hover:text-brand-700 underline decoration-dotted underline-offset-2 cursor-pointer">
+                                                    Set as Our Org
+                                                </button>
+                                                <span class="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/ourorg:block bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 w-52 z-20 leading-snug shadow-lg">
+                                                    Mark as part of your organization. Their messages will appear on the internal side.
+                                                </span>
+                                            </span>
+                                        @else
+                                            <span class="relative group/ourorg shrink-0">
+                                                <button type="button"
+                                                        onclick="unmarkPersonOurOrg({{ $msg->identity->person->id }})"
+                                                        class="text-xs bg-brand-50 text-brand-600 border border-brand-200 rounded px-1.5 py-0.5 leading-none hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition">
+                                                    Our Org
+                                                </button>
+                                                <span class="pointer-events-none absolute bottom-full left-0 mb-1.5 hidden group-hover/ourorg:block bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 w-44 z-20 leading-snug shadow-lg">
+                                                    Click to unmark as Our Organization.
+                                                </span>
+                                            </span>
+                                        @endif
+                                    @endif
                                 </div>
                                 @if($isEmail && !empty($msg->meta_json['to']))
                                     <div class="text-xs text-gray-400 mt-0.5">To: {{ $msg->meta_json['to'] }}</div>
@@ -175,11 +252,10 @@
                                     {{ $msg->isTeamMessage()
                                         ? 'bg-gray-100 text-gray-800 rounded-tr-none'
                                         : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none' }}">
-                            @if($msg->body_html)
-                                <x-isolated-html :content="$msg->body_html" />
-                            @elseif($msg->body_text)
-                                <p class="whitespace-pre-wrap">{{ $msg->body_text }}</p>
-                            @endif
+                            <x-message-body
+                                :bodyHtml="$msg->body_html"
+                                :bodyText="$msg->body_text"
+                                :usesMarkdown="$usesMarkdown ?? false" />
                             @if($msg->source_url)
                                 <svg class="inline w-3 h-3 opacity-40 ml-1 group-hover:opacity-70 transition"
                                      fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -10,6 +10,12 @@ class Activity extends Model
 {
     use SoftDeletes;
 
+    /** Pre-computed display data set by BuildsConvSubjectMap::prepareTimelineDisplay() */
+    public ?object $_display = null;
+
+    /** Direction override set by prepareTimelineDisplay() when sender matches an Our Org person */
+    public ?string $_directionOverride = null;
+
     protected $fillable = [
         'company_id',
         'person_id',
@@ -52,6 +58,10 @@ class Activity extends Model
      */
     public function direction(): string
     {
+        if ($this->_directionOverride !== null) {
+            return $this->_directionOverride;
+        }
+
         if (! empty($this->meta_json['direction'])) {
             return $this->meta_json['direction'];
         }

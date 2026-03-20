@@ -7,11 +7,13 @@ use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\Identity;
 use App\Models\Person;
+use App\Models\SynchronizerServer;
 use App\Models\SystemSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
 
 class PersonController extends Controller
@@ -37,6 +39,7 @@ class PersonController extends Controller
         }
 
         $query = Person::query()
+            ->notMerged()
             ->where('is_our_org', $tab === 'our_org')
             ->when($search, function ($q) use ($search) {
                 $term = '%'.strtolower($search).'%';
@@ -45,7 +48,7 @@ class PersonController extends Controller
                         ->orWhereHas('identities', fn ($i) => $i->whereRaw('LOWER(value_normalized) LIKE ?', [$term]));
                 });
             })
-            ->with(['companies', 'identities', 'notes'])
+            ->with(['companies.mergedInto', 'identities', 'notes'])
             ->withCount('identities');
 
         match ($sort) {
@@ -148,6 +151,15 @@ class PersonController extends Controller
         }
 
         $people = $query->paginate(25)->withQueryString();
+
+        // Resolve merged companies to their primary — each person shows the canonical company
+        foreach ($people as $person) {
+            $resolved = $person->companies
+                ->map(fn ($c) => $c->mergedInto ?? $c)
+                ->unique('id')
+                ->values();
+            $person->setRelation('companies', $resolved);
+        }
 
         // Last contact: latest message in any conversation the person participated in
         // (includes outbound messages we sent to them, not just messages from the person)
@@ -282,8 +294,8 @@ class PersonController extends Controller
         ];
 
         $tabCounts = [
-            'clients' => Person::where('is_our_org', false)->count(),
-            'our_org' => Person::where('is_our_org', true)->count(),
+            'clients' => Person::notMerged()->where('is_our_org', false)->count(),
+            'our_org' => Person::notMerged()->where('is_our_org', true)->count(),
         ];
 
         $activeFilterCount = (($f_lc_from !== '' || $f_lc_to !== '') ? 1 : 0)
@@ -325,11 +337,14 @@ class PersonController extends Controller
 
     public function show(Request $request, Person $person): View
     {
-        $person->load(['identities', 'companies']);
+        $person->load(['identities', 'companies.accounts', 'mergedPeople.identities']);
+
+        // Filter out merged companies from the person's linked companies list
+        $person->setRelation('companies', $person->companies->filter(fn ($c) => is_null($c->merged_into_id))->values());
 
         $notes = $person->notes()->with('user')->orderByDesc('created_at')->get();
 
-        $allCompanies = Company::orderBy('name')->get()
+        $allCompanies = Company::notMerged()->orderBy('name')->get()
             ->reject(fn ($c) => $person->companies->pluck('id')->contains($c->id));
 
         $filterDomains  = SystemSetting::get('filter_domains', []);
@@ -337,15 +352,23 @@ class PersonController extends Controller
         $filterSubjects = SystemSetting::get('filter_subjects', []);
         $filteredExtIds = $this->filteredConversationExtIds($filterDomains, $filterEmails, $filterSubjects);
 
-        $timelineQuery = $this->personActivitiesQuery($person);
+        // Gather all merged person IDs for combined activity/conversation queries
+        $mergedPeople    = $person->mergedPeople;
+        $allPersonIds    = collect([$person->id])->merge($mergedPeople->pluck('id'))->unique()->all();
+        $allIdentityIds  = collect($person->identities->pluck('id'))
+            ->merge($mergedPeople->flatMap(fn ($p) => $p->identities->pluck('id')))
+            ->unique()->values()->all();
+
+        $timelineQuery = $this->personActivitiesQuery($person, $allPersonIds, $allIdentityIds);
         $this->excludeFilteredActivities($timelineQuery, $filterDomains, $filterEmails, $filterSubjects);
         $timelinePage = $timelineQuery->cursorPaginate(25);
 
         $convSubjectMap = $this->buildConvSubjectMap($timelinePage->items());
         $this->prepareTimelineDisplay($timelinePage->items(), $convSubjectMap);
 
-        // Conversations where this person appeared (sender via messages OR participant)
-        $convGroups = collect(DB::select('
+        // Conversations where this person (or merged people) appeared
+        $personIdsPlaceholders = implode(',', array_fill(0, count($allPersonIds), '?'));
+        $convGroups = collect(DB::select("
             SELECT DISTINCT ON (channel_type, system_slug)
                 channel_type, system_slug, id AS last_conv_id,
                 subject AS last_subject, last_message_at,
@@ -357,15 +380,15 @@ class PersonController extends Controller
                     EXISTS (
                         SELECT 1 FROM conversation_messages cm
                         JOIN identities i ON i.id = cm.identity_id
-                        WHERE cm.conversation_id = c.id AND i.person_id = ?
+                        WHERE cm.conversation_id = c.id AND i.person_id IN ({$personIdsPlaceholders})
                     )
                     OR EXISTS (
                         SELECT 1 FROM conversation_participants cp
-                        WHERE cp.conversation_id = c.id AND cp.person_id = ?
+                        WHERE cp.conversation_id = c.id AND cp.person_id IN ({$personIdsPlaceholders})
                     )
             ) sub
             ORDER BY channel_type, system_slug, last_message_at DESC
-        ', [$person->id, $person->id]))->sortByDesc('last_message_at');
+        ", array_merge($allPersonIds, $allPersonIds)))->sortByDesc('last_message_at');
 
         // Conversation systems for filter dropdown (derived from convGroups)
         $convSystems = $convGroups->map(fn ($g) => (object) [
@@ -379,14 +402,34 @@ class PersonController extends Controller
                 ->from('conversation_messages as cm')
                 ->join('identities as i', 'i.id', '=', 'cm.identity_id')
                 ->whereRaw('cm.conversation_id = c.id')
-                ->where('i.person_id', $person->id))
+                ->whereIn('i.person_id', $allPersonIds))
             ->count();
 
-        $activityTypes = $this->personActivitiesQuery($person)
+        $activityTypes = $this->personActivitiesQuery($person, $allPersonIds, $allIdentityIds)
             ->where('type', '!=', 'conversation')
             ->reorder()->distinct()->pluck('type')->sort()->values();
 
         $backLink = $this->resolveBackLink($request);
+
+        // Build WHMCS profile URL map: identity_id → profile_url
+        // Generated dynamically: base_url + admin_dir fetched from synchronizer, clientid from identity meta
+        $whmcsProfileUrls = [];
+        $whmcsIdentities  = $person->identities->filter(
+            fn ($i) => ($i->meta_json['system_type'] ?? null) === 'whmcs'
+                    && !empty($i->meta_json['account_external_id'])
+        );
+
+        if ($whmcsIdentities->isNotEmpty()) {
+            $whmcsConfigs = $this->fetchWhmcsConnectionConfigs();
+            foreach ($whmcsIdentities as $identity) {
+                $slug   = $identity->system_slug;
+                $cfg    = $whmcsConfigs[$slug] ?? null;
+                if (!$cfg) continue;
+                $clientId = $identity->meta_json['account_external_id'];
+                $whmcsProfileUrls[$identity->id] =
+                    "{$cfg['base_url']}/{$cfg['admin_dir']}/clientssummary.php?userid={$clientId}";
+            }
+        }
 
         $initials = strtoupper(mb_substr($person->first_name, 0, 1) . mb_substr($person->last_name ?? '', 0, 1));
 
@@ -405,7 +448,7 @@ class PersonController extends Controller
         return view('people.show', compact(
             'person', 'notes', 'allCompanies', 'timelinePage', 'convSubjectMap',
             'convGroups', 'convSystems', 'filteredConvCount', 'activityTypes', 'backLink',
-            'initials', 'typeColors',
+            'initials', 'typeColors', 'mergedPeople', 'whmcsProfileUrls',
         ));
     }
 
@@ -501,7 +544,7 @@ class PersonController extends Controller
             return response()->json([]);
         }
 
-        $people = Person::where(function ($query) use ($q) {
+        $people = Person::notMerged()->where(function ($query) use ($q) {
             $query->where('first_name', 'ilike', "%{$q}%")
                 ->orWhere('last_name', 'ilike', "%{$q}%");
         })
@@ -557,26 +600,124 @@ class PersonController extends Controller
         return back()->with('success', 'Company linked.');
     }
 
-    private function personActivitiesQuery(Person $person): \Illuminate\Database\Eloquent\Builder
+    // ── Merge ───────────────────────────────────────────────────
+
+    public function mergeModal(Request $request): View
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->get('ids', [])))));
+        abort_if(count($ids) < 2, 400, 'Select at least 2 people to merge.');
+
+        $people = Person::with(['identities', 'companies'])
+            ->whereIn('id', $ids)
+            ->whereNull('merged_into_id')
+            ->get();
+
+        abort_if($people->count() < 2, 400, 'Not enough valid (non-merged) people selected.');
+
+        return view('people.merge-modal', compact('people'));
+    }
+
+    public function merge(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'primary_id'  => 'required|integer|exists:people,id',
+            'merge_ids'   => 'required|array|min:1',
+            'merge_ids.*' => 'integer|exists:people,id',
+        ]);
+
+        $primaryId = (int) $data['primary_id'];
+        $mergeIds  = array_values(array_filter(array_map('intval', $data['merge_ids']), fn ($id) => $id !== $primaryId));
+
+        abort_if(empty($mergeIds), 400, 'No people to merge.');
+
+        Person::whereIn('id', $mergeIds)->update(['merged_into_id' => $primaryId]);
+
+        $primary = Person::find($primaryId);
+        AuditLog::record('merged', $primary,
+            "Merged people [" . implode(', ', $mergeIds) . "] into {$primaryId} ({$primary->full_name})",
+            ['primary_id' => $primaryId, 'merged_ids' => $mergeIds]
+        );
+
+        return response()->json(['ok' => true, 'redirect' => route('people.show', $primaryId)]);
+    }
+
+    public function unmerge(Person $person): RedirectResponse
+    {
+        $person->update(['merged_into_id' => null]);
+        AuditLog::record('unmerged', $person, "Unmerged person: {$person->full_name}");
+
+        return back()->with('success', "{$person->full_name} has been unmerged.");
+    }
+
+    /**
+     * Fetch WHMCS connection configs (base_url + admin_dir) from the synchronizer.
+     * Returns a map of system_slug → ['base_url' => ..., 'admin_dir' => ...]
+     * Results cached for 5 minutes to avoid repeated HTTP calls.
+     */
+    private function fetchWhmcsConnectionConfigs(): array
+    {
+        return cache()->remember('whmcs_connection_configs', 300, function () {
+            try {
+                $server = SynchronizerServer::first();
+                if (!$server) return [];
+
+                $url      = preg_replace(
+                    '#^(https?://)(?:localhost|127\.0\.0\.1)#',
+                    '$1host.docker.internal',
+                    rtrim($server->url, '/')
+                );
+                $response = Http::withToken($server->api_token)
+                    ->timeout(5)
+                    ->acceptJson()
+                    ->get($url . '/api/connections');
+
+                if ($response->failed()) return [];
+
+                $configs = [];
+                foreach ($response->json('connections', []) as $conn) {
+                    if (($conn['type'] ?? '') !== 'whmcs') continue;
+                    $base     = rtrim($conn['settings']['base_url'] ?? '', '/');
+                    $adminDir = trim($conn['settings']['admin_dir'] ?? 'admin', '/') ?: 'admin';
+                    if ($base) {
+                        $configs[$conn['system_slug']] = [
+                            'base_url'  => $base,
+                            'admin_dir' => $adminDir,
+                        ];
+                    }
+                }
+                return $configs;
+            } catch (\Throwable) {
+                return [];
+            }
+        });
+    }
+
+    private function personActivitiesQuery(Person $person, array $allPersonIds = [], array $allIdentityIds = []): \Illuminate\Database\Eloquent\Builder
     {
         $person->loadMissing('identities');
 
-        $identityIds = $person->identities->pluck('id')->toArray();
+        // If not provided, use only this person's data
+        if (empty($allPersonIds)) {
+            $allPersonIds = [$person->id];
+        }
+        if (empty($allIdentityIds)) {
+            $allIdentityIds = $person->identities->pluck('id')->toArray();
+        }
 
         $query = \App\Models\Activity::with('company');
 
-        if (empty($identityIds)) {
-            // No identities — only show activities linked directly to this person
-            return $query->where('person_id', $person->id)->orderByDesc('occurred_at');
+        if (empty($allIdentityIds)) {
+            // No identities — only show activities linked directly to these persons
+            return $query->whereIn('person_id', $allPersonIds)->orderByDesc('occurred_at');
         }
 
-        $idCsv = implode(',', array_map('intval', $identityIds));
+        $idCsv      = implode(',', array_map('intval', $allIdentityIds));
+        $personCsv  = implode(',', array_map('intval', $allPersonIds));
 
         return $query
-            ->where(function ($q) use ($idCsv, $person) {
+            ->where(function ($q) use ($idCsv, $personCsv) {
                 // 1. Activities tied to conversations (email, discord, slack)
                 //    where any of person's identities sent messages
-                //    (outgoing team emails where only team sent are intentionally excluded)
                 $q->whereRaw("
                     meta_json->>'conversation_external_id' IS NOT NULL
                     AND EXISTS (
@@ -590,10 +731,6 @@ class PersonController extends Controller
                 ");
 
                 // 2. MetricsCube ticket activities (legacy format): match by ticket ID
-                //    WHMCS tickets are already handled by mechanism 1 via conversation_external_id.
-                //    Only for type='conversation' to avoid false matches with invoice/service IDs.
-                //    Ticket conversations: external_thread_id = 'ticket_{id}'
-                //    MC activities: relation_id = '{id}' (raw number, no prefix)
                 $q->orWhereRaw("
                     type = 'conversation'
                     AND meta_json->>'relation_id' IS NOT NULL
@@ -607,8 +744,8 @@ class PersonController extends Controller
                     )
                 ");
 
-                // 3. Activities directly linked to this person (e.g. MetricsCube financial events)
-                $q->orWhere('person_id', $person->id);
+                // 3. Activities directly linked to any of these persons
+                $q->orWhereRaw("person_id IN ({$personCsv})");
             })
             ->orderByDesc('occurred_at');
     }

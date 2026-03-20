@@ -32,7 +32,7 @@ class ConversationController extends Controller
             ->select('channel_type', 'system_slug', 'system_type')
             ->distinct()->get()->sortBy('channel_type')->values();
 
-        $query = Conversation::with(['company'])->orderByDesc('last_message_at');
+        $query = Conversation::with(['company.mergedInto'])->orderByDesc('last_message_at');
 
         if (! empty($systems)) {
             $pairs = array_map(fn ($s) => explode('|', $s, 2), $systems);
@@ -118,6 +118,13 @@ class ConversationController extends Controller
 
         $conversations = $query->paginate(50)->withQueryString();
         $convIds = $conversations->pluck('id');
+
+        // Resolve merged companies to their primary
+        foreach ($conversations as $conv) {
+            if ($conv->company?->merged_into_id) {
+                $conv->setRelation('company', $conv->company->mergedInto);
+            }
+        }
 
         $active = fn ($q) => $q->where(fn ($q) => $q->where('is_archived', false)->orWhereNull('is_archived'));
         $filterDomains = \App\Models\SystemSetting::get('filter_domains', []);
@@ -222,13 +229,18 @@ class ConversationController extends Controller
     public function show(Request $request, Conversation $conversation): View
     {
         $conversation->load([
-            'company',
+            'company.mergedInto',
             'primaryPerson',
             'participants.identity',
             'participants.person',
             'messages.attachments',
-            'messages.identity',
+            'messages.identity.person',
         ]);
+
+        // Resolve merged company to primary
+        if ($conversation->company?->merged_into_id) {
+            $conversation->setRelation('company', $conversation->company->mergedInto);
+        }
 
         // Group messages: thread_key → replies
         $threads = $conversation->messages
@@ -297,6 +309,12 @@ class ConversationController extends Controller
     public function modal(Request $request, Conversation $conversation)
     {
         $date = $request->get('date'); // optional YYYY-MM-DD for Discord/Slack daily aggregates
+
+        // Resolve merged company to primary
+        $conversation->loadMissing('company.mergedInto');
+        if ($conversation->company?->merged_into_id) {
+            $conversation->setRelation('company', $conversation->company->mergedInto);
+        }
 
         $isChat = in_array($conversation->channel_type, ['slack', 'discord']);
         $preview = $request->boolean('preview');

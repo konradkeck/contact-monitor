@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Activity;
 use App\Models\Company;
 use App\Models\Person;
 use App\Models\SynchronizerServer;
@@ -55,6 +56,44 @@ class RoutesSmokeTest extends TestCase
         $this->get(route('companies.show', $company))->assertStatus(200);
     }
 
+    public function test_company_show_with_activities_loads(): void
+    {
+        if (config('database.default') === 'sqlite') {
+            $this->markTestSkipped('DISTINCT ON requires PostgreSQL');
+        }
+        $company = Company::create(['name' => 'Active Co']);
+        Activity::create([
+            'company_id'  => $company->id,
+            'type'        => 'note',
+            'occurred_at' => now(),
+            'meta_json'   => ['description' => 'test note'],
+        ]);
+        Activity::create([
+            'company_id'  => $company->id,
+            'type'        => 'conversation',
+            'occurred_at' => now()->subMinutes(5),
+            'meta_json'   => ['channel_type' => 'ticket', 'system_type' => 'whmcs', 'system_slug' => 'test', 'conversation_external_id' => 'ticket_1'],
+        ]);
+
+        $this->get(route('companies.show', $company))->assertStatus(200);
+    }
+
+    public function test_company_timeline_ajax_loads(): void
+    {
+        if (config('database.default') === 'sqlite') {
+            $this->markTestSkipped('DISTINCT ON requires PostgreSQL');
+        }
+        $company = Company::create(['name' => 'Timeline Co']);
+        Activity::create([
+            'company_id'  => $company->id,
+            'type'        => 'note',
+            'occurred_at' => now(),
+            'meta_json'   => ['description' => 'test'],
+        ]);
+
+        $this->get(route('companies.timeline', $company))->assertStatus(200);
+    }
+
     public function test_company_edit_loads(): void
     {
         $company = Company::create(['name' => 'Test Co']);
@@ -80,6 +119,42 @@ class RoutesSmokeTest extends TestCase
         $person = Person::create(['first_name' => 'Jane', 'last_name' => 'Doe']);
 
         $this->get(route('people.show', $person))->assertStatus(200);
+    }
+
+    public function test_person_show_with_activities_loads(): void
+    {
+        if (config('database.default') === 'sqlite') {
+            $this->markTestSkipped('Requires PostgreSQL (window functions)');
+        }
+        $company = Company::create(['name' => 'Corp']);
+        $person  = Person::create(['first_name' => 'Jane', 'last_name' => 'Doe']);
+        Activity::create([
+            'company_id'  => $company->id,
+            'person_id'   => $person->id,
+            'type'        => 'note',
+            'occurred_at' => now(),
+            'meta_json'   => ['description' => 'hello'],
+        ]);
+
+        $this->get(route('people.show', $person))->assertStatus(200);
+    }
+
+    public function test_person_timeline_ajax_loads(): void
+    {
+        if (config('database.default') === 'sqlite') {
+            $this->markTestSkipped('Requires PostgreSQL (window functions)');
+        }
+        $company = Company::create(['name' => 'Corp']);
+        $person  = Person::create(['first_name' => 'Jane', 'last_name' => 'Doe']);
+        Activity::create([
+            'company_id'  => $company->id,
+            'person_id'   => $person->id,
+            'type'        => 'note',
+            'occurred_at' => now(),
+            'meta_json'   => ['description' => 'hello'],
+        ]);
+
+        $this->get(route('people.timeline', $person))->assertStatus(200);
     }
 
     public function test_person_edit_loads(): void

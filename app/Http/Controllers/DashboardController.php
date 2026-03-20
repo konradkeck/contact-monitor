@@ -26,8 +26,8 @@ class DashboardController extends Controller
 
         // ── Stats ────────────────────────────────────────────────────────────
         $conversationsCount = Conversation::whereBetween('created_at', [$from, $to])->count();
-        $newCompaniesCount  = Company::whereBetween('created_at', [$from, $to])->count();
-        $newPeopleCount     = Person::whereBetween('created_at', [$from, $to])->count();
+        $newCompaniesCount  = Company::notMerged()->whereBetween('created_at', [$from, $to])->count();
+        $newPeopleCount     = Person::notMerged()->whereBetween('created_at', [$from, $to])->count();
 
         // ── Filtered person IDs (exclude from active people) ─────────────────
         $filteredIds = DB::table('filter_contacts')->pluck('person_id')->all();
@@ -63,7 +63,7 @@ class DashboardController extends Controller
 
         // ── Most Active People (external contacts) ───────────────────────────
         // Conversations link to people via activities (type='conversation', person_id)
-        $activePeople = Person::where('is_our_org', false)
+        $activePeople = Person::notMerged()->where('is_our_org', false)
             ->when(!empty($filteredIds), fn ($q) => $q->whereNotIn('id', $filteredIds))
             ->selectRaw('people.*, (
                 SELECT COUNT(*)
@@ -79,7 +79,7 @@ class DashboardController extends Controller
             ->filter(fn ($p) => $p->conv_count > 0);
 
         // ── Most Active Team Members ─────────────────────────────────────────
-        $activeTeam = Person::where('is_our_org', true)
+        $activeTeam = Person::notMerged()->where('is_our_org', true)
             ->selectRaw('people.*, (
                 SELECT COUNT(*)
                 FROM activities a

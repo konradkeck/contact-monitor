@@ -292,7 +292,7 @@ const serverParam  = SERVER ? `?server=${SERVER}` : '';
 const STATUSES_URL = '{{ route('synchronizer.connections.statuses') }}';
 const RUN_ALL_URL  = '{{ route('synchronizer.run-all') }}';
 const KILL_ALL_URL = '{{ route('synchronizer.kill-all') }}';
-const CONNS_URL    = '{{ rtrim(url('/configuration/connections/connections'), '/') }}';
+const CONNS_URL    = '{{ rtrim(url('/configuration/synchronizer/connections'), '/') }}';
 
 // ── Status badge rendering ────────────────────────────────────────────────────
 const STATUS_STYLES = {

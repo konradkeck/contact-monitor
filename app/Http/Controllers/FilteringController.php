@@ -19,7 +19,7 @@ class FilteringController extends Controller
         $filterDomains = SystemSetting::get('filter_domains', []);
         $filterEmails = SystemSetting::get('filter_emails', []);
         $filterSubjects = SystemSetting::get('filter_subjects', []);
-        $filterContacts = Person::whereIn('id', DB::table('filter_contacts')->pluck('person_id'))
+        $filterContacts = Person::notMerged()->whereIn('id', DB::table('filter_contacts')->pluck('person_id'))
             ->orderBy('first_name')->orderBy('last_name')->get();
 
         return view('data-relations.filtering', compact(
@@ -142,7 +142,7 @@ class FilteringController extends Controller
     public function personFilterModal(Request $request): View
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
-        $people = Person::with('identities')->whereIn('id', $ids)->get();
+        $people = Person::notMerged()->with('identities')->whereIn('id', $ids)->get();
 
         $emails = collect();
         $domains = collect();
@@ -176,7 +176,7 @@ class FilteringController extends Controller
     public function companyFilterModal(Request $request): View
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
-        $companies = Company::with('domains')->whereIn('id', $ids)->get();
+        $companies = Company::notMerged()->with('domains')->whereIn('id', $ids)->get();
 
         $domains = collect();
         foreach ($companies as $company) {

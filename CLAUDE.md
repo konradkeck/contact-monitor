@@ -876,10 +876,25 @@ Supported referer patterns: `/companies/{id}`, `/people/{id}`, `/conversations/{
 
 There are **no exceptions** — `isolated-html` was converted to a proper component class (`App\View\Components\IsolatedHtml`) which generates `uniqid()` in the constructor.
 
+### Blade Components
+
+| Component | Purpose |
+|-----------|---------|
+| `<x-isolated-html :content="$html">` | Renders arbitrary HTML inside a Shadow DOM so styles don't leak out. Used for email `body_html`. |
+| `<x-message-body :bodyHtml="..." :bodyText="..." :usesMarkdown="..." class="...">` | Renders a conversation message body. Handles: raw HTML (via Shadow DOM), markdown (GFM via `league/commonmark`, also Shadow DOM), or plain text. Entity-decodes `bodyText` automatically. |
+
+**Markdown detection** (set in the `conversations.partials.messages` View Composer in `AppServiceProvider`):
+- `$usesMarkdown = true` when: WHMCS tickets (`channel_type=ticket` + `system_type=whmcs`) OR Discord (`channel_type=discord`)
+- Slack: plain text for now (formatting spec unclear)
+- Emails: use `body_html` directly, never markdown
+
 ### Layout View Composer
 
 `AppServiceProvider` registers a View Composer for `layouts.app` that provides:
 `$topSections`, `$sidebarItems`, `$syncItems`, `$drItems`, `$isConfigRoute`, `$onMapping`, `$currentMapping`, `$mainMargin`, `$disabledMsg`, `$taActive`, `$segActive`, `$configNeedsAttention`
+
+`AppServiceProvider` also registers a View Composer for `conversations.partials.messages` that provides:
+`$channelCfg`, `$isSlack`, `$isEmail`, `$isTicket`, `$usesMarkdown`, `$replies`, `$discordMentionMap`
 
 Do **not** put this logic back into the Blade layout.
 

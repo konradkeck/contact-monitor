@@ -106,7 +106,7 @@ class SetupAssistantController extends Controller
 
         // 5. Set your organization contacts
         $hasOrgContacts = $hasData && (
-            Person::where('is_our_org', true)->exists() ||
+            Person::notMerged()->where('is_our_org', true)->exists() ||
             Identity::where('is_team_member', true)->exists()
         );
         $items[] = [
@@ -127,8 +127,9 @@ class SetupAssistantController extends Controller
             $server = SynchronizerServer::first();
             if (!$server) return 'active';
 
+            $url = preg_replace('#^(https?://)(?:localhost|127\.0\.0\.1)#', '$1host.docker.internal', rtrim($server->url, '/'));
             $response = Http::withToken($server->api_token)
-                ->baseUrl(rtrim($server->url, '/'))
+                ->baseUrl($url)
                 ->timeout(5)
                 ->acceptJson()
                 ->get('/api/connections');

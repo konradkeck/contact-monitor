@@ -204,7 +204,8 @@
                                 @if(isset(\App\View\Components\IdentityIcon::getMap()[$identity->type]) || in_array($identity->meta_json['system_type'] ?? '', ['whmcs','metricscube']))
                                     <x-identity-icon :type="$identity->type" :value="$identity->value"
                                         :sys-type="$identity->meta_json['system_type'] ?? ''"
-                                        :sys-slug="$identity->system_slug" />
+                                        :sys-slug="$identity->system_slug"
+                                        :profile-url="$whmcsProfileUrls[$identity->id] ?? null" />
                                 @else
                                     <span class="text-xs text-gray-400 shrink-0 w-5 text-center">?</span>
                                 @endif
@@ -221,7 +222,10 @@
                                     <span class="text-xs text-gray-700 truncate font-medium">{{ $identity->meta_json['display_name'] }}</span>
                                 @endif
                                 @if(!in_array($identity->type, ['discord_user', 'discord_id', 'slack_user']) || empty($identity->meta_json['display_name']))
-                                    @if(\App\View\Components\IdentityIcon::hrefFor($identity->type, $identity->value))
+                                    @if($whmcsProfileUrls[$identity->id] ?? false)
+                                        <a href="{{ $whmcsProfileUrls[$identity->id] }}" target="_blank" rel="noopener"
+                                           class="font-mono text-xs link truncate">{{ $identity->value }}</a>
+                                    @elseif(\App\View\Components\IdentityIcon::hrefFor($identity->type, $identity->value))
                                         <a href="{{ \App\View\Components\IdentityIcon::hrefFor($identity->type, $identity->value) }}" target="_blank" rel="noopener"
                                            class="font-mono text-xs link truncate">{{ $identity->value }}</a>
                                     @else
@@ -243,6 +247,39 @@
 
         {{-- Notes --}}
         <x-notes-section :notes="$notes" linkable-type="person" :linkable-id="$person->id" />
+
+        {{-- Merged people --}}
+        @if($mergedPeople->isNotEmpty())
+        <div>
+            <div class="flex items-center justify-between mb-2 px-1">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Merged
+                    <span class="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-bold">{{ $mergedPeople->count() }}</span>
+                </p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+                @foreach($mergedPeople as $merged)
+                <div class="flex items-center gap-3 px-4 py-3">
+                    <div class="flex-1 min-w-0">
+                        <a href="{{ route('people.show', $merged) }}" class="font-medium text-sm text-gray-800 hover:text-brand-700 truncate block">
+                            {{ $merged->full_name ?: '(unnamed)' }}
+                        </a>
+                        @if($merged->identities->isNotEmpty())
+                            <p class="text-xs text-gray-400 font-mono truncate">{{ $merged->identities->first()->value }}</p>
+                        @endif
+                    </div>
+                    @can('data_write')
+                    <form action="{{ route('people.unmerge', $merged) }}" method="POST"
+                          onsubmit="return confirm('Unmerge {{ addslashes($merged->full_name ?: 'this person') }}? They will reappear in the people list.')">
+                        @csrf
+                        <button type="submit" class="text-xs text-gray-400 hover:text-red-600 transition shrink-0">Unmerge</button>
+                    </form>
+                    @endcan
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
 
         {{-- Conversations --}}
         @if($convGroups->isNotEmpty())

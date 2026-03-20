@@ -17,7 +17,7 @@ class OurCompanyController extends Controller
         $teamDomains = SystemSetting::get('team_domains', []);
 
         // People in Our Organization — by is_our_org flag OR linked team member identity
-        $teamPeople = Person::where(fn ($q) => $q->where('is_our_org', true)
+        $teamPeople = Person::notMerged()->where(fn ($q) => $q->where('is_our_org', true)
             ->orWhereHas('identities', fn ($i) => $i->where('is_team_member', true))
         )
             ->with(['identities'])

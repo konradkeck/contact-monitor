@@ -25,6 +25,13 @@
     </div>
 </div>
 
+@if($company->merged_into_id)
+<div class="alert-warning mb-4 flex items-center gap-3">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12" stroke-width="1.75" stroke-linecap="round"/><circle cx="12" cy="16" r="0.75" fill="currentColor" stroke="none"/></svg>
+    <span>This company has been merged into <a href="{{ route('companies.show', $company->mergedInto) }}" class="font-semibold underline hover:no-underline">{{ $company->mergedInto->name }}</a>. Data shown here belongs to the merged record only.</span>
+</div>
+@endif
+
 {{-- MAIN GRID --}}
 <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
 
@@ -144,6 +151,44 @@
 
         {{-- Notes --}}
         <x-notes-section :notes="$notes" linkable-type="company" :linkable-id="$company->id" />
+
+        {{-- Merged companies --}}
+        @if($mergedCompanies->isNotEmpty())
+        <div>
+            <div class="flex items-center justify-between mb-2 px-1">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Merged
+                    <span class="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-bold">{{ $mergedCompanies->count() }}</span>
+                </p>
+            </div>
+            <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+                @foreach($mergedCompanies as $merged)
+                @php $mDomain = $merged->domains->firstWhere('is_primary', true) ?? $merged->domains->first(); @endphp
+                <div class="flex items-center gap-3 px-4 py-3">
+                    <div class="flex-1 min-w-0">
+                        <a href="{{ route('companies.show', $merged) }}" class="font-medium text-sm text-gray-800 hover:text-brand-700 truncate block">
+                            {{ $merged->name }}
+                        </a>
+                        @if($mDomain)
+                            <p class="text-xs text-gray-400 font-mono truncate">{{ $mDomain->domain }}</p>
+                        @endif
+                        <p class="text-xs text-gray-400 mt-0.5">
+                            {{ $merged->accounts->count() }} account{{ $merged->accounts->count() === 1 ? '' : 's' }}
+                            · {{ $merged->people->count() }} contact{{ $merged->people->count() === 1 ? '' : 's' }}
+                        </p>
+                    </div>
+                    @can('data_write')
+                    <form action="{{ route('companies.unmerge', $merged) }}" method="POST"
+                          onsubmit="return confirm('Unmerge {{ addslashes($merged->name) }}? It will reappear in the companies list.')">
+                        @csrf
+                        <button type="submit" class="text-xs text-gray-400 hover:text-red-600 transition shrink-0">Unmerge</button>
+                    </form>
+                    @endcan
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
 
     </div>{{-- /LEFT --}}
 

@@ -115,9 +115,14 @@
                             <span class="text-xs text-gray-400 shrink-0 tabular-nums whitespace-nowrap"
                                   title="{{ $activity->occurred_at->format('d M Y H:i') }}">{{ $activity->occurred_at->diffForHumans(null, true, true) }}</span>
                         </div>
-                        @if($activity->display->department)
-                            <div class="text-[10px] text-gray-400 truncate max-w-full text-right">{{ $activity->display->department }}</div>
-                        @endif
+                        <div class="flex items-center gap-1 justify-end flex-wrap">
+                            @if($activity->display->department)
+                                <span class="text-[10px] text-gray-400 truncate max-w-full">{{ $activity->display->department }}</span>
+                            @endif
+                            @if($activity->person)
+                                <a href="{{ route('people.show', $activity->person) }}" class="text-[10px] {{ $activity->person->is_our_org ? 'text-brand-600 hover:underline' : 'text-gray-500 hover:underline' }} truncate max-w-[140px]">{{ $activity->person->full_name }}</a>
+                            @endif
+                        </div>
                     </div>
 
                 {{-- MetricsCube: 2-line layout --}}
@@ -134,9 +139,14 @@
                             <span class="text-xs text-gray-400 shrink-0 tabular-nums whitespace-nowrap"
                                   title="{{ $activity->occurred_at->format('d M Y H:i') }}">{{ $activity->occurred_at->diffForHumans(null, true, true) }}</span>
                         </div>
-                        @if($activity->display->mcType)
-                            <div class="text-[10px] text-gray-400 truncate max-w-full text-right">{{ $activity->display->mcType }}</div>
-                        @endif
+                        <div class="flex items-center gap-1 justify-end flex-wrap">
+                            @if($activity->display->mcType)
+                                <span class="text-[10px] text-gray-400 truncate max-w-full">{{ $activity->display->mcType }}</span>
+                            @endif
+                            @if($activity->person)
+                                <a href="{{ route('people.show', $activity->person) }}" class="text-[10px] {{ $activity->person->is_our_org ? 'text-brand-600 hover:underline' : 'text-gray-500 hover:underline' }} truncate max-w-[140px]">{{ $activity->person->full_name }}</a>
+                            @endif
+                        </div>
                     </div>
 
                 {{-- Other: single-line layout --}}
@@ -293,9 +303,14 @@
                             <span class="text-xs text-gray-400 shrink-0 tabular-nums whitespace-nowrap"
                                   title="{{ $activity->occurred_at->format('d M Y H:i') }}">{{ $activity->occurred_at->diffForHumans(null, true, true) }}</span>
                         </div>
-                        @if($activity->display->department)
-                            <div class="text-[10px] text-gray-400 truncate max-w-full">{{ $activity->display->department }}</div>
-                        @endif
+                        <div class="flex items-center gap-1 flex-wrap">
+                            @if($activity->display->department)
+                                <span class="text-[10px] text-gray-400 truncate max-w-full">{{ $activity->display->department }}</span>
+                            @endif
+                            @if($activity->person)
+                                <a href="{{ route('people.show', $activity->person) }}" class="text-[10px] {{ $activity->person->is_our_org ? 'text-brand-600 hover:underline' : 'text-gray-500 hover:underline' }} truncate max-w-[140px]">{{ $activity->person->full_name }}</a>
+                            @endif
+                        </div>
                     </div>
 
                 {{-- MetricsCube: 2-line layout --}}
@@ -313,9 +328,14 @@
                             <span class="text-xs text-gray-400 shrink-0 tabular-nums whitespace-nowrap"
                                   title="{{ $activity->occurred_at->format('d M Y H:i') }}">{{ $activity->occurred_at->diffForHumans(null, true, true) }}</span>
                         </div>
-                        @if($activity->display->mcType)
-                            <div class="text-[10px] text-gray-400 truncate max-w-full">{{ $activity->display->mcType }}</div>
-                        @endif
+                        <div class="flex items-center gap-1 flex-wrap">
+                            @if($activity->display->mcType)
+                                <span class="text-[10px] text-gray-400 truncate max-w-full">{{ $activity->display->mcType }}</span>
+                            @endif
+                            @if($activity->person)
+                                <a href="{{ route('people.show', $activity->person) }}" class="text-[10px] {{ $activity->person->is_our_org ? 'text-brand-600 hover:underline' : 'text-gray-500 hover:underline' }} truncate max-w-[140px]">{{ $activity->person->full_name }}</a>
+                            @endif
+                        </div>
                     </div>
 
                 {{-- Other: single-line layout --}}

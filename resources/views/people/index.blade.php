@@ -124,6 +124,7 @@
     <div id="people-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
         <span id="people-bulk-count" class="text-sm font-medium bulk-bar-text" aria-live="polite"></span>
         @can('data_write')
+        <button type="button" onclick="peopleOpenMergeModal()" class="btn btn-secondary btn-sm">Merge…</button>
         @if($tab === 'clients')
         <button type="button" onclick="peopleOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
         <button type="button" onclick="peopleOpenAssignCompanyModal()" class="btn btn-secondary btn-sm">Assign Company…</button>
@@ -352,6 +353,12 @@ function peopleOpenFilterModal(ids) {
     if (!ids.length) return;
     const qs = ids.map(id => 'ids[]=' + id).join('&');
     openActivityModal({ dataset: { modalSrc: '{{ route('people.filter-modal') }}?' + qs } });
+}
+function peopleOpenMergeModal() {
+    const ids = [...document.querySelectorAll('.people-row-check:checked')].map(c => c.value);
+    if (ids.length < 2) { alert('Select at least 2 people to merge.'); return; }
+    const qs = ids.map(id => 'ids[]=' + id).join('&');
+    openActivityModal({ dataset: { modalSrc: '{{ route('people.merge-modal') }}?' + qs } });
 }
 function peopleOpenAssignCompanyModal(ids) {
     if (!ids) ids = [...document.querySelectorAll('.people-row-check:checked')].map(c => c.value);

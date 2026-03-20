@@ -162,6 +162,9 @@
         {{-- Bulk action bar --}}
         <div id="companies-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
             <span id="companies-bulk-count" class="text-sm font-medium bulk-bar-text" aria-live="polite"></span>
+            @can('data_write')
+            <button type="button" onclick="companiesOpenMergeModal()" class="btn btn-secondary btn-sm">Merge…</button>
+            @endcan
             <button type="button" onclick="companiesOpenFilterModal()" class="btn btn-danger btn-sm">Filter…</button>
             <button type="button" onclick="companiesClearSelection()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
         </div>
@@ -527,6 +530,13 @@ function companiesOpenFilterModal(ids) {
     if (!ids.length) return;
     const qs = ids.map(id => 'ids[]=' + id).join('&');
     const src = '{{ route('companies.filter-modal') }}?' + qs;
+    openActivityModal({ dataset: { modalSrc: src } });
+}
+function companiesOpenMergeModal() {
+    const ids = [...document.querySelectorAll('.companies-row-check:checked')].map(c => c.value);
+    if (ids.length < 2) { alert('Select at least 2 companies to merge.'); return; }
+    const qs = ids.map(id => 'ids[]=' + id).join('&');
+    const src = '{{ route('companies.merge-modal') }}?' + qs;
     openActivityModal({ dataset: { modalSrc: src } });
 }
 </script>

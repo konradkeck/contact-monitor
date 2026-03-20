@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,11 +19,27 @@ class Company extends Model
         'primary_domain',
         'timezone',
         'meta_json',
+        'merged_into_id',
     ];
 
     protected $casts = [
         'meta_json' => 'array',
     ];
+
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'merged_into_id');
+    }
+
+    public function mergedCompanies(): HasMany
+    {
+        return $this->hasMany(Company::class, 'merged_into_id');
+    }
+
+    public function scopeNotMerged(Builder $query): Builder
+    {
+        return $query->whereNull('merged_into_id');
+    }
 
     public function domains(): HasMany
     {
@@ -70,18 +88,22 @@ class Company extends Model
 
     public function activities(): \Illuminate\Database\Eloquent\Builder
     {
+        // Include this company + any companies merged into it
+        $allCompanyIds = collect([$this->id])
+            ->merge(DB::table('companies')->where('merged_into_id', $this->id)->pluck('id'))
+            ->unique()->all();
+
         $personIds = DB::table('company_person')
-            ->where('company_id', $this->id)
+            ->whereIn('company_id', $allCompanyIds)
             ->pluck('person_id');
 
-        // conversation external IDs for conversations linked to this company
         $convExtIds = DB::table('conversations')
-            ->where('company_id', $this->id)
+            ->whereIn('company_id', $allCompanyIds)
             ->whereNotNull('external_thread_id')
             ->pluck('external_thread_id');
 
-        return Activity::where(function ($q) use ($personIds, $convExtIds) {
-            $q->where('company_id', $this->id);
+        return Activity::where(function ($q) use ($allCompanyIds, $personIds, $convExtIds) {
+            $q->whereIn('company_id', $allCompanyIds);
             if ($personIds->isNotEmpty()) {
                 $q->orWhereIn('person_id', $personIds);
             }

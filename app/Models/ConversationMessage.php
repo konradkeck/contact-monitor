@@ -86,7 +86,9 @@ class ConversationMessage extends Model
      */
     public function isTeamMessage(): bool
     {
-        return $this->direction === 'internal' || ($this->identity?->is_team_member ?? false);
+        return $this->direction === 'internal'
+            || ($this->identity?->is_team_member ?? false)
+            || ($this->identity?->person?->is_our_org ?? false);
     }
 
     /**

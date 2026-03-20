@@ -72,6 +72,9 @@ Route::middleware('auth')->group(function () {
         // ── Data write routes ────────────────────────────────────────────────
         Route::middleware('permission:data_write')->group(function () {
             // Companies (write)
+            Route::get('companies/merge-modal', [CompanyController::class, 'mergeModal'])->name('companies.merge-modal');
+            Route::post('companies/merge', [CompanyController::class, 'merge'])->name('companies.merge');
+            Route::post('companies/{company}/unmerge', [CompanyController::class, 'unmerge'])->name('companies.unmerge');
             Route::get('companies/create', [CompanyController::class, 'create'])->name('companies.create');
             Route::post('companies', [CompanyController::class, 'store'])->name('companies.store');
             Route::get('companies/{company}/edit', [CompanyController::class, 'edit'])->name('companies.edit');
@@ -90,6 +93,9 @@ Route::middleware('auth')->group(function () {
             Route::delete('companies/{company}/accounts/{account}', [CompanyController::class, 'destroyAccount'])->name('companies.accounts.destroy');
 
             // People (write)
+            Route::get('people/merge-modal', [PersonController::class, 'mergeModal'])->name('people.merge-modal');
+            Route::post('people/merge', [PersonController::class, 'merge'])->name('people.merge');
+            Route::post('people/{person}/unmerge', [PersonController::class, 'unmerge'])->name('people.unmerge');
             Route::post('people/bulk-mark-our-org', [PersonController::class, 'bulkMarkOurOrg'])->name('people.bulk-mark-our-org');
             Route::post('people/bulk-unmark-our-org', [PersonController::class, 'bulkUnmarkOurOrg'])->name('people.bulk-unmark-our-org');
             Route::post('people/bulk-assign-company', [PersonController::class, 'bulkAssignCompany'])->name('people.bulk-assign-company');
@@ -170,8 +176,8 @@ Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsCont
         Route::delete('configuration/our-organization/members/{person}', [OurCompanyController::class, 'removeMember'])->name('our-company.remove-member');
 
         // Synchronizer Connections
-        Route::prefix('configuration/connections')->name('synchronizer.')->middleware('require.setup')->group(function () {
-            Route::get('/', [SynchronizerController::class, 'index'])->name('index');
+        Route::prefix('configuration/synchronizer')->name('synchronizer.')->middleware('require.setup')->group(function () {
+            Route::get('/connections', [SynchronizerController::class, 'index'])->name('index');
             Route::get('/connections/create', [SynchronizerController::class, 'create'])->name('connections.create');
             Route::get('/connections/statuses', [SynchronizerController::class, 'connectionStatuses'])->name('connections.statuses');
             Route::post('/connections', [SynchronizerController::class, 'store'])->name('connections.store');

@@ -68,7 +68,7 @@
                                 Edit
                             </a>
                             <button type="button" class="btn btn-danger btn-sm"
-                                onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}', '{{ addslashes($server->url) }}')">
+                                onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}', '{{ addslashes($server->url) }}', '{{ addslashes($server->install_dir ?? '') }}')">
                                 <svg class="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </div>
@@ -85,7 +85,7 @@
                                 <a href="{{ route('synchronizer.servers.edit', $server) }}"
                                    class="flex w-full px-3 py-2 text-gray-700 hover:bg-gray-50">Edit</a>
                                 <button type="button"
-                                        onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}', '{{ addslashes($server->url) }}')"
+                                        onclick="openDeleteModal('{{ addslashes($server->name) }}', '{{ route('synchronizer.servers.destroy', $server) }}', '{{ addslashes($server->url) }}', '{{ addslashes($server->install_dir ?? '') }}')"
                                         class="flex w-full px-3 py-2 text-red-600 hover:bg-red-50 text-left">Delete</button>
                             </div>
                         </div>
@@ -118,7 +118,7 @@
         </div>
 
         <div id="uninstall-box" class="rounded-lg p-3 mb-5 text-sm alert-warning space-y-3">
-            <p class="font-medium text-amber-800">To fully uninstall the synchronizer, run on the remote server:</p>
+            <p id="uninstall-intro" class="font-medium text-amber-800"></p>
             <div>
                 <p class="text-xs text-amber-700 mb-1">Stop containers and remove database volumes:</p>
                 <div class="flex items-center gap-2 bg-amber-100 rounded px-2 py-1.5">
@@ -137,6 +137,7 @@
                     </button>
                 </div>
             </div>
+            <p id="uninstall-path-note" class="hidden text-xs text-amber-600">Install path unknown — adjust the path above if different.</p>
         </div>
 
         <p class="text-sm text-gray-500 mb-5">
@@ -190,12 +191,20 @@ function openDeleteModal(name, action, url, installDir) {
     document.getElementById('delete-server-name').textContent = name;
     document.getElementById('delete-form').action = action;
 
-    const dir = installDir || null;
-    document.getElementById('uninstall-cmd-1').textContent =
-        'cd ' + (dir || '~/contact-monitor-synchronizer') + ' && docker compose down -v';
-    document.getElementById('uninstall-cmd-2').textContent =
-        dir ? 'rm -rf ' + dir : 'rm -rf ~/contact-monitor-synchronizer';
-    document.getElementById('uninstall-box').style.display = dir ? '' : 'none';
+    const dir = installDir || '~/contact-monitor-synchronizer';
+    document.getElementById('uninstall-cmd-1').textContent = 'cd ' + dir + ' && docker compose down -v';
+    document.getElementById('uninstall-cmd-2').textContent = 'sudo rm -rf ' + dir;
+
+    const intro = document.getElementById('uninstall-intro');
+    const note = document.getElementById('uninstall-path-note');
+    if (!installDir) {
+        intro.textContent = 'Go to the Contact Monitor Synchronizer directory and run these commands:';
+        note.textContent = 'Install path unknown — adjust the path above if different.';
+        note.classList.remove('hidden');
+    } else {
+        intro.textContent = 'To fully uninstall the synchronizer, run on the remote server:';
+        note.classList.add('hidden');
+    }
 
     const m = document.getElementById('delete-modal');
     m.classList.remove('hidden');

@@ -252,8 +252,8 @@
 
 @push('scripts')
 <script>
-const CONNS_URL = '{{ rtrim(url('/configuration/connections/connections'), '/') }}';
-const RUNS_URL  = '{{ rtrim(url('/configuration/connections/runs'), '/') }}';
+const CONNS_URL = '{{ rtrim(url('/configuration/synchronizer/connections'), '/') }}';
+const RUNS_URL  = '{{ rtrim(url('/configuration/synchronizer/runs'), '/') }}';
 
 function showPage(connId, initialRunId, initialStatus) {
     return {

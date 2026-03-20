@@ -86,8 +86,12 @@ class IdentityIcon extends Component
         return self::ICONS;
     }
 
-    public static function hrefFor(string $type, string $value): ?string
+    public static function hrefFor(string $type, string $value, ?string $profileUrl = null): ?string
     {
+        if ($profileUrl) {
+            return $profileUrl;
+        }
+
         return match ($type) {
             'email'    => "mailto:{$value}",
             'phone'    => "tel:{$value}",
@@ -102,6 +106,7 @@ class IdentityIcon extends Component
         public string $value = '',
         public string $sysType = '',
         public string $sysSlug = '',
+        public ?string $profileUrl = null,
     ) {
         // For email identities from billing/ticketing systems, show the system icon instead
         $effectiveType = $type;
@@ -114,7 +119,8 @@ class IdentityIcon extends Component
         $this->d = $icon['d'];
         $this->cls = $icon['cls'];
         $this->style = $icon['style'] ?? null;
-        $this->href = self::hrefFor($type, $value);  // href uses original type (mailto: for email)
+        // For WHMCS/MetricsCube identities: prefer profile_url over mailto
+        $this->href = self::hrefFor($type, $value, $sysType === 'whmcs' ? $profileUrl : null);
 
         $label = $icon['title'];
         if ($sysSlug && $sysSlug !== 'default') {
