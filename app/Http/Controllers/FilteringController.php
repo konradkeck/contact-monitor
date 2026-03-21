@@ -8,11 +8,12 @@ use App\Models\SystemSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
+use Illuminate\Http\JsonResponse;
+use Inertia\Inertia;
 
 class FilteringController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
         $activeTab = $request->get('tab', 'domains');
 
@@ -22,7 +23,7 @@ class FilteringController extends Controller
         $filterContacts = Person::notMerged()->whereIn('id', DB::table('filter_contacts')->pluck('person_id'))
             ->orderBy('first_name')->orderBy('last_name')->get();
 
-        return view('data-relations.filtering', compact(
+        return Inertia::render('DataRelations/Filtering', compact(
             'activeTab', 'filterDomains', 'filterEmails', 'filterSubjects', 'filterContacts'
         ));
     }
@@ -139,7 +140,7 @@ class FilteringController extends Controller
 
     // ── Filter modals ──
 
-    public function personFilterModal(Request $request): View
+    public function personFilterModal(Request $request): JsonResponse
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
         $people = Person::notMerged()->with('identities')->whereIn('id', $ids)->get();
@@ -170,10 +171,16 @@ class FilteringController extends Controller
             $tabs['contact'] = 'Contact';
         }
 
-        return view('people.filter-modal', compact('ids', 'emails', 'domains', 'contacts', 'tabs'));
+        return response()->json([
+            'ids'      => $ids,
+            'emails'   => $emails->values(),
+            'domains'  => $domains->values(),
+            'contacts' => $contacts->all(),
+            'tabs'     => $tabs,
+        ]);
     }
 
-    public function companyFilterModal(Request $request): View
+    public function companyFilterModal(Request $request): JsonResponse
     {
         $ids = array_filter(array_map('intval', (array) $request->input('ids', [])));
         $companies = Company::notMerged()->with('domains')->whereIn('id', $ids)->get();
@@ -188,7 +195,11 @@ class FilteringController extends Controller
         }
         $domains = $domains->unique()->values();
 
-        return view('companies.filter-modal', compact('ids', 'domains'));
+        return response()->json([
+            'ids'     => $ids,
+            'domains' => $domains->values(),
+            'tabs'    => ['none' => 'No rule', 'domain' => 'Domain'],
+        ]);
     }
 
     public function applyRule(Request $request): RedirectResponse
@@ -213,13 +224,23 @@ class FilteringController extends Controller
                 };
             }
             $n = count($ruleValues);
-            return back()->with('success', "Filter rule added ({$ruleType}: {$n} value(s)).");
+            $msg = "Filter rule added ({$ruleType}: {$n} value(s)).";
+
+            if ($request->wantsJson()) {
+                return response()->json(['ok' => true, 'message' => $msg]);
+            }
+
+            return back()->with('success', $msg);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => 'No rule added.']);
         }
 
         return back()->with('success', 'No rule added.');
     }
 
-    public function identityFilterModal(Request $request): View
+    public function identityFilterModal(Request $request): JsonResponse
     {
         // email, domain pre-filled from query params (passed by mapping view per-row)
         $email = trim($request->input('email', ''));
@@ -239,7 +260,14 @@ class FilteringController extends Controller
 
         $tabs = ['none' => 'No rule', 'domain' => 'Domain', 'email' => 'Email'];
 
-        return view('filtering.identity-filter-modal', compact('email', 'domain', 'name', 'emails', 'domains', 'tabs'));
+        return response()->json([
+            'name'    => $name,
+            'email'   => $email,
+            'domain'  => $domain,
+            'emails'  => $emails->values(),
+            'domains' => $domains->values(),
+            'tabs'    => $tabs,
+        ]);
     }
 
     private function addFilterRuleDomain(string $domain): void

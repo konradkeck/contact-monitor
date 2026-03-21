@@ -13,10 +13,8 @@ class AnalyseController extends Controller
 {
     public function index(Request $request): Response|\Illuminate\Http\RedirectResponse
     {
-        Inertia::setRootView('analyse');
-
         if (!$this->analyseEnabled()) {
-            return Inertia::render('Analyse', $this->sharedProps($request, null));
+            return Inertia::render('Analyze/Index', $this->sharedProps($request, null));
         }
 
         // Redirect to last active chat if exists
@@ -26,16 +24,14 @@ class AnalyseController extends Controller
             ->first();
 
         if ($lastChat) {
-            return redirect()->route('analyse.chat.show', $lastChat->id);
+            return redirect()->route('analyze.chat.show', $lastChat->id);
         }
 
-        return Inertia::render('Analyse', $this->sharedProps($request, null));
+        return Inertia::render('Analyze/Index', $this->sharedProps($request, null));
     }
 
     public function show(Request $request, AiChat $chat): Response
     {
-        Inertia::setRootView('analyse');
-
         abort_unless($chat->canAccess(auth()->id()), 403);
 
         $messages = $chat->messages()
@@ -73,7 +69,7 @@ class AnalyseController extends Controller
             'participants'    => $participants,
         ];
 
-        return Inertia::render('Chat', array_merge(
+        return Inertia::render('Analyze/Chat', array_merge(
             $this->sharedProps($request, $chat->id),
             ['chat' => $chatData]
         ));
@@ -81,8 +77,6 @@ class AnalyseController extends Controller
 
     public function project(Request $request, AiProject $project): Response
     {
-        Inertia::setRootView('analyse');
-
         abort_unless($project->user_id === auth()->id(), 403);
 
         // Get owned chats in this project
@@ -99,7 +93,7 @@ class AnalyseController extends Controller
             ->get()
             ->map(fn ($pin) => array_merge($pin->chat->toSidebarArray(), ['pinned' => true]));
 
-        return Inertia::render('Project', array_merge(
+        return Inertia::render('Analyze/Project', array_merge(
             $this->sharedProps($request, null),
             [
                 'project' => [
@@ -145,14 +139,7 @@ class AnalyseController extends Controller
         return [
             'analyseEnabled' => $this->analyseEnabled(),
             'activeChatId'   => $activeChatId,
-            'auth' => [
-                'user' => [
-                    'id'    => $userId,
-                    'name'  => auth()->user()->name,
-                    'email' => auth()->user()->email,
-                ],
-            ],
-            'sidebar' => [
+            'analyseSidebar' => [
                 'chats'      => $chats->items(),
                 'nextCursor' => $chats->nextCursor()?->encode(),
                 'shared'     => $shared,

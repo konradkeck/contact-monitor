@@ -8,11 +8,11 @@ use App\Models\Person;
 use App\Models\SystemSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class OurCompanyController extends Controller
 {
-    public function index(): View
+    public function index()
     {
         $teamDomains = SystemSetting::get('team_domains', []);
 
@@ -21,7 +21,15 @@ class OurCompanyController extends Controller
             ->orWhereHas('identities', fn ($i) => $i->where('is_team_member', true))
         )
             ->with(['identities'])
-            ->get();
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'full_name' => $p->full_name,
+                'gravatar_hash' => md5(strtolower(trim($p->identities->firstWhere('type', 'email')?->value ?? ''))),
+                'team_identities' => $p->identities->where('is_team_member', true)->map(fn ($i) => [
+                    'type' => $i->type, 'value' => $i->value,
+                ])->values(),
+            ]);
 
         // Identities marked as team member but not linked to a person
         $unlinkedTeamIdentities = Identity::where('is_team_member', true)
@@ -32,7 +40,7 @@ class OurCompanyController extends Controller
 
         $activeTab = request('tab', 'members');
 
-        return view('data-relations.our-company', compact(
+        return Inertia::render('DataRelations/OurCompany', compact(
             'teamDomains', 'teamPeople', 'unlinkedTeamIdentities', 'activeTab'
         ));
     }

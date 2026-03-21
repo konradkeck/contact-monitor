@@ -12,7 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class DataRelationsController extends Controller
 {
@@ -32,7 +32,7 @@ class DataRelationsController extends Controller
 
     // ─── Overview ────────────────────────────────────────────────────────────
 
-    public function index(): View
+    public function index()
     {
         $stats = [
             'conversations_no_company' => Conversation::whereNull('company_id')->count(),
@@ -120,19 +120,19 @@ class DataRelationsController extends Controller
             ['label' => 'Identities without person',     'value' => $stats['identities_no_person'],     'total' => $stats['total_identities']],
         ];
 
-        return view('data-relations.index', compact('stats', 'accountSystems', 'identitySystems', 'cards'));
+        return Inertia::render('DataRelations/Index', compact('stats', 'accountSystems', 'identitySystems', 'cards'));
     }
 
     // ─── Mapping overview (configuration/mapping) ────────────────────────────
 
-    public function mappingIndex(): View
+    public function mappingIndex()
     {
         return $this->index();
     }
 
     // ─── Per-system mapping ───────────────────────────────────────────────────
 
-    public function mapping(Request $request, string $systemType, string $systemSlug): View
+    public function mapping(Request $request, string $systemType, string $systemSlug)
     {
         $isAccountSystem = in_array($systemType, ['whmcs', 'metricscube'], true);
         $identitiesByExtId = collect();
@@ -338,12 +338,26 @@ class DataRelationsController extends Controller
             }
         }
 
-        return view('data-relations.mapping', compact(
-            'systemType', 'systemSlug', 'isAccountSystem', 'stats', 'unlinked', 'linked',
-            'conversations', 'conversationStats',
-            'identitiesByExtId', 'unregisteredUsers', 'unregisteredStats',
-            'hasTabs', 'hasWhmcsTabs', 'activeTab', 'activeView'
-        ));
+        return Inertia::render('DataRelations/Mapping', [
+            'systemType' => $systemType,
+            'systemSlug' => $systemSlug,
+            'isAccountSystem' => $isAccountSystem,
+            'stats' => $stats,
+            'unlinked' => $unlinked,
+            'linked' => $linked,
+            'conversations' => $conversations,
+            'conversationStats' => $conversationStats,
+            'identitiesByExtId' => $identitiesByExtId->toArray(),
+            'unregisteredUsers' => $unregisteredUsers,
+            'unregisteredStats' => $unregisteredStats,
+            'hasTabs' => $hasTabs,
+            'hasWhmcsTabs' => $hasWhmcsTabs,
+            'activeTab' => $activeTab,
+            'activeView' => $activeView,
+            'searchQuery' => $q,
+            'companySearchUrl' => route('companies.search'),
+            'personSearchUrl' => route('people.search'),
+        ]);
     }
 
     // ─── Auto-resolve ─────────────────────────────────────────────────────────

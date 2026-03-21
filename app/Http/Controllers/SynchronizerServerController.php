@@ -6,6 +6,7 @@ use App\Models\SynchronizerServer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Inertia\Inertia;
 
 class SynchronizerServerController extends Controller
 {
@@ -75,12 +76,12 @@ class SynchronizerServerController extends Controller
     {
         $servers = SynchronizerServer::orderBy('name')->get();
 
-        return view('synchronizer.servers.index', compact('servers'));
+        return Inertia::render('Synchronizer/Servers/Index', compact('servers'));
     }
 
     public function create()
     {
-        return view('synchronizer.servers.form', ['server' => null]);
+        return Inertia::render('Synchronizer/Servers/Form', ['server' => null]);
     }
 
     public function store(Request $request)
@@ -99,7 +100,7 @@ class SynchronizerServerController extends Controller
 
     public function edit(SynchronizerServer $server)
     {
-        return view('synchronizer.servers.form', compact('server'));
+        return Inertia::render('Synchronizer/Servers/Form', compact('server'));
     }
 
     public function update(Request $request, SynchronizerServer $server)

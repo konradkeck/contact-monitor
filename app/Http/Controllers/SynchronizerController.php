@@ -6,6 +6,7 @@ use App\Models\SynchronizerServer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Inertia\Inertia;
 
 class SynchronizerController extends Controller
 {
@@ -66,7 +67,7 @@ class SynchronizerController extends Controller
             $error = 'Could not connect to Synchronizer: '.$e->getMessage();
         }
 
-        return view('synchronizer.index', [
+        return Inertia::render('Synchronizer/Index', [
             'connections' => $connections,
             'error' => $error,
             'servers' => $cfg['servers'],
@@ -84,10 +85,15 @@ class SynchronizerController extends Controller
             $whmcsConnections = collect();
         }
 
-        return view('synchronizer.form', array_merge(
-            $this->formViewData(null),
-            ['whmcsConnections' => $whmcsConnections],
-        ));
+        $viewData = $this->formViewData(null);
+
+        return Inertia::render('Synchronizer/Form', [
+            'conn'              => $viewData['conn'],
+            'isEdit'            => $viewData['isEdit'],
+            'type'              => $viewData['type'],
+            'integrations'      => $viewData['integrations'],
+            'whmcsConnections'  => $whmcsConnections,
+        ]);
     }
 
     public function store(\Illuminate\Http\Request $request)
@@ -123,10 +129,15 @@ class SynchronizerController extends Controller
             abort(404);
         }
 
-        return view('synchronizer.form', array_merge(
-            $this->formViewData($conn),
-            ['whmcsConnections' => $whmcsConnections],
-        ));
+        $viewData = $this->formViewData($conn);
+
+        return Inertia::render('Synchronizer/Form', [
+            'conn'              => $viewData['conn'],
+            'isEdit'            => $viewData['isEdit'],
+            'type'              => $viewData['type'],
+            'integrations'      => $viewData['integrations'],
+            'whmcsConnections'  => $whmcsConnections,
+        ]);
     }
 
     public function update(\Illuminate\Http\Request $request, string $id)
@@ -228,7 +239,7 @@ class SynchronizerController extends Controller
             abort(404);
         }
 
-        return view('synchronizer.show', compact('conn', 'runs'));
+        return Inertia::render('Synchronizer/Show', compact('conn', 'runs'));
     }
 
     public function testConnection(Request $request): JsonResponse

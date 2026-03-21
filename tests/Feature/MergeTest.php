@@ -52,11 +52,10 @@ class MergeTest extends TestCase
         $a = Company::create(['name' => 'Alpha Corp']);
         $b = Company::create(['name' => 'Beta Corp']);
 
-        $response = $this->get(route('companies.merge-modal', ['ids' => [$a->id, $b->id]]));
+        $response = $this->getJson(route('companies.merge-modal', ['ids' => [$a->id, $b->id]]));
         $response->assertStatus(200);
-        $response->assertSee('Alpha Corp');
-        $response->assertSee('Beta Corp');
-        $response->assertSee('Merge Companies');
+        $response->assertJsonFragment(['name' => 'Alpha Corp']);
+        $response->assertJsonFragment(['name' => 'Beta Corp']);
     }
 
     public function test_company_merge_sets_merged_into_id(): void
@@ -148,8 +147,12 @@ class MergeTest extends TestCase
 
         $response = $this->get(route('people.index'));
         $response->assertStatus(200);
-        $response->assertSee('Jane Doe');
-        $response->assertDontSee('Jane Smith');
+        $response->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->component('People/Index')
+            ->has('people.data', 1)
+            ->where('people.data.0.first_name', 'Jane')
+            ->where('people.data.0.last_name', 'Doe')
+        );
     }
 
     public function test_person_merge_modal_requires_two_ids(): void
@@ -164,11 +167,10 @@ class MergeTest extends TestCase
         $a = Person::create(['first_name' => 'Alice', 'last_name' => 'A']);
         $b = Person::create(['first_name' => 'Bob',   'last_name' => 'B']);
 
-        $response = $this->get(route('people.merge-modal', ['ids' => [$a->id, $b->id]]));
+        $response = $this->getJson(route('people.merge-modal', ['ids' => [$a->id, $b->id]]));
         $response->assertStatus(200);
-        $response->assertSee('Alice A');
-        $response->assertSee('Bob B');
-        $response->assertSee('Merge People');
+        $response->assertJsonFragment(['full_name' => 'Alice A']);
+        $response->assertJsonFragment(['full_name' => 'Bob B']);
     }
 
     public function test_person_merge_sets_merged_into_id(): void

@@ -13,7 +13,7 @@ class AiCredentialController extends Controller
     {
         $providers = AiProviderFactory::providers();
 
-        return view('configuration.ai.credential-form', [
+        return \Inertia\Inertia::render('AiConfig/CredentialForm', [
             'credential' => null,
             'providers'  => $providers,
         ]);
@@ -40,7 +40,7 @@ class AiCredentialController extends Controller
     {
         $providers = AiProviderFactory::providers();
 
-        return view('configuration.ai.credential-form', [
+        return \Inertia\Inertia::render('AiConfig/CredentialForm', [
             'credential' => $aiCredential,
             'providers'  => $providers,
         ]);

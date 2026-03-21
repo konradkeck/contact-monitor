@@ -59,7 +59,6 @@ Route::middleware('auth')->group(function () {
         // People (read)
         Route::get('people/search', [PersonController::class, 'search'])->name('people.search');
         Route::get('people/filter-modal', [FilteringController::class, 'personFilterModal'])->name('people.filter-modal');
-        Route::get('people/assign-company-modal', [PersonController::class, 'assignCompanyModal'])->name('people.assign-company-modal');
         Route::get('people', [PersonController::class, 'index'])->name('people.index');
         Route::get('people/{person}', [PersonController::class, 'show'])->name('people.show')->whereNumber('person');
         Route::get('people/{person}/timeline', [PersonController::class, 'timeline'])->name('people.timeline')->whereNumber('person');
@@ -141,13 +140,6 @@ Route::middleware('auth')->group(function () {
         Route::delete('smart-notes/{smartNote}', [SmartNotesController::class, 'destroy'])->name('smart-notes.destroy');
         Route::post('smart-notes/{smartNote}/unrecognize', [SmartNotesController::class, 'unrecognize'])->name('smart-notes.unrecognize');
 
-        // Audit log
-        Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
-
-        // Activities
-        Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
-        Route::get('activity/timeline', [ActivityController::class, 'timeline'])->name('activity.timeline');
-        Route::get('activity/stats', [ActivityController::class, 'stats'])->name('activity.stats');
     });
 
     // ── Configuration ─────────────────────────────────────────────────────────
@@ -171,7 +163,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('configuration/identities/{identity}/unlink', [DataRelationsController::class, 'unlinkIdentity'])->name('data-relations.identities.unlink');
         Route::post('configuration/conversations/{conversation}/link', [DataRelationsController::class, 'linkConversation'])->name('data-relations.conversations.link');
         Route::delete('configuration/conversations/{conversation}/unlink', [DataRelationsController::class, 'unlinkConversation'])->name('data-relations.conversations.unlink');
-Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsController::class, 'toggleBot'])->name('data-relations.identities.toggle-bot');
+        Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsController::class, 'toggleBot'])->name('data-relations.identities.toggle-bot');
 
         // Filtering
         Route::post('configuration/filtering/apply-rule', [FilteringController::class, 'applyRule'])->name('filtering.apply-rule');
@@ -274,8 +266,8 @@ Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsCont
         Route::delete('configuration/team-access/groups/{group}', [GroupsController::class, 'destroy'])->name('team-access.groups.destroy');
     });
 
-    // ── Analyse (AI Chat) ──────────────────────────────────────────────────────
-    Route::middleware(['permission:analyse', 'require.setup'])->prefix('analyse')->name('analyse.')->group(function () {
+    // ── Analyze (AI Chat) ──────────────────────────────────────────────────────
+    Route::middleware(['permission:analyse', 'require.setup'])->prefix('analyze')->name('analyze.')->group(function () {
         // Inertia pages
         Route::get('/', [AnalyseController::class, 'index'])->name('index');
         Route::get('/c/{chat}', [AnalyseController::class, 'show'])->name('chat.show')->whereNumber('chat');

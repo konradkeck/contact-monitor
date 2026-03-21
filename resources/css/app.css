@@ -23,8 +23,6 @@
     --color-brand-900: #5c0034;
 }
 
-[x-cloak] { display: none !important; }
-
 /* ── Global cursor ── */
 button, [role="button"] { cursor: pointer; }
 html, body { background: #f7f6fb; }

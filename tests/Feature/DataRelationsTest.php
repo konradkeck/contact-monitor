@@ -9,6 +9,7 @@ use App\Models\Identity;
 use App\Models\Person;
 use App\Models\SynchronizerServer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class DataRelationsTest extends TestCase
@@ -47,7 +48,10 @@ class DataRelationsTest extends TestCase
         $response = $this->get(route('data-relations.index'));
 
         $response->assertStatus(200);
-        $response->assertViewHas('stats');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('DataRelations/Index')
+            ->has('stats')
+        );
     }
 
     public function test_data_relations_index_with_accounts(): void
@@ -67,7 +71,10 @@ class DataRelationsTest extends TestCase
         $response = $this->get(route('data-relations.index'));
 
         $response->assertStatus(200);
-        $response->assertViewHas('accountSystems');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('DataRelations/Index')
+            ->has('accountSystems')
+        );
     }
 
     public function test_data_relations_mapping_account_based_returns_200(): void

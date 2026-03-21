@@ -9,23 +9,30 @@ use App\Models\Identity;
 use App\Models\SmartNote;
 use App\Models\SmartNoteFilter;
 use App\Models\SystemSetting;
-use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class SmartNotesConfigController extends Controller
 {
-    public function index(): View
+    public function index()
     {
         $enabled  = SystemSetting::get('smart_notes_enabled', false);
-        $filters  = SmartNoteFilter::orderBy('created_at')->get();
+        $filters  = SmartNoteFilter::orderBy('created_at')->get()->map(fn ($f) => [
+            'id'               => $f->id,
+            'type'             => $f->type,
+            'type_label'       => $f->typeLabel(),
+            'summary_label'    => $f->summaryLabel(),
+            'as_internal_note' => $f->as_internal_note,
+            'is_active'        => $f->is_active,
+        ]);
         $activeTab = request('tab', 'filtering');
 
-        return view('configuration.smart-notes.index', compact('enabled', 'filters', 'activeTab'));
+        return Inertia::render('SmartNotesConfig/Index', compact('enabled', 'filters', 'activeTab'));
     }
 
-    public function createFilter(): View
+    public function createFilter()
     {
         $emailMailboxes = Conversation::select('system_type', 'system_slug')
             ->whereIn('channel_type', ['email', 'ticket'])
@@ -47,7 +54,7 @@ class SmartNotesConfigController extends Controller
             ->get()
             ->pluck('system_slug');
 
-        return view('configuration.smart-notes.create-filter', compact('emailMailboxes', 'discordConnections', 'slackWorkspaces'));
+        return Inertia::render('SmartNotesConfig/CreateFilter', compact('emailMailboxes', 'discordConnections', 'slackWorkspaces'));
     }
 
     public function saveSettings(Request $request): RedirectResponse

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\SynchronizerServer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class DashboardTest extends TestCase
@@ -49,8 +50,11 @@ class DashboardTest extends TestCase
         $response = $this->get('/');
 
         $response->assertStatus(200);
-        $response->assertViewHas('conversationsCount');
-        $response->assertViewHas('newCompaniesCount');
-        $response->assertViewHas('newPeopleCount');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('conversationsCount')
+            ->has('newCompaniesCount')
+            ->has('newPeopleCount')
+        );
     }
 }

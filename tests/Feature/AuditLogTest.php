@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Company;
 use App\Models\SynchronizerServer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AuditLogTest extends TestCase
@@ -44,7 +45,10 @@ class AuditLogTest extends TestCase
         $response = $this->get(route('audit-log.index'));
 
         $response->assertStatus(200);
-        $response->assertViewHas('logs');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('AuditLog')
+            ->has('logs')
+        );
     }
 
     public function test_audit_log_index_shows_log_entry(): void
@@ -58,7 +62,10 @@ class AuditLogTest extends TestCase
         $response = $this->get(route('audit-log.index'));
 
         $response->assertStatus(200);
-        $response->assertSee('Created company');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('AuditLog')
+            ->has('logs.data', 1)
+        );
     }
 
     public function test_audit_log_index_paginated(): void

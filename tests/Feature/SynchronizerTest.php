@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\SynchronizerServer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class SynchronizerTest extends TestCase
@@ -36,7 +37,10 @@ class SynchronizerTest extends TestCase
         $response = $this->get(route('synchronizer.index'));
 
         $response->assertStatus(200);
-        $response->assertViewHas('error');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Synchronizer/Index')
+            ->has('error')
+        );
     }
 
     public function test_synchronizer_servers_index_returns_200(): void

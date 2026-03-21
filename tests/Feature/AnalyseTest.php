@@ -154,38 +154,38 @@ class AnalyseTest extends TestCase
     public function test_viewer_cannot_access_analyse_index(): void
     {
         $this->actingAsViewer();
-        $this->get(route('analyse.index'))->assertForbidden();
+        $this->get(route('analyze.index'))->assertForbidden();
     }
 
     public function test_viewer_cannot_create_chat(): void
     {
         $this->actingAsViewer();
-        $this->postJson(route('analyse.chats.store'))->assertForbidden();
+        $this->postJson(route('analyze.chats.store'))->assertForbidden();
     }
 
     public function test_viewer_cannot_list_chats(): void
     {
         $this->actingAsViewer();
-        $this->getJson(route('analyse.chats.list'))->assertForbidden();
+        $this->getJson(route('analyze.chats.list'))->assertForbidden();
     }
 
     public function test_admin_can_access_analyse_index(): void
     {
         // Admin has analyse permission. Use withoutVite() since Vite assets aren't built in tests.
-        $this->withoutVite()->get(route('analyse.index'))->assertStatus(200);
+        $this->withoutVite()->get(route('analyze.index'))->assertStatus(200);
     }
 
     public function test_analyst_can_access_analyse_index(): void
     {
         $this->actingAsAnalyst();
-        $this->withoutVite()->get(route('analyse.index'))->assertStatus(200);
+        $this->withoutVite()->get(route('analyze.index'))->assertStatus(200);
     }
 
     // ── Chat CRUD ─────────────────────────────────────────────────────────────
 
     public function test_create_chat_returns_chat_data(): void
     {
-        $response = $this->postJson(route('analyse.chats.store'), [
+        $response = $this->postJson(route('analyze.chats.store'), [
             'title' => 'My New Chat',
         ]);
 
@@ -200,7 +200,7 @@ class AnalyseTest extends TestCase
 
     public function test_create_chat_without_title(): void
     {
-        $response = $this->postJson(route('analyse.chats.store'));
+        $response = $this->postJson(route('analyze.chats.store'));
 
         $response->assertStatus(200);
         $chat = AiChat::where('user_id', $this->admin->id)->first();
@@ -212,7 +212,7 @@ class AnalyseTest extends TestCase
     {
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'My Project']);
 
-        $response = $this->postJson(route('analyse.chats.store'), [
+        $response = $this->postJson(route('analyze.chats.store'), [
             'project_id' => $project->id,
         ]);
 
@@ -227,7 +227,7 @@ class AnalyseTest extends TestCase
     {
         $otherProject = AiProject::create(['user_id' => $this->otherUser->id, 'name' => 'Other Project']);
 
-        $this->postJson(route('analyse.chats.store'), [
+        $this->postJson(route('analyze.chats.store'), [
             'project_id' => $otherProject->id,
         ])->assertForbidden();
     }
@@ -238,7 +238,7 @@ class AnalyseTest extends TestCase
         AiChat::create(['user_id' => $this->admin->id, 'title' => 'Archived Chat', 'is_archived' => true]);
         AiChat::create(['user_id' => $this->otherUser->id, 'title' => 'Other User Chat']);
 
-        $response = $this->getJson(route('analyse.chats.list'));
+        $response = $this->getJson(route('analyze.chats.list'));
         $response->assertStatus(200)->assertJsonStructure(['chats', 'nextCursor']);
 
         $titles = collect($response->json('chats'))->pluck('title')->toArray();
@@ -251,7 +251,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $response = $this->patchJson(route('analyse.chats.update', $chat), [
+        $response = $this->patchJson(route('analyze.chats.update', $chat), [
             'title' => 'Renamed Chat',
         ]);
 
@@ -265,7 +265,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat($this->otherUser);
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'title' => 'Hacked',
         ])->assertForbidden();
     }
@@ -274,7 +274,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'is_archived' => true,
         ])->assertStatus(200);
 
@@ -285,7 +285,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat(attrs: ['is_archived' => true]);
 
-        $response = $this->getJson(route('analyse.chats.list'));
+        $response = $this->getJson(route('analyze.chats.list'));
         $ids = collect($response->json('chats'))->pluck('id')->toArray();
         $this->assertNotContains($chat->id, $ids);
     }
@@ -296,14 +296,14 @@ class AnalyseTest extends TestCase
 
         // AnalyseController::show does not check archived state — it just loads the chat.
         // Use withoutVite() since Vite assets aren't built in tests.
-        $this->withoutVite()->get(route('analyse.chat.show', $chat))->assertStatus(200);
+        $this->withoutVite()->get(route('analyze.chat.show', $chat))->assertStatus(200);
     }
 
     public function test_delete_chat(): void
     {
         $chat = $this->createChat();
 
-        $this->deleteJson(route('analyse.chats.destroy', $chat))
+        $this->deleteJson(route('analyze.chats.destroy', $chat))
              ->assertStatus(200)
              ->assertJson(['ok' => true]);
 
@@ -314,7 +314,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat($this->otherUser);
 
-        $this->deleteJson(route('analyse.chats.destroy', $chat))->assertForbidden();
+        $this->deleteJson(route('analyze.chats.destroy', $chat))->assertForbidden();
     }
 
     // ── Chat Show (Inertia) ───────────────────────────────────────────────────
@@ -324,7 +324,7 @@ class AnalyseTest extends TestCase
         $chat = $this->createChat();
 
         // Use withoutVite() since Vite assets aren't built in tests.
-        $this->withoutVite()->get(route('analyse.chat.show', $chat))->assertStatus(200);
+        $this->withoutVite()->get(route('analyze.chat.show', $chat))->assertStatus(200);
     }
 
     public function test_chat_show_page_forbidden_for_non_participant(): void
@@ -332,7 +332,7 @@ class AnalyseTest extends TestCase
         $chat = $this->createChat($this->otherUser);
 
         // Admin is NOT a participant of another user's chat
-        $this->withoutVite()->get(route('analyse.chat.show', $chat))->assertForbidden();
+        $this->withoutVite()->get(route('analyze.chat.show', $chat))->assertForbidden();
     }
 
     public function test_chat_show_accessible_to_participant(): void
@@ -344,7 +344,7 @@ class AnalyseTest extends TestCase
             'added_by' => $this->otherUser->id,
         ]);
 
-        $this->withoutVite()->get(route('analyse.chat.show', $chat))->assertStatus(200);
+        $this->withoutVite()->get(route('analyze.chat.show', $chat))->assertStatus(200);
     }
 
     // ── Message Sending ───────────────────────────────────────────────────────
@@ -353,7 +353,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'Hello!',
         ])->assertStatus(422)->assertJsonFragment(['error' => 'No AI model configured for analyze action.']);
     }
@@ -391,7 +391,7 @@ class AnalyseTest extends TestCase
         // We test only that the user message record is created (the early-exit path).
 
         // Re-test: just verify the message exists after call (even if AI part fails)
-        $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'Hello world!',
         ]);
 
@@ -407,7 +407,7 @@ class AnalyseTest extends TestCase
         $this->createModelConfig();
         $chat = $this->createChat(attrs: ['is_archived' => true]);
 
-        $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'Hello!',
         ])->assertStatus(422);
     }
@@ -416,7 +416,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat($this->otherUser);
 
-        $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'Hello!',
         ])->assertForbidden();
     }
@@ -433,7 +433,7 @@ class AnalyseTest extends TestCase
         ]);
 
         // No model config — will get 422, but NOT 403 (access is allowed)
-        $response = $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $response = $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'I am a participant!',
         ]);
 
@@ -464,7 +464,7 @@ class AnalyseTest extends TestCase
         ]);
 
         // No model config — will return 422 after user message is saved
-        $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'Shared message',
         ]);
 
@@ -483,7 +483,7 @@ class AnalyseTest extends TestCase
         // We verify the user message is still stored correctly.
         $chat = $this->createChat(attrs: ['is_shared' => false]);
 
-        $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'Private message',
         ]);
 
@@ -498,7 +498,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $this->postJson(route('analyse.chats.stop', $chat))
+        $this->postJson(route('analyze.chats.stop', $chat))
              ->assertStatus(200)
              ->assertJson(['ok' => true]);
 
@@ -509,7 +509,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat($this->otherUser);
 
-        $this->postJson(route('analyse.chats.stop', $chat))->assertForbidden();
+        $this->postJson(route('analyze.chats.stop', $chat))->assertForbidden();
     }
 
     // ── Branching ─────────────────────────────────────────────────────────────
@@ -521,7 +521,7 @@ class AnalyseTest extends TestCase
         $msg2 = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'assistant', 'content' => 'Response 1']);
         $msg3 = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user',      'content' => 'Message 2']);
 
-        $response = $this->postJson(route('analyse.chats.branch', $chat), [
+        $response = $this->postJson(route('analyze.chats.branch', $chat), [
             'message_id' => $msg2->id,
         ]);
 
@@ -548,7 +548,7 @@ class AnalyseTest extends TestCase
         $msg2 = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'assistant', 'content' => 'Msg B']);
         $msg3 = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user',      'content' => 'Msg C']);
 
-        $response = $this->postJson(route('analyse.chats.branch', $chat), [
+        $response = $this->postJson(route('analyze.chats.branch', $chat), [
             'message_id' => $msg2->id,
         ]);
 
@@ -570,7 +570,7 @@ class AnalyseTest extends TestCase
         $chat = $this->createChat(attrs: ['title' => 'Original']);
         $msg  = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user', 'content' => 'Hello']);
 
-        $response = $this->postJson(route('analyse.chats.branch', $chat), [
+        $response = $this->postJson(route('analyze.chats.branch', $chat), [
             'message_id' => $msg->id,
         ]);
 
@@ -590,7 +590,7 @@ class AnalyseTest extends TestCase
         $msg1 = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user', 'content' => 'Msg 1']);
         $msg2 = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user', 'content' => 'Msg 2']);
 
-        $this->postJson(route('analyse.chats.branch', $chat), [
+        $this->postJson(route('analyze.chats.branch', $chat), [
             'message_id' => $msg1->id,
         ]);
 
@@ -604,7 +604,7 @@ class AnalyseTest extends TestCase
         $chat2 = $this->createChat();
         $msg   = AiChatMessage::create(['chat_id' => $chat2->id, 'role' => 'user', 'content' => 'Foreign']);
 
-        $this->postJson(route('analyse.chats.branch', $chat1), [
+        $this->postJson(route('analyze.chats.branch', $chat1), [
             'message_id' => $msg->id,
         ])->assertStatus(422);
     }
@@ -614,7 +614,7 @@ class AnalyseTest extends TestCase
         $chat = $this->createChat($this->otherUser);
         $msg  = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user', 'content' => 'Hello']);
 
-        $this->postJson(route('analyse.chats.branch', $chat), [
+        $this->postJson(route('analyze.chats.branch', $chat), [
             'message_id' => $msg->id,
         ])->assertForbidden();
     }
@@ -627,7 +627,7 @@ class AnalyseTest extends TestCase
 
         $chat = $this->createChat();
 
-        $response = $this->postJson(route('analyse.chats.share', $chat), [
+        $response = $this->postJson(route('analyze.chats.share', $chat), [
             'user_id' => $this->otherUser->id,
         ]);
 
@@ -649,7 +649,7 @@ class AnalyseTest extends TestCase
         // the side effects: participant is added and response contains participant data.
         $chat = $this->createChat();
 
-        $response = $this->postJson(route('analyse.chats.share', $chat), [
+        $response = $this->postJson(route('analyze.chats.share', $chat), [
             'user_id' => $this->otherUser->id,
         ]);
 
@@ -673,7 +673,7 @@ class AnalyseTest extends TestCase
             'added_by' => $this->otherUser->id,
         ]);
 
-        $response = $this->getJson(route('analyse.shared'));
+        $response = $this->getJson(route('analyze.shared'));
         $response->assertStatus(200)->assertJsonStructure(['shared']);
 
         $ids = collect($response->json('shared'))->pluck('id')->toArray();
@@ -685,7 +685,7 @@ class AnalyseTest extends TestCase
         // Create a shared chat that admin is NOT a participant of
         $chat = $this->createChat($this->otherUser, ['is_shared' => true]);
 
-        $response = $this->getJson(route('analyse.shared'));
+        $response = $this->getJson(route('analyze.shared'));
         $ids = collect($response->json('shared'))->pluck('id')->toArray();
         $this->assertNotContains($chat->id, $ids);
     }
@@ -704,7 +704,7 @@ class AnalyseTest extends TestCase
         // with no useful effect. A stricter validation would require a custom rule.
         $chat = $this->createChat();
 
-        $response = $this->postJson(route('analyse.chats.share', $chat), [
+        $response = $this->postJson(route('analyze.chats.share', $chat), [
             'user_id' => $this->admin->id,
         ]);
 
@@ -717,7 +717,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat($this->otherUser);
 
-        $this->postJson(route('analyse.chats.share', $chat), [
+        $this->postJson(route('analyze.chats.share', $chat), [
             'user_id' => $this->admin->id,
         ])->assertForbidden();
     }
@@ -733,7 +733,7 @@ class AnalyseTest extends TestCase
             'added_by' => $this->admin->id,
         ]);
 
-        $response = $this->deleteJson(route('analyse.chats.participants.remove', [
+        $response = $this->deleteJson(route('analyze.chats.participants.remove', [
             'chat' => $chat->id,
             'user' => $this->otherUser->id,
         ]));
@@ -756,7 +756,7 @@ class AnalyseTest extends TestCase
             'added_by' => $this->admin->id,
         ]);
 
-        $this->deleteJson(route('analyse.chats.participants.remove', [
+        $this->deleteJson(route('analyze.chats.participants.remove', [
             'chat' => $chat->id,
             'user' => $this->otherUser->id,
         ]));
@@ -776,7 +776,7 @@ class AnalyseTest extends TestCase
 
         $this->actingAs($this->otherUser);
 
-        $this->deleteJson(route('analyse.chats.leave', $chat))
+        $this->deleteJson(route('analyze.chats.leave', $chat))
              ->assertStatus(200)
              ->assertJson(['ok' => true]);
 
@@ -790,7 +790,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $this->deleteJson(route('analyse.chats.leave', $chat))
+        $this->deleteJson(route('analyze.chats.leave', $chat))
              ->assertStatus(422);
     }
 
@@ -798,7 +798,7 @@ class AnalyseTest extends TestCase
 
     public function test_create_project(): void
     {
-        $response = $this->postJson(route('analyse.projects.store'), [
+        $response = $this->postJson(route('analyze.projects.store'), [
             'name' => 'New Project',
         ]);
 
@@ -813,7 +813,7 @@ class AnalyseTest extends TestCase
 
     public function test_create_project_validates_name(): void
     {
-        $this->postJson(route('analyse.projects.store'), [])
+        $this->postJson(route('analyze.projects.store'), [])
              ->assertUnprocessable()
              ->assertJsonValidationErrors(['name']);
     }
@@ -822,7 +822,7 @@ class AnalyseTest extends TestCase
     {
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'Old Name']);
 
-        $this->patchJson(route('analyse.projects.update', $project), [
+        $this->patchJson(route('analyze.projects.update', $project), [
             'name' => 'New Name',
         ])->assertStatus(200);
 
@@ -833,7 +833,7 @@ class AnalyseTest extends TestCase
     {
         $project = AiProject::create(['user_id' => $this->otherUser->id, 'name' => 'Theirs']);
 
-        $this->patchJson(route('analyse.projects.update', $project), [
+        $this->patchJson(route('analyze.projects.update', $project), [
             'name' => 'Hacked',
         ])->assertForbidden();
     }
@@ -842,7 +842,7 @@ class AnalyseTest extends TestCase
     {
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'To Delete']);
 
-        $this->deleteJson(route('analyse.projects.destroy', $project))
+        $this->deleteJson(route('analyze.projects.destroy', $project))
              ->assertStatus(200)
              ->assertJson(['ok' => true]);
 
@@ -854,7 +854,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'Proj']);
         $chat    = $this->createChat(attrs: ['project_id' => $project->id]);
 
-        $this->deleteJson(route('analyse.projects.destroy', $project));
+        $this->deleteJson(route('analyze.projects.destroy', $project));
 
         $this->assertNull($chat->fresh()->project_id);
     }
@@ -869,7 +869,7 @@ class AnalyseTest extends TestCase
             'project_id' => $project->id,
         ]);
 
-        $this->deleteJson(route('analyse.projects.destroy', $project));
+        $this->deleteJson(route('analyze.projects.destroy', $project));
 
         $this->assertDatabaseMissing('ai_chat_project_pins', ['project_id' => $project->id]);
     }
@@ -878,7 +878,7 @@ class AnalyseTest extends TestCase
     {
         $project = AiProject::create(['user_id' => $this->otherUser->id, 'name' => 'Theirs']);
 
-        $this->deleteJson(route('analyse.projects.destroy', $project))->assertForbidden();
+        $this->deleteJson(route('analyze.projects.destroy', $project))->assertForbidden();
     }
 
     public function test_assign_chat_to_project(): void
@@ -886,7 +886,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'My Project']);
         $chat    = $this->createChat();
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'project_id' => $project->id,
         ])->assertStatus(200);
 
@@ -898,7 +898,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->otherUser->id, 'name' => 'Theirs']);
         $chat    = $this->createChat();
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'project_id' => $project->id,
         ])->assertForbidden();
     }
@@ -908,14 +908,14 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'My Project']);
 
         // Use withoutVite() since Vite assets aren't built in tests.
-        $this->withoutVite()->get(route('analyse.project.show', $project))->assertStatus(200);
+        $this->withoutVite()->get(route('analyze.project.show', $project))->assertStatus(200);
     }
 
     public function test_project_show_page_forbidden_for_non_owner(): void
     {
         $project = AiProject::create(['user_id' => $this->otherUser->id, 'name' => 'Theirs']);
 
-        $this->withoutVite()->get(route('analyse.project.show', $project))->assertForbidden();
+        $this->withoutVite()->get(route('analyze.project.show', $project))->assertForbidden();
     }
 
     public function test_pin_chat_to_project(): void
@@ -923,7 +923,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'My Project']);
         $chat    = $this->createChat($this->otherUser, ['is_shared' => true]);
 
-        $response = $this->postJson(route('analyse.projects.pin-chat', $project), [
+        $response = $this->postJson(route('analyze.projects.pin-chat', $project), [
             'chat_id' => $chat->id,
         ]);
 
@@ -941,7 +941,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->otherUser->id, 'name' => 'Theirs']);
         $chat    = $this->createChat();
 
-        $this->postJson(route('analyse.projects.pin-chat', $project), [
+        $this->postJson(route('analyze.projects.pin-chat', $project), [
             'chat_id' => $chat->id,
         ])->assertForbidden();
     }
@@ -957,7 +957,7 @@ class AnalyseTest extends TestCase
             'project_id' => $project->id,
         ]);
 
-        $this->deleteJson(route('analyse.projects.unpin-chat', [
+        $this->deleteJson(route('analyze.projects.unpin-chat', [
             'project' => $project->id,
             'chat'    => $chat->id,
         ]))->assertStatus(200)->assertJson(['ok' => true]);
@@ -972,7 +972,7 @@ class AnalyseTest extends TestCase
 
     public function test_search_returns_empty_for_short_query(): void
     {
-        $this->getJson(route('analyse.search', ['q' => 'a']))
+        $this->getJson(route('analyze.search', ['q' => 'a']))
              ->assertStatus(200)
              ->assertJson(['results' => []]);
     }
@@ -983,7 +983,7 @@ class AnalyseTest extends TestCase
         AiChat::create(['user_id' => $this->admin->id, 'title' => 'Machine Learning Discussion']);
         AiChat::create(['user_id' => $this->admin->id, 'title' => 'Unrelated Topic']);
 
-        $response = $this->getJson(route('analyse.search', ['q' => 'Machine Learning']));
+        $response = $this->getJson(route('analyze.search', ['q' => 'Machine Learning']));
         $response->assertStatus(200);
 
         $results = $response->json('results');
@@ -998,7 +998,7 @@ class AnalyseTest extends TestCase
         AiChat::create(['user_id' => $this->admin->id,     'title' => 'My Secret Chat']);
         AiChat::create(['user_id' => $this->otherUser->id, 'title' => 'Their Secret Chat']);
 
-        $response = $this->getJson(route('analyse.search', ['q' => 'Secret Chat']));
+        $response = $this->getJson(route('analyze.search', ['q' => 'Secret Chat']));
         $results  = $response->json('results');
         $titles   = collect($results)->pluck('title')->toArray();
 
@@ -1019,7 +1019,7 @@ class AnalyseTest extends TestCase
             'added_by' => $this->otherUser->id,
         ]);
 
-        $response = $this->getJson(route('analyse.search', ['q' => 'Shared With Admin']));
+        $response = $this->getJson(route('analyze.search', ['q' => 'Shared With Admin']));
         $results  = $response->json('results');
         $titles   = collect($results)->pluck('title')->toArray();
 
@@ -1044,7 +1044,7 @@ class AnalyseTest extends TestCase
         // The controller catches Throwable and returns 500.
         // That's acceptable — we test the user message was at least stored.
 
-        $response = $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $response = $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'Test message for streaming',
         ]);
 
@@ -1065,7 +1065,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $this->postJson(route('analyse.chats.messages.store', $chat), [])
+        $this->postJson(route('analyze.chats.messages.store', $chat), [])
              ->assertUnprocessable()
              ->assertJsonValidationErrors(['content']);
     }
@@ -1074,7 +1074,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => str_repeat('x', 32001),
         ])->assertUnprocessable()
           ->assertJsonValidationErrors(['content']);
@@ -1086,14 +1086,14 @@ class AnalyseTest extends TestCase
     {
         auth()->logout();
 
-        $this->get(route('analyse.index'))->assertRedirect(route('login'));
+        $this->get(route('analyze.index'))->assertRedirect(route('login'));
     }
 
     public function test_unauthenticated_cannot_create_chat(): void
     {
         auth()->logout();
 
-        $this->postJson(route('analyse.chats.store'))->assertUnauthorized();
+        $this->postJson(route('analyze.chats.store'))->assertUnauthorized();
     }
 
     // ── Move chat to project ─────────────────────────────────────────────────
@@ -1103,7 +1103,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'Target']);
         $chat = $this->createChat();
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'project_id' => $project->id,
         ])->assertStatus(200);
 
@@ -1115,7 +1115,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'Source']);
         $chat = $this->createChat(attrs: ['project_id' => $project->id]);
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'project_id' => null,
         ])->assertStatus(200);
 
@@ -1128,7 +1128,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat(attrs: ['is_archived' => true]);
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'is_archived' => false,
         ])->assertStatus(200);
 
@@ -1141,7 +1141,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $response = $this->withoutVite()->get(route('analyse.chat.show', $chat));
+        $response = $this->withoutVite()->get(route('analyze.chat.show', $chat));
         $response->assertStatus(200);
 
         // Inertia response includes auth props
@@ -1157,7 +1157,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'Proj']);
         $chat = $this->createChat(attrs: ['project_id' => $project->id]);
 
-        $response = $this->withoutVite()->get(route('analyse.chat.show', $chat));
+        $response = $this->withoutVite()->get(route('analyze.chat.show', $chat));
         $response->assertStatus(200);
 
         $response->assertInertia(fn ($page) =>
@@ -1171,7 +1171,7 @@ class AnalyseTest extends TestCase
         AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user', 'content' => 'Hello!']);
         AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'assistant', 'content' => 'Hi there!']);
 
-        $response = $this->withoutVite()->get(route('analyse.chat.show', $chat));
+        $response = $this->withoutVite()->get(route('analyze.chat.show', $chat));
         $response->assertStatus(200);
 
         $response->assertInertia(fn ($page) =>
@@ -1188,7 +1188,7 @@ class AnalyseTest extends TestCase
             'added_by' => $this->admin->id,
         ]);
 
-        $response = $this->withoutVite()->get(route('analyse.chat.show', $chat));
+        $response = $this->withoutVite()->get(route('analyze.chat.show', $chat));
         $response->assertStatus(200);
 
         $response->assertInertia(fn ($page) =>
@@ -1202,11 +1202,11 @@ class AnalyseTest extends TestCase
     {
         AiProject::create(['user_id' => $this->admin->id, 'name' => 'My Project']);
 
-        $response = $this->withoutVite()->get(route('analyse.index'));
+        $response = $this->withoutVite()->get(route('analyze.index'));
         $response->assertStatus(200);
 
         $response->assertInertia(fn ($page) =>
-            $page->has('sidebar.projects', 1)
+            $page->has('analyseSidebar.projects', 1)
         );
     }
 
@@ -1219,17 +1219,17 @@ class AnalyseTest extends TestCase
             'added_by' => $this->otherUser->id,
         ]);
 
-        $response = $this->withoutVite()->get(route('analyse.index'));
+        $response = $this->withoutVite()->get(route('analyze.index'));
         $response->assertStatus(200);
 
         $response->assertInertia(fn ($page) =>
-            $page->has('sidebar.shared', 1)
+            $page->has('analyseSidebar.shared', 1)
         );
     }
 
     public function test_sidebar_includes_users_for_sharing(): void
     {
-        $response = $this->withoutVite()->get(route('analyse.index'));
+        $response = $this->withoutVite()->get(route('analyze.index'));
         $response->assertStatus(200);
 
         // Should have at least the other user (excludes current user)
@@ -1245,7 +1245,7 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'Proj']);
         $this->createChat(attrs: ['project_id' => $project->id, 'title' => 'Chat In Project']);
 
-        $response = $this->withoutVite()->get(route('analyse.project.show', $project));
+        $response = $this->withoutVite()->get(route('analyze.project.show', $project));
         $response->assertStatus(200);
 
         $response->assertInertia(fn ($page) =>
@@ -1264,7 +1264,7 @@ class AnalyseTest extends TestCase
             'project_id' => $project->id,
         ]);
 
-        $response = $this->withoutVite()->get(route('analyse.project.show', $project));
+        $response = $this->withoutVite()->get(route('analyze.project.show', $project));
         $response->assertStatus(200);
 
         $response->assertInertia(fn ($page) =>
@@ -1280,7 +1280,7 @@ class AnalyseTest extends TestCase
         AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user', 'content' => 'Hi']);
         AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'assistant', 'content' => 'Hello']);
 
-        $this->deleteJson(route('analyse.chats.destroy', $chat))
+        $this->deleteJson(route('analyze.chats.destroy', $chat))
              ->assertStatus(200);
 
         $this->assertDatabaseMissing('ai_chats', ['id' => $chat->id]);
@@ -1296,7 +1296,7 @@ class AnalyseTest extends TestCase
             'added_by' => $this->admin->id,
         ]);
 
-        $this->deleteJson(route('analyse.chats.destroy', $chat))
+        $this->deleteJson(route('analyze.chats.destroy', $chat))
              ->assertStatus(200);
 
         $this->assertDatabaseMissing('ai_chat_participants', ['chat_id' => $chat->id]);
@@ -1308,11 +1308,11 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat();
 
-        $this->postJson(route('analyse.chats.share', $chat), [
+        $this->postJson(route('analyze.chats.share', $chat), [
             'user_id' => $this->otherUser->id,
         ])->assertStatus(200);
 
-        $this->postJson(route('analyse.chats.share', $chat), [
+        $this->postJson(route('analyze.chats.share', $chat), [
             'user_id' => $this->otherUser->id,
         ])->assertStatus(200);
 
@@ -1329,7 +1329,7 @@ class AnalyseTest extends TestCase
         $chat = $this->createChat(attrs: ['last_message_at' => null]);
 
         // No model config = 422, but user message is still saved and last_message_at updated
-        $this->postJson(route('analyse.chats.messages.store', $chat), [
+        $this->postJson(route('analyze.chats.messages.store', $chat), [
             'content' => 'Update timestamp',
         ]);
 
@@ -1342,7 +1342,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat(attrs: ['title_is_manual' => false]);
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'title' => 'Manual Title',
         ])->assertStatus(200);
 
@@ -1353,7 +1353,7 @@ class AnalyseTest extends TestCase
     {
         $chat = $this->createChat(attrs: ['title_is_manual' => false]);
 
-        $this->patchJson(route('analyse.chats.update', $chat), [
+        $this->patchJson(route('analyze.chats.update', $chat), [
             'is_archived' => true,
         ])->assertStatus(200);
 
@@ -1372,7 +1372,7 @@ class AnalyseTest extends TestCase
         ]);
         $msg = AiChatMessage::create(['chat_id' => $chat->id, 'role' => 'user', 'content' => 'Branch me']);
 
-        $response = $this->postJson(route('analyse.chats.branch', $chat), [
+        $response = $this->postJson(route('analyze.chats.branch', $chat), [
             'message_id' => $msg->id,
         ]);
 
@@ -1391,7 +1391,7 @@ class AnalyseTest extends TestCase
     {
         AiChat::create(['user_id' => $this->admin->id, 'title' => 'Something']);
 
-        $response = $this->getJson(route('analyse.search', ['q' => 'zzzznonexistent']));
+        $response = $this->getJson(route('analyze.search', ['q' => 'zzzznonexistent']));
         $this->assertCount(0, $response->json('results'));
     }
 
@@ -1402,12 +1402,12 @@ class AnalyseTest extends TestCase
         $project = AiProject::create(['user_id' => $this->admin->id, 'name' => 'Proj']);
         $chat = $this->createChat($this->otherUser, ['is_shared' => true]);
 
-        $this->postJson(route('analyse.projects.pin-chat', $project), [
+        $this->postJson(route('analyze.projects.pin-chat', $project), [
             'chat_id' => $chat->id,
         ])->assertStatus(200);
 
         // Pin again — should not fail (firstOrCreate)
-        $this->postJson(route('analyse.projects.pin-chat', $project), [
+        $this->postJson(route('analyze.projects.pin-chat', $project), [
             'chat_id' => $chat->id,
         ])->assertStatus(200);
 
@@ -1424,15 +1424,15 @@ class AnalyseTest extends TestCase
         $this->createModelConfig();
         $chat = $this->createChat(attrs: ['last_message_at' => now()]);
 
-        $response = $this->get(route('analyse.index'));
-        $response->assertRedirect(route('analyse.chat.show', $chat->id));
+        $response = $this->get(route('analyze.index'));
+        $response->assertRedirect(route('analyze.chat.show', $chat->id));
     }
 
     public function test_analyse_index_shows_empty_state_when_no_chats(): void
     {
         $this->createModelConfig();
 
-        $response = $this->withoutVite()->get(route('analyse.index'));
+        $response = $this->withoutVite()->get(route('analyze.index'));
         $response->assertStatus(200);
     }
 }

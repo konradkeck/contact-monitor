@@ -6,6 +6,7 @@ use App\Models\Activity;
 use App\Models\Company;
 use App\Models\SynchronizerServer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ActivitiesTest extends TestCase
@@ -44,7 +45,11 @@ class ActivitiesTest extends TestCase
         $response = $this->get(route('activity.index'));
 
         $response->assertStatus(200);
-        $response->assertViewHas('timelinePage');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Activity/Index')
+            ->has('convSystems')
+            ->has('activityTypes')
+        );
     }
 
     public function test_activity_index_shows_activity(): void

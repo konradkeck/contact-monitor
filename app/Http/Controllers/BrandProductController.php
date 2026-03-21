@@ -6,20 +6,22 @@ use App\Models\BrandProduct;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class BrandProductController extends Controller
 {
-    public function index(): View
+    public function index()
     {
         $products = BrandProduct::withCount('companyStatuses')->orderBy('name')->get();
 
-        return view('brand-products.index', compact('products'));
+        return Inertia::render('BrandProducts/Index', [
+            'products' => $products,
+        ]);
     }
 
-    public function create(): View
+    public function create()
     {
-        return view('brand-products.create');
+        return Inertia::render('BrandProducts/Create');
     }
 
     public function store(Request $request): RedirectResponse
@@ -37,9 +39,11 @@ class BrandProductController extends Controller
         return redirect()->route('segmentation.index')->with('success', 'Segmentation created.');
     }
 
-    public function edit(BrandProduct $brandProduct): View
+    public function edit(BrandProduct $brandProduct)
     {
-        return view('brand-products.edit', compact('brandProduct'));
+        return Inertia::render('BrandProducts/Edit', [
+            'brandProduct' => $brandProduct,
+        ]);
     }
 
     public function update(Request $request, BrandProduct $brandProduct): RedirectResponse

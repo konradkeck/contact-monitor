@@ -7,25 +7,25 @@ use App\Models\Group;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class GroupsController extends Controller
 {
-    public function index(): View
+    public function index()
     {
         $groups = Group::withCount('users')->orderBy('name')->get();
         $users  = \App\Models\User::with('group')->orderBy('name')->get();
-        return view('configuration.team-access.index', compact('groups', 'users'));
+        return Inertia::render('TeamAccess/Index', compact('groups', 'users'));
     }
 
-    public function create(): View
+    public function create()
     {
-        return view('configuration.team-access.group-form', ['group' => null, 'permLabels' => self::permLabels()]);
+        return Inertia::render('TeamAccess/GroupForm', ['group' => null, 'permLabels' => self::permLabels()]);
     }
 
-    public function edit(Group $group): View
+    public function edit(Group $group)
     {
-        return view('configuration.team-access.group-form', ['group' => $group, 'permLabels' => self::permLabels()]);
+        return Inertia::render('TeamAccess/GroupForm', ['group' => $group, 'permLabels' => self::permLabels()]);
     }
 
     private static function permLabels(): array

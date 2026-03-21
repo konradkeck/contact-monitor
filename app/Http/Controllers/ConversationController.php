@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
+
+use Inertia\Inertia;
 
 class ConversationController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): \Inertia\Response
     {
         $tab = $request->input('tab', 'assigned');
         $search = trim($request->input('q', ''));
@@ -195,13 +196,12 @@ class ConversationController extends Controller
                 $gravatarHash = $gravatarEmail ? md5(strtolower(trim($gravatarEmail))) : null;
 
                 $entry = [
-                    'identity' => $identity,
                     'author_name' => $row->author_name,
                     'display_name' => $displayName,
                     'gravatar_hash' => $gravatarHash,
                     'avatar_url' => $avatarUrl,
-                    // Pre-computed display fields
-                    '_person' => $person,
+                    'person_id' => $person?->id,
+                    'person_name' => $person ? trim($person->first_name . ' ' . $person->last_name) : null,
                     '_label' => $person ? $person->initials() : mb_strtoupper(mb_substr($displayName ?? '?', 0, 2)),
                     '_title' => $person ? trim($person->first_name . ' ' . $person->last_name) : ($displayName ?? ''),
                     '_imgSrc' => $avatarUrl ?? ($gravatarHash ? 'https://www.gravatar.com/avatar/' . $gravatarHash . '?d=identicon&s=56' : null),
@@ -218,15 +218,80 @@ class ConversationController extends Controller
         $q = $search;
         $activeConvFilterCount = (($f_date_from !== '' || $f_date_to !== '') ? 1 : 0) + (count($systems) > 0 ? 1 : 0);
 
-        return view('conversations.index', compact(
-            'conversations', 'convParticipants', 'tab', 'tabCounts',
-            'companyId', 'channelType', 'systemSlug', 'personId', 'q',
-            'convSystems', 'activeSystems',
-            'f_date_from', 'f_date_to', 'activeConvFilterCount'
-        ));
+        // Serialize conversations for JSON
+        $convItems = $conversations->map(function ($conv) use ($convParticipants) {
+            $systemIcon = null;
+            if ($conv->system_type) {
+                $sysIntegration = \App\Integrations\IntegrationRegistry::get($conv->system_type);
+                $chIntegration  = \App\Integrations\IntegrationRegistry::get($conv->channel_type);
+                if (get_class($sysIntegration) !== get_class($chIntegration)) {
+                    $systemIcon = $sysIntegration->iconHtml('w-4 h-4', false);
+                }
+            }
+
+            return [
+                'id'              => $conv->id,
+                'subject'         => $conv->subject,
+                'channel_type'    => $conv->channel_type,
+                'system_slug'     => $conv->system_slug,
+                'system_type'     => $conv->system_type,
+                'system_icon'     => $systemIcon,
+                'company_id'      => $conv->company_id,
+                'company_name'    => $conv->company?->name,
+                'message_count'   => $conv->message_count,
+                'last_message_at' => $conv->last_message_at?->toIso8601String(),
+                'last_message_ago' => $conv->last_message_at?->diffForHumans(),
+                'participants'    => $convParticipants[$conv->id] ?? ['customer' => [], 'team' => []],
+                'modal_url'       => route('conversations.modal', $conv) . '?preview=1',
+                'show_url'        => route('conversations.show', $conv),
+            ];
+        });
+
+        // Serialize convSystems for channel dropdown
+        $systemOptions = $convSystems->map(function ($sys) {
+            $systemIcon = null;
+            if ($sys->system_type) {
+                $sysIntegration = \App\Integrations\IntegrationRegistry::get($sys->system_type);
+                $chIntegration  = \App\Integrations\IntegrationRegistry::get($sys->channel_type);
+                if (get_class($sysIntegration) !== get_class($chIntegration)) {
+                    $systemIcon = $sysIntegration->iconHtml('w-4 h-4', false);
+                }
+            }
+            return [
+                'value'        => $sys->channel_type . '|' . $sys->system_slug,
+                'channel_type' => $sys->channel_type,
+                'system_slug'  => $sys->system_slug,
+                'system_icon'  => $systemIcon,
+            ];
+        });
+
+        return Inertia::render('Conversations/Index', [
+            'conversations' => [
+                'data'  => $convItems,
+                'links' => $conversations->linkCollection()->toArray(),
+                'meta'  => [
+                    'current_page' => $conversations->currentPage(),
+                    'last_page'    => $conversations->lastPage(),
+                    'total'        => $conversations->total(),
+                ],
+            ],
+            'tab'                  => $tab,
+            'tabCounts'            => $tabCounts,
+            'companyId'            => $companyId,
+            'channelType'          => $channelType,
+            'systemSlug'           => $systemSlug,
+            'personId'             => $personId,
+            'q'                    => $q,
+            'systemOptions'        => $systemOptions,
+            'activeSystems'        => $activeSystems,
+            'f_date_from'          => $f_date_from ?: '',
+            'f_date_to'            => $f_date_to ?: '',
+            'activeConvFilterCount' => $activeConvFilterCount,
+            'filterModalUrl'       => route('conversations.filter-modal'),
+        ]);
     }
 
-    public function show(Request $request, Conversation $conversation): View
+    public function show(Request $request, Conversation $conversation): \Inertia\Response
     {
         $conversation->load([
             'company.mergedInto',
@@ -242,21 +307,15 @@ class ConversationController extends Controller
             $conversation->setRelation('company', $conversation->company->mergedInto);
         }
 
-        // Group messages: thread_key → replies
-        $threads = $conversation->messages
-            ->where('thread_key', null)
-            ->keyBy('id');
+        // Group thread replies keyed by parent message id
         $replies = $conversation->messages
-            ->where('thread_key', '!=', null)
+            ->whereNotNull('thread_key')
             ->groupBy('thread_key');
 
         $notes = Note::whereHas('links', fn ($q) => $q->where('linkable_type', Conversation::class)->where('linkable_id', $conversation->id)
-        )->orderByDesc('created_at')->get();
+        )->with('user:id,name')->orderByDesc('created_at')->get();
 
-        $allIdentities = Identity::with('person')->orderBy('value')->get()
-            ->reject(fn ($id) => $conversation->participants->pluck('identity_id')->contains($id->id));
-
-        // Discord: build user_id → display_name map for resolving <@userId> mentions
+        // Discord mention map
         $discordMentionMap = [];
         if ($conversation->channel_type === 'discord') {
             $discordMentionMap = DB::table('identities')
@@ -269,7 +328,7 @@ class ConversationController extends Controller
                 ->all();
         }
 
-        // Slack: build value_normalized → display_name map for resolving <@UXXXXXX> mentions
+        // Slack mention map
         $slackMentionMap = [];
         if ($conversation->channel_type === 'slack') {
             $slackMentionMap = DB::table('identities')
@@ -288,6 +347,74 @@ class ConversationController extends Controller
             && get_class(\App\Integrations\IntegrationRegistry::get($conversation->system_type))
                !== get_class(\App\Integrations\IntegrationRegistry::get($conversation->channel_type));
 
+        $isEmail  = $conversation->channel_type === 'email';
+        $isTicket = $conversation->channel_type === 'ticket';
+        $usesMarkdown = ($isTicket && $conversation->system_type === 'whmcs')
+                     || $conversation->channel_type === 'discord';
+
+        // Compute channel config
+        $chIntegration = \App\Integrations\IntegrationRegistry::get($conversation->channel_type);
+        $channelLabel  = $chIntegration->label();
+
+        // Serialize messages for JSON
+        $serializedMessages = $conversation->messages->map(function ($msg) use ($conversation, $isEmail) {
+            $person = $msg->identity?->person;
+            return [
+                'id'              => $msg->id,
+                'body_html'       => $msg->body_html,
+                'body_text'       => $msg->body_text,
+                'author_name'     => $msg->author_name,
+                'occurred_at'     => $msg->occurred_at?->toIso8601String(),
+                'edited_at'       => $msg->edited_at?->toIso8601String(),
+                'source_url'      => $msg->source_url,
+                'thread_key'      => $msg->thread_key,
+                'thread_count'    => $msg->thread_count ?? 0,
+                'is_system_message' => $msg->is_system_message,
+                'is_team'         => $msg->isTeamMessage(),
+                'avatar_url'      => $msg->chatAvatarUrl(),
+                'gravatar_hash'   => $msg->gravatarHash(),
+                'identity_value'  => $msg->identity?->value,
+                'person_id'       => $person?->id,
+                'person_is_our_org' => $person?->is_our_org ?? false,
+                'meta_to'         => $isEmail ? ($msg->meta_json['to'] ?? null) : null,
+                'attachments'     => $msg->allAttachments()->map(fn ($a) => [
+                    'name' => $a->filename ?? $a['name'] ?? 'Attachment',
+                    'url'  => $a->source_url ?? $a['url'] ?? '#',
+                ])->values()->all(),
+            ];
+        });
+
+        // Serialize replies keyed by parent id
+        $serializedReplies = [];
+        foreach ($replies as $parentId => $replyMsgs) {
+            $serializedReplies[$parentId] = $replyMsgs->map(function ($msg) {
+                return [
+                    'id'          => $msg->id,
+                    'body_html'   => $msg->body_html,
+                    'body_text'   => $msg->body_text,
+                    'author_name' => $msg->author_name,
+                    'occurred_at' => $msg->occurred_at?->toIso8601String(),
+                    'is_team'     => $msg->isTeamMessage(),
+                    'avatar_url'  => $msg->chatAvatarUrl(),
+                ];
+            })->values()->all();
+        }
+
+        // Ticket display data
+        $ticketDisplay = null;
+        if ($isTicket) {
+            $td = $conversation->ticketDisplayData($conversation->messages);
+            $ticketDisplay = [
+                'hasTicketInfo'  => $td->hasTicketInfo,
+                'ticketHeading'  => $td->ticketHeading,
+                'ticketStatus'   => $td->ticketStatus,
+                'statusColor'    => $td->statusColor,
+                'ticketDept'     => $td->ticketDept,
+                'priority'       => $td->priority,
+                'priorityColor'  => $td->priorityColor,
+            ];
+        }
+
         $debugInfo = array_filter([
             'conversation_id'    => $conversation->id,
             'channel_type'       => $conversation->channel_type,
@@ -300,10 +427,50 @@ class ConversationController extends Controller
             'last_message_at'    => $conversation->last_message_at?->toIso8601String(),
         ], fn ($v) => $v !== null && $v !== '');
 
-        return view('conversations.show', compact(
-            'conversation', 'notes', 'allIdentities', 'threads', 'replies', 'backLink',
-            'discordMentionMap', 'slackMentionMap', 'showSysLogo', 'debugInfo'
-        ));
+        // Serialize notes
+        $serializedNotes = $notes->map(fn ($n) => [
+            'id'         => $n->id,
+            'content'    => $n->content,
+            'user_name'  => $n->user?->name,
+            'created_at' => $n->created_at?->toIso8601String(),
+        ])->all();
+
+        return Inertia::render('Conversations/Show', [
+            'conversation' => [
+                'id'              => $conversation->id,
+                'subject'         => $conversation->subject,
+                'channel_type'    => $conversation->channel_type,
+                'system_type'     => $conversation->system_type,
+                'system_slug'     => $conversation->system_slug,
+                'message_count'   => $conversation->message_count,
+                'started_at'      => $conversation->started_at?->format('Y-m-d'),
+                'last_message_at' => $conversation->last_message_at?->format('Y-m-d'),
+                'company'         => $conversation->company ? [
+                    'id'   => $conversation->company->id,
+                    'name' => $conversation->company->name,
+                ] : null,
+                'primary_person'  => $conversation->primaryPerson ? [
+                    'id'        => $conversation->primaryPerson->id,
+                    'full_name' => $conversation->primaryPerson->full_name,
+                ] : null,
+                'channel_icon'    => $chIntegration->iconHtml('w-9 h-9', false),
+                'system_icon'     => $showSysLogo
+                    ? \App\Integrations\IntegrationRegistry::get($conversation->system_type)->iconHtml('w-7 h-7', false)
+                    : null,
+            ],
+            'messages'          => $serializedMessages,
+            'replies'           => (object) $serializedReplies,
+            'discordMentionMap' => (object) $discordMentionMap,
+            'slackMentionMap'   => (object) $slackMentionMap,
+            'isEmail'           => $isEmail,
+            'isTicket'          => $isTicket,
+            'usesMarkdown'      => $usesMarkdown,
+            'channelLabel'      => $channelLabel,
+            'ticketDisplay'     => $ticketDisplay,
+            'notes'             => $serializedNotes,
+            'backLink'          => $backLink,
+            'debugInfo'         => $debugInfo,
+        ]);
     }
 
     public function modal(Request $request, Conversation $conversation)
@@ -400,10 +567,92 @@ class ConversationController extends Controller
             }
         }
 
-        return view('conversations.modal', compact(
-            'conversation', 'messages', 'replies', 'date', 'discordMentionMap', 'slackMentionMap',
-            'isEmail', 'isTicket', 'isChat', 'preview', 'emailFrom', 'emailTo', 'emailCc', 'fromGravatarHash'
-        ));
+        $chIntegration = \App\Integrations\IntegrationRegistry::get($conversation->channel_type);
+        $usesMarkdown  = ($isTicket && $conversation->system_type === 'whmcs')
+                      || $conversation->channel_type === 'discord';
+
+        $serializedMessages = $messages->map(function ($msg) use ($isEmail) {
+            $person = $msg->identity?->person;
+            return [
+                'id'              => $msg->id,
+                'body_html'       => $msg->body_html,
+                'body_text'       => $msg->body_text,
+                'author_name'     => $msg->author_name,
+                'occurred_at'     => $msg->occurred_at?->toIso8601String(),
+                'edited_at'       => $msg->edited_at?->toIso8601String(),
+                'source_url'      => $msg->source_url,
+                'thread_key'      => $msg->thread_key,
+                'thread_count'    => $msg->thread_count ?? 0,
+                'is_system_message' => $msg->is_system_message,
+                'is_team'         => $msg->isTeamMessage(),
+                'avatar_url'      => $msg->chatAvatarUrl(),
+                'gravatar_hash'   => $msg->gravatarHash(),
+                'identity_value'  => $msg->identity?->value,
+                'person_id'       => $person?->id,
+                'person_is_our_org' => $person?->is_our_org ?? false,
+                'meta_to'         => $isEmail ? ($msg->meta_json['to'] ?? null) : null,
+                'attachments'     => $msg->allAttachments()->map(fn ($a) => [
+                    'name' => $a->filename ?? $a['name'] ?? 'Attachment',
+                    'url'  => $a->source_url ?? $a['url'] ?? '#',
+                ])->values()->all(),
+            ];
+        });
+
+        $serializedReplies = [];
+        foreach ($replies as $parentId => $replyMsgs) {
+            $serializedReplies[$parentId] = $replyMsgs->map(fn ($msg) => [
+                'id'          => $msg->id,
+                'body_html'   => $msg->body_html,
+                'body_text'   => $msg->body_text,
+                'author_name' => $msg->author_name,
+                'occurred_at' => $msg->occurred_at?->toIso8601String(),
+                'is_team'     => $msg->isTeamMessage(),
+                'avatar_url'  => $msg->chatAvatarUrl(),
+            ])->values()->all();
+        }
+
+        $ticketDisplay = null;
+        if ($isTicket) {
+            $td = $conversation->ticketDisplayData($messages);
+            $ticketDisplay = [
+                'hasTicketInfo' => $td->hasTicketInfo,
+                'ticketHeading' => $td->ticketHeading,
+                'ticketStatus'  => $td->ticketStatus,
+                'statusColor'   => $td->statusColor,
+                'ticketDept'    => $td->ticketDept,
+                'priority'      => $td->priority,
+                'priorityColor' => $td->priorityColor,
+            ];
+        }
+
+        return response()->json([
+            'conversation' => [
+                'id'              => $conversation->id,
+                'subject'         => $conversation->subject,
+                'channel_type'    => $conversation->channel_type,
+                'system_type'     => $conversation->system_type,
+                'message_count'   => $conversation->message_count,
+                'company'         => $conversation->company ? [
+                    'id' => $conversation->company->id, 'name' => $conversation->company->name,
+                ] : null,
+                'show_url'        => route('conversations.show', $conversation),
+                'channel_icon'    => $chIntegration->iconHtml('w-6 h-6', false),
+            ],
+            'messages'          => $serializedMessages,
+            'replies'           => (object) $serializedReplies,
+            'discordMentionMap' => (object) $discordMentionMap,
+            'slackMentionMap'   => (object) $slackMentionMap,
+            'usesMarkdown'      => $usesMarkdown,
+            'channelLabel'      => $chIntegration->label(),
+            'ticketDisplay'     => $ticketDisplay,
+            'isEmail'           => $isEmail,
+            'isTicket'          => $isTicket,
+            'preview'           => $preview,
+            'date'              => $date,
+            'emailFrom'         => $emailFrom,
+            'emailTo'           => $emailTo,
+            'emailCc'           => $emailCc,
+        ]);
     }
 
     /**
@@ -458,9 +707,14 @@ class ConversationController extends Controller
             $tabs['subject'] = 'Subject';
         }
 
-        return view('conversations.filter-modal', compact(
-            'conversations', 'ids', 'emails', 'domains', 'contacts', 'subjects', 'tabs'
-        ));
+        return response()->json([
+            'ids'      => $ids,
+            'emails'   => $emails->values(),
+            'domains'  => $domains->values(),
+            'contacts' => $contacts->all(),
+            'subjects' => $subjects->values(),
+            'tabs'     => $tabs,
+        ]);
     }
 
     /**
@@ -499,6 +753,10 @@ class ConversationController extends Controller
         $msg = $n.' conversation(s) filtered';
         if ($ruleType !== 'none' && ! empty($ruleValues)) {
             $msg .= ' + filter rule added (' . $ruleType . ': ' . count($ruleValues) . ' value(s))';
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true, 'message' => $msg.'.']);
         }
 
         return back()->with('success', $msg.'.');

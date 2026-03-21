@@ -3,14 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class AuditLogController extends Controller
 {
-    public function index(): View
+    public function index()
     {
         $logs = AuditLog::orderByDesc('created_at')->paginate(50);
 
-        return view('audit-log.index', compact('logs'));
+        return Inertia::render('AuditLog', [
+            'logs' => $logs,
+        ]);
     }
 }

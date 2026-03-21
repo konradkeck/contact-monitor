@@ -124,6 +124,66 @@ trait BuildsConvSubjectMap
     }
 
     /**
+     * Serialize activities prepared by prepareTimelineDisplay() into JSON-safe arrays
+     * for the Vue Timeline component.
+     */
+    private function serializeTimelineItems(array $activities): array
+    {
+        return array_map(function ($activity) {
+            $display = $activity->_display;
+            $serializedDisplay = [
+                'url'              => $display->url,
+                'isCustomer'       => $display->isCustomer,
+                'chType'           => $display->chType,
+                'sysType'          => $display->sysType,
+                'sysSlug'          => $display->sysSlug,
+                'badgeTitle'       => $display->badgeTitle,
+                'sourceLabel'      => $display->sourceLabel,
+                'titleText'        => $display->titleText,
+                'modalUrl'         => $display->modalUrl,
+                'rowClickable'     => $display->rowClickable,
+                'ticketNotFound'   => $display->ticketNotFound,
+                'useBadge'         => $display->useBadge,
+                'hoverText'        => $display->hoverText,
+                'isEmail'          => $display->isEmail,
+                'isSlack'          => $display->isSlack,
+                'isDiscord'        => $display->isDiscord,
+                'isOutbound'       => $display->isOutbound,
+                'participants'     => $display->participants,
+                'isTicket'         => $display->isTicket,
+                'isMetricscube'    => $display->isMetricscube,
+                'department'       => $display->department,
+                'mcType'           => $display->mcType,
+                'counterpartLabel' => $display->counterpartLabel,
+                'sourcePerson'     => $display->sourcePerson ? $display->sourcePerson->id : null,
+                'participantLinks' => $display->participantLinks ? array_map(fn ($p) => [
+                    'name'   => $p['name'],
+                    'person' => $p['person']?->id ?? null,
+                ], $display->participantLinks) : null,
+            ];
+
+            return [
+                'id'             => $activity->id,
+                'type'           => $activity->type,
+                'occurred_at'    => $activity->occurred_at?->toIso8601String(),
+                'timeline_label' => $activity->timelineLabel(),
+                'timeline_color' => $activity->timelineColor(),
+                'dot_color'      => $activity->dotColor(),
+                'display'        => $serializedDisplay,
+                'person'         => $activity->person ? [
+                    'id'         => $activity->person->id,
+                    'full_name'  => $activity->person->full_name,
+                    'is_our_org' => $activity->person->is_our_org,
+                ] : null,
+                'company'        => ($activity->relationLoaded('company') && $activity->company) ? [
+                    'id'   => $activity->company->id,
+                    'name' => $activity->company->name,
+                ] : null,
+            ];
+        }, $activities);
+    }
+
+    /**
      * Return external_thread_ids of conversations matching the system filter rules.
      * Mirrors the logic in ConversationController::applySystemFilters().
      */

@@ -10,20 +10,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class UsersController extends Controller
 {
-    public function create(): View
+    public function create()
     {
         $groups = Group::orderBy('name')->get();
-        return view('configuration.team-access.user-form', ['user' => null, 'groups' => $groups]);
+        return Inertia::render('TeamAccess/UserForm', ['user' => null, 'groups' => $groups]);
     }
 
-    public function edit(User $user): View
+    public function edit(User $user)
     {
         $groups = Group::orderBy('name')->get();
-        return view('configuration.team-access.user-form', compact('user', 'groups'));
+        return Inertia::render('TeamAccess/UserForm', compact('user', 'groups'));
     }
 
     public function store(Request $request): RedirectResponse

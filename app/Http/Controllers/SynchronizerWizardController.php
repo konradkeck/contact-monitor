@@ -7,13 +7,14 @@ use App\Models\SynchronizerServer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class SynchronizerWizardController extends Controller
 {
     /** Step 1 – choose mode */
     public function step1()
     {
-        return view('synchronizer.wizard.step1');
+        return Inertia::render('Synchronizer/Wizard/Step1');
     }
 
     /** Step 2a – Configure New Server */
@@ -33,7 +34,10 @@ class SynchronizerWizardController extends Controller
             ]);
         }
 
-        return view('synchronizer.wizard.configure-new', compact('pending'));
+        return Inertia::render('Synchronizer/Wizard/ConfigureNew', [
+            'installCmd' => route('synchronizer.wizard.install-script', $pending->token),
+            'pollUrl'    => route('synchronizer.wizard.poll', $pending->token),
+        ]);
     }
 
     /** Install script (bash) – downloaded as part of the one-liner */
@@ -79,7 +83,7 @@ class SynchronizerWizardController extends Controller
     /** Step 2b – Connect to Existing Server */
     public function connectExisting()
     {
-        return view('synchronizer.wizard.connect-existing');
+        return Inertia::render('Synchronizer/Wizard/ConnectExisting');
     }
 
     /** AJAX: test + inspect existing server */

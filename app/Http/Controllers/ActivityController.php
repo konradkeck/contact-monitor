@@ -6,19 +6,14 @@ use App\Http\Controllers\Concerns\BuildsConvSubjectMap;
 use App\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class ActivityController extends Controller
 {
     use BuildsConvSubjectMap;
 
-    public function index(Request $request): View
+    public function index(Request $request)
     {
-        $timelinePage = $this->baseQuery()->cursorPaginate(25);
-
-        $convSubjectMap = $this->buildConvSubjectMap($timelinePage->items());
-        $this->prepareTimelineDisplay($timelinePage->items(), $convSubjectMap);
-
         $convSystems = DB::table('activities')
             ->where('type', 'conversation')
             ->whereRaw("meta_json->>'channel_type' IS NOT NULL")
@@ -32,42 +27,8 @@ class ActivityController extends Controller
         $activityTypes = DB::table('activities')
             ->where('type', '!=', 'conversation')
             ->distinct()->pluck('type')
-            ->sortBy(fn ($t) => $t === 'note' ? 'zzz' : $t) // 'note' (Other) always last
+            ->sortBy(fn ($t) => $t === 'note' ? 'zzz' : $t)
             ->values();
-
-        // Initial stats (unfiltered)
-        $typeCounts = DB::table('activities')
-            ->where('type', '!=', 'conversation')
-            ->whereNull('deleted_at')
-            ->select('type', DB::raw('count(*) as cnt'))
-            ->groupBy('type')
-            ->orderByDesc('cnt')
-            ->get();
-
-        $convCounts = DB::table('activities')
-            ->where('type', 'conversation')
-            ->whereNull('deleted_at')
-            ->selectRaw("
-                COALESCE(
-                    meta_json->>'channel_type',
-                    CASE meta_json->>'system_type'
-                        WHEN 'whmcs'       THEN 'ticket'
-                        WHEN 'metricscube' THEN 'ticket'
-                        WHEN 'discord'     THEN 'discord'
-                        WHEN 'slack'       THEN 'slack'
-                        WHEN 'imap'        THEN 'email'
-                        WHEN 'gmail'       THEN 'email'
-                        ELSE 'conversation'
-                    END
-                ) as channel_type,
-                meta_json->>'system_slug' as system_slug,
-                count(*) as cnt
-            ")
-            ->groupByRaw('1, 2')
-            ->orderByDesc('cnt')
-            ->get();
-
-        $totalConv = $convCounts->sum('cnt');
 
         $typeColors = [
             'payment'       => 'bg-green-400',
@@ -81,10 +42,11 @@ class ActivityController extends Controller
             'followup'      => 'bg-slate-300',
         ];
 
-        return view('activity.index', compact(
-            'timelinePage', 'convSubjectMap', 'convSystems', 'activityTypes',
-            'typeCounts', 'convCounts', 'totalConv', 'typeColors'
-        ));
+        return Inertia::render('Activity/Index', [
+            'convSystems' => $convSystems,
+            'activityTypes' => $activityTypes,
+            'typeColors' => $typeColors,
+        ]);
     }
 
     public function timeline(Request $request)
@@ -129,10 +91,9 @@ class ActivityController extends Controller
         $convSubjectMap = $this->buildConvSubjectMap($page->items());
         $this->prepareTimelineDisplay($page->items(), $convSubjectMap);
 
-        return view('activity.partials.timeline-items', [
-            'activities' => $page->items(),
+        return response()->json([
+            'items'      => $this->serializeTimelineItems($page->items()),
             'nextCursor' => $page->nextCursor()?->encode(),
-            'convSubjectMap' => $convSubjectMap,
         ]);
     }
 
@@ -200,7 +161,7 @@ class ActivityController extends Controller
 
         $totalConv = $convCounts->sum('cnt');
 
-        return view('partials.activity-stats', compact('typeCounts', 'convCounts', 'totalConv'));
+        return response()->json(compact('typeCounts', 'convCounts', 'totalConv'));
     }
 
     private function baseQuery()

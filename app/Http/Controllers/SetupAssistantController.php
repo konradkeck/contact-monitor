@@ -8,11 +8,11 @@ use App\Models\Person;
 use App\Models\SynchronizerServer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class SetupAssistantController extends Controller
 {
-    public function index(): View
+    public function index()
     {
         $items = $this->buildChecklist();
 
@@ -52,9 +52,10 @@ class SetupAssistantController extends Controller
         $attention = collect($items)->whereNotIn('status', ['completed'])->values();
         $completed = collect($items)->where('status', 'completed')->values();
 
-        return view('configuration.setup-assistant.index', compact(
-            'items', 'attention', 'completed'
-        ));
+        return Inertia::render('SetupAssistant', [
+            'attention' => $attention,
+            'completed' => $completed,
+        ]);
     }
 
     private function buildChecklist(): array

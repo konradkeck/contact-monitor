@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
+use Inertia\Inertia;
 
 class AuthController extends Controller
 {
@@ -110,9 +111,9 @@ class AuthController extends Controller
         return redirect()->route('login');
     }
 
-    public function showChangePassword(): View
+    public function showChangePassword()
     {
-        return view('auth.change-password');
+        return Inertia::render('ChangePassword');
     }
 
     public function changePassword(Request $request): RedirectResponse

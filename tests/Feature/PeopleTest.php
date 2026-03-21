@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Person;
 use App\Models\SynchronizerServer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class PeopleTest extends TestCase
@@ -43,7 +44,10 @@ class PeopleTest extends TestCase
         $response = $this->get(route('people.index'));
 
         $response->assertStatus(200);
-        $response->assertViewHas('people');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('People/Index')
+            ->has('people')
+        );
     }
 
     public function test_people_index_shows_person(): void

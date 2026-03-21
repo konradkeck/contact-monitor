@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\SynchronizerServer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class CompaniesTest extends TestCase
@@ -43,7 +44,10 @@ class CompaniesTest extends TestCase
         $response = $this->get(route('companies.index'));
 
         $response->assertStatus(200);
-        $response->assertViewHas('companies');
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Companies/Index')
+            ->has('companies')
+        );
     }
 
     public function test_companies_index_shows_company_name(): void

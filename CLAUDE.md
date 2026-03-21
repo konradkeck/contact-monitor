@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Contact Monitor** is a multi-channel contact hub that centralizes a company's communications with clients across email, Gmail, Slack, Discord, tickets, and other integrations. It links conversations and activities to company and person profiles, tracks brand product pipeline stages, and provides a unified activity timeline across all channels.
 
-**Stack:** Laravel 12 · PHP 8.3 · PostgreSQL 16 · Tailwind CSS v4 · Vite · Alpine.js · **Vue 3 + Inertia.js** (Analyse section only) · **Laravel Reverb** (WebSocket)
+**Stack:** Laravel 12 · PHP 8.3 · PostgreSQL 16 · Tailwind CSS v4 · Vite · **Vue 3 + Inertia.js** (all pages) · **Laravel Reverb** (WebSocket for Analyze chat streaming)
 
 **No queue worker, no scheduler** — all operations are synchronous. No Redis; sessions and cache use database tables.
 
@@ -88,6 +88,10 @@ Authenticated (auth + require.setup):
   notes_write {               ← separate from data_write
     POST   /notes             → NoteController::store
     DELETE /notes/{note}      → NoteController::destroy
+  }
+
+  analyse {                   ← DB permission flag is 'analyse', URL prefix is /analyze
+    /analyze/*                → Analyze chat UI (Inertia/Vue)
   }
 
   configuration {             ← no require.setup check
@@ -289,7 +293,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 - Most active contacts: top 8 people by activity count in period (excluding filtered contacts)
 - Most active team members: top 8 `is_team_member=true` identities
 - Recent notes (10) with entity link
-- Create buttons for Company / Person (gated `@can('data_write')`)
+- Create buttons for Company / Person (gated by `data_write` permission)
 
 ---
 
@@ -315,7 +319,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
   6. **Notes** — notes-section component (gated write)
   7. **Activity Timeline** — AJAX cursor pagination, `showCompanyLink=false`
 
-**Forms:** `company-form.blade.php` — name, primary domain, timezone. Separate `/create` and `/{id}/edit` routes.
+**Forms:** Separate `/create` and `/{id}/edit` Vue pages — name, primary domain, timezone.
 
 ---
 
@@ -343,7 +347,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
   6. **Notes** — notes-section component
   7. **Activity Timeline** — AJAX cursor pagination, `showPersonLink=false`
 
-**Forms:** `person-form.blade.php` — first_name, last_name, is_our_org checkbox.
+**Forms:** Separate `/create` and `/{id}/edit` Vue pages — first_name, last_name, is_our_org checkbox.
 
 **Our Org routes:**
 - `POST people/bulk-unmark-our-org` → `PersonController::bulkUnmarkOurOrg()`
@@ -358,7 +362,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 **Tabs:** Assigned / Unassigned / Filtered
 
 **Index:**
-- Filter panel: date range (last_message_at), channels multi-select dropdown (Alpine.js dropdown with checkboxes)
+- Filter panel: date range (last_message_at), channels multi-select dropdown
 - Bulk selection: checkbox column + select-all → bulk bar → "Filter…" action (gated)
 - **Subject click** → opens conversation quick-view popup (`?preview=1`)
 - Per-row "Filter" button (gated) → opens filter-rule modal
@@ -373,7 +377,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 - `?preview=1` — last 3 messages (email/ticket) or last 20 top-level messages (Slack/Discord) + their replies
 - `?date=YYYY-MM-DD` — messages for that date (used from activity timeline, limit 10)
 - No params — 1 message (used from activity timeline for single-activity view)
-- Modal auto-scrolls to bottom (`data-scroll-bottom` marker)
+- Modal auto-scrolls to bottom
 
 **Filter-rule modal (`/conversations/filter-modal?ids[]=...`):**
 - Tag-input for domain, email, subject rule types
@@ -402,7 +406,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 **Search:** `q` param → searches description, company name, person name (ilike)
 
 **Rules:**
-- **Never** pass `showPersonLink` or `showCompanyLink` to `activity/partials/timeline-items.blade.php`
+- **Never** pass `showPersonLink` or `showCompanyLink` to the global activity timeline
 
 ---
 
@@ -553,7 +557,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 - `browse_data` — read companies/people/conversations/activity
 - `data_write` — create/edit/delete companies, people, conversations; manage identities/domains/accounts
 - `notes_write` — create/delete notes on any entity
-- `analyse` — (reserved)
+- `analyse` — access to Analyze chat UI (`/analyze/*`)
 - `configuration` — all `/configuration/*` routes
 
 **`GroupsController::permLabels()`** — static method, always pass as `$permLabels` to views.
@@ -565,463 +569,63 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 
 ---
 
-## Unified UI Patterns
+## UI Architecture (Vue + Inertia)
 
-### PATTERN 1 — Activity Modal (Quick-view Popup)
+### Rendering Stack
 
-**When to use:** Any list row that opens a quick-view without navigating away.
+All application pages use **Vue 3 + Inertia.js**. There is a single Vite entry point (`resources/js/app.js`) and a single Inertia root Blade template (`resources/views/app.blade.php`). No Alpine.js — it has been fully removed.
 
-**Component:** `resources/views/components/activity-modal.blade.php` (global, included once in layout)
+**Remaining Blade views** (non-Inertia):
+- `resources/views/auth/login.blade.php` — standalone, does not load `app.js`
+- `resources/views/auth/setup.blade.php` — standalone, does not load `app.js`
+- `resources/views/synchronizer/wizard/install-script.blade.php` — generates bash script, not a UI page
 
-**Activation:**
-```blade
-<button type="button"
-        onclick="openActivityModal(this)"
-        data-modal-src="{{ route('some.modal', $item) }}">
-    Label
-</button>
+### Layout
+
+`resources/js/layouts/AppLayout.vue` — unified layout for all sections:
+- **TopBar** — dark header with section navigation (Browse Data / Analyze / Configuration)
+- **Sidebar** — context-dependent, driven by `layout.section` from `HandleInertiaRequests` middleware
+- **Main content** — padded wrapper for standard pages; full-height no-padding for Analyze chat
+
+Sections are determined by `HandleInertiaRequests::layoutData()` which sets `layout.section` to `'browse_data'`, `'configuration'`, or `'analyze'`.
+
+**Analyze section layout special case:** When `layout.section === 'analyze'`, AppLayout renders the main content area as full-height (`h-[calc(100vh-4rem)] overflow-hidden`) with no padding. The Analyze sidebar is injected via Vue named slot `#sidebar`.
+
+### Shared Inertia Data
+
+`HandleInertiaRequests` middleware provides to all pages:
+- `auth.user` — id, name, email
+- `auth.permissions` — browse_data, data_write, notes_write, analyse, configuration
+- `flash` — success, error, api_key_plain
+- `layout` — section, topSections, sidebarItems, setupStatus, hasAiCredentials, analyseEnabled, configNeedsAttention, mappingSystems, etc.
+
+### Vue Page Components
+
+All pages live in `resources/js/pages/`. Each page wraps content in `<AppLayout>`:
+```vue
+<template>
+  <AppLayout>
+    <!-- For Analyze pages, inject sidebar via named slot -->
+    <template #sidebar>
+      <AnalyseSidebar :sidebar="analyseSidebar" :active-chat-id="chatId" :users="users" />
+    </template>
+
+    <!-- Page content -->
+    <div class="p-6">...</div>
+  </AppLayout>
+</template>
 ```
 
-Or programmatically:
-```js
-openActivityModal({ dataset: { modalSrc: '/some/url?params=...' } });
-```
+### Date Range Picker
 
-**Behavior:**
-1. AJAX fetch `data-modal-src`
-2. Insert HTML into `#activity-modal-body`
-3. Re-execute `<script>` tags (Alpine.js does NOT auto-init in AJAX content)
-4. Scroll to bottom if content has `[data-scroll-bottom]` attribute
-5. Close on overlay click, ESC key, or `closeActivityModal()`
+`window.drp` IIFE defined in `resources/js/app.js` — wraps Easepick for date range selection. Used by Vue pages that need date filtering (they call `window.drp.init(...)` after mount).
 
-**Modal content template:**
-```blade
-<div class="p-5" data-scroll-bottom>   {{-- data-scroll-bottom optional: scrolls modal to bottom --}}
-    <h3>...</h3>
-    {{-- content --}}
-</div>
-```
+### Key Frontend Rules
 
-**Important:** Alpine.js does NOT auto-initialize inside AJAX-loaded modal content. Use plain JS with `addEventListener` only.
-
----
-
-### PATTERN 2 — Filter Panel
-
-**When to use:** Any index page with filterable data.
-
-**Structure:**
-```blade
-{{-- Filters button (turns brand-primary with count badge when active) --}}
-<button type="button" onclick="toggleFilterPanel()"
-        class="btn {{ $activeFilterCount > 0 ? 'btn-primary' : 'btn-secondary' }}">
-    Filters
-    @if($activeFilterCount > 0)
-        <span class="ml-0.5 bg-white/25 text-white text-xs ...">{{ $activeFilterCount }}</span>
-    @endif
-</button>
-
-{{-- Collapsible panel (shown if filters active) --}}
-<div id="filter-panel" class="{{ $activeFilterCount > 0 ? '' : 'hidden' }} card p-4 mb-4">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {{-- date range, dropdowns, checkboxes --}}
-    </div>
-    <div class="mt-3 flex justify-end gap-2">
-        {{-- Clear filters link + Apply button --}}
-    </div>
-</div>
-```
-
-**Filter input types used in this project:**
-- **Date range:** flatpickr via `drp.init()`, two hidden inputs (`f_date_from`, `f_date_to`)
-- **Multi-select dropdown:** Alpine.js dropdown with checkboxes (used for Channels in conversations)
-- **Inline checkboxes:** label chips that highlight on check (used for activity types, channels in activity)
-- **Text input:** domain, email, name search
-
-**Date range — critical bug prevention:**
-Laravel's `ConvertEmptyStringsToNull` middleware converts empty `value=""` hidden inputs to `null`.
-```php
-// WRONG — $f_date_from may be null, null !== '' is true → crashes with whereDate(null)
-if ($f_date_from !== '') { ... }
-
-// CORRECT
-if (!empty($f_date_from)) { ... }
-```
-
----
-
-### PATTERN 3 — Bulk Selection
-
-**When to use:** Any table where actions can be applied to multiple rows.
-
-**Structure:**
-```blade
-{{-- Wrap table in form --}}
-<form id="entity-bulk-form" method="POST" action="#">
-@csrf
-
-{{-- Bulk bar (hidden until rows selected) --}}
-<div id="entity-bulk-bar" class="hidden items-center gap-3 px-4 py-2 border-b bulk-bar">
-    <span id="entity-bulk-count" class="text-sm font-medium bulk-bar-text"></span>
-    @can('data_write')
-    <button type="button" onclick="entityBulkAction()" class="btn btn-danger btn-sm">Action…</button>
-    @endcan
-    <button type="button" onclick="entityClearSelection()" class="text-xs text-gray-500">Clear</button>
-</div>
-
-{{-- Table --}}
-<table>
-    <thead class="tbl-header">
-        <tr>
-            <th class="px-3 py-2.5 w-8">
-                <input type="checkbox" id="entity-select-all" onchange="entityToggleAll(this)">
-            </th>
-            {{-- other headers --}}
-        </tr>
-    </thead>
-    <tbody>
-        @foreach($items as $item)
-        <tr class="tbl-row">
-            <td class="px-3 py-3">
-                <input type="checkbox" name="ids[]" value="{{ $item->id }}"
-                       class="entity-row-check" onchange="entityUpdateBulkBar()">
-            </td>
-        </tr>
-        @endforeach
-    </tbody>
-</table>
-</form>
-
-<script>
-function entityUpdateBulkBar() {
-    const checked = document.querySelectorAll('.entity-row-check:checked');
-    const bar = document.getElementById('entity-bulk-bar');
-    if (checked.length > 0) {
-        bar.classList.remove('hidden'); bar.classList.add('flex');
-        document.getElementById('entity-bulk-count').textContent = checked.length + ' selected';
-    } else {
-        bar.classList.add('hidden'); bar.classList.remove('flex');
-    }
-}
-function entityToggleAll(cb) {
-    document.querySelectorAll('.entity-row-check').forEach(c => c.checked = cb.checked);
-    entityUpdateBulkBar();
-}
-function entityClearSelection() {
-    document.querySelectorAll('.entity-row-check, #entity-select-all').forEach(c => c.checked = false);
-    entityUpdateBulkBar();
-}
-</script>
-```
-
----
-
-### PATTERN 4 — Tag-input Multi-value (Filter Modals)
-
-**When to use:** Any modal where users enter multiple values (domains, emails, subjects).
-
-**Key rules:**
-- AJAX-loaded modal content → **no Alpine.js** → use plain DOM `createElement` + `addEventListener`
-- **Never** build `onkeydown="handler(event, 'value')"` inline attributes — `JSON.stringify` produces double-quoted strings that break HTML attribute parsing
-- Enter or comma adds a tag (for domain/email); Enter only for subject (no comma-split)
-- Backspace on empty input removes last tag
-- `fmBeforeSubmit()` syncs hidden `rule_values[]` inputs before form POST
-
-**Backend:** `FilteringController::applyRule()` and `ConversationController::archiveWithRule()` accept `rule_values[]` array, fall back to single `rule_value` for backwards compat.
-
----
-
-### PATTERN 5 — Table Section
-
-**Create/Add buttons go OUTSIDE the table card** — either in `page-header` (standalone pages) or in a title row above the card (tabbed pages, sub-sections). The table card (`card-xl-overflow`) contains only the table itself. Never put action buttons inside `card-header` of a table card.
-
-**Standard table in a card:**
-```blade
-{{-- Title + action button ABOVE the table card --}}
-<div class="flex items-center justify-between mb-4">
-    <h2 class="section-header-title">Title</h2>
-    @can('data_write')
-    <a href="{{ route('entity.create') }}" class="btn btn-sm btn-primary">Add</a>
-    @endcan
-</div>
-
-<div class="card-xl-overflow">    {{-- use card-xl-overflow when card contains a table --}}
-    <table class="w-full text-sm">
-        <thead class="tbl-header">
-            <tr>
-                <th class="px-4 py-2.5 text-left">Column</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse($items as $item)
-            <tr class="tbl-row">
-                <td class="px-4 py-3">...</td>
-            </tr>
-            @empty
-            <tr>
-                <td class="px-4 py-8 text-center empty-state italic">No items.</td>
-            </tr>
-            @endforelse
-        </tbody>
-    </table>
-    @if($items->hasPages())
-    <div class="px-4 py-3 border-t border-gray-100">{{ $items->links() }}</div>
-    @endif
-</div>
-```
-
-**Standalone page variant** — button in `page-header`:
-```blade
-<div class="page-header">
-    <h1 class="page-title">Entities</h1>
-    @can('data_write')
-    <a href="{{ route('entity.create') }}" class="btn btn-sm btn-primary">Add</a>
-    @endcan
-</div>
-
-<div class="card-xl-overflow">
-    <table>...</table>
-</div>
-```
-
-**Row actions (desktop + mobile "..." dropdown):**
-```blade
-<td class="px-4 py-3 text-right">
-    {{-- Desktop --}}
-    <div class="row-actions-desktop items-center justify-end gap-1.5">
-        <a href="{{ route('entity.edit', $item) }}" class="row-action text-xs">Edit</a>
-        @can('data_write')
-        <button onclick="..." class="row-action-danger text-xs">Delete</button>
-        @endcan
-    </div>
-    {{-- Mobile --}}
-    <div class="row-actions-mobile relative" x-data="{open:false}" @click.outside="open=false">
-        <button @click="open=!open" class="...">···</button>
-        <div x-show="open" x-cloak class="absolute right-0 top-full mt-1 ...">
-            <a href="...">Edit</a>
-        </div>
-    </div>
-</td>
-```
-
----
-
-### PATTERN 6 — Create/Edit Form Page
-
-**Separate pages for create and edit — never inline forms inside tables.**
-
-```blade
-{{-- page-header with back link --}}
-<div class="page-header">
-    <div>
-        <a href="{{ route('entity.index') }}" class="page-breadcrumb-back">← Back</a>
-        <h1 class="page-title">Create Entity</h1>
-    </div>
-</div>
-
-<div class="card p-6 max-w-2xl">
-    <form method="POST" action="{{ route('entity.store') }}">
-        @csrf
-        {{-- For edit: --}}
-        {{-- @method('PUT') --}}
-
-        <div class="space-y-4">
-            <div>
-                <label class="label">Field Name</label>
-                <input type="text" name="field" class="input w-full" value="{{ old('field', $entity->field ?? '') }}">
-                @error('field')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
-            </div>
-        </div>
-
-        <div class="flex gap-2 mt-6">
-            <button type="submit" class="btn btn-primary">Save</button>
-            <a href="{{ route('entity.index') }}" class="btn btn-secondary">Cancel</a>
-        </div>
-    </form>
-</div>
-```
-
----
-
-### PATTERN 7 — Sidebar Dot Status
-
-**Every sidebar link that can show a status dot:**
-
-```blade
-<a href="..." class="sidebar-link {{ $isActive ? 'is-active' : '' }}">
-    <svg class="sidebar-icon">...</svg>
-    <span class="flex-1">Label</span>    {{-- flex-1 pushes dot to right edge --}}
-    @if($hasDot)
-        <span class="w-1.5 h-1.5 rounded-full {{ $dotColor }} shrink-0"></span>
-    @endif
-</a>
-```
-
-- Dot size: **`w-1.5 h-1.5`** — never `w-2 h-2` or other sizes
-- No `ml-auto` on dot — `flex-1` span handles alignment
-- Colors: `bg-red-500` (active), `bg-amber-400` (partially_active), `bg-green-500` (completed)
-
----
-
-### PATTERN 8 — Activity Timeline + AJAX Cursor Pagination
-
-**Initial render (SSR):**
-```blade
-<div class="timeline-grid ...">
-    @include('partials.timeline-items', [
-        'activities' => $timelinePage->items(),
-        'nextCursor' => $timelinePage->nextCursor()?->encode(),
-    ])
-</div>
-```
-
-**AJAX load-more:**
-```js
-// Sentinel div triggers fetch when visible
-// Fetch: GET /entity/{id}/timeline?cursor=ENCODED_CURSOR
-// Response: partial HTML with next items + new sentinel
-```
-
-**Timeline partial rules:**
-- Never pass `showPersonLink` or `showCompanyLink` to global activity timeline
-- The partial uses `$activity->display->propertyName` (accessor set by `prepareTimelineDisplay()`)
-- `prepareTimelineDisplay()` is in `BuildsConvSubjectMap` concern, call it before passing items to view
-
----
-
-### PATTERN 9 — Notes Section
-
-**Component:** `<x-notes-section :notes="$notes" linkableType="App\Models\Company" :linkableId="$company->id" />`
-
-```blade
-<x-notes-section
-    :notes="$notes"
-    linkable-type="App\Models\Company"
-    :linkable-id="$company->id"
-/>
-```
-
-- Yellow-tinted card, scrollable list (max-h-72)
-- Add note: textarea POST to `notes.store`
-- Delete: X button POST DELETE to `notes.destroy`
-- All write UI gated `@can('notes_write')`
-
----
-
-### PATTERN 10 — Breadcrumb Back-link
-
-**Controller:**
-```php
-$backLink = $this->resolveBackLink($request);
-// Returns ['url' => ..., 'label' => 'Entity Name'] or null
-// Returns null if referer === current page (prevents self-link after reload)
-```
-
-**Blade:**
-```blade
-<nav aria-label="Breadcrumb" class="page-breadcrumb">
-    @if($backLink ?? null)
-        <a href="{{ $backLink['url'] }}">{{ $backLink['label'] }}</a>
-        <span class="sep">/</span>
-    @endif
-    <a href="{{ route('entity.index') }}">Entities</a>
-    <span class="sep">/</span>
-    <span class="cur" aria-current="page">{{ $entity->name }}</span>
-</nav>
-```
-
-Supported referer patterns: `/companies/{id}`, `/people/{id}`, `/conversations/{id}`
-
----
-
-### PATTERN 11 — Alpine.js Dropdown Multi-select
-
-**For channel/system selectors on index filter panels (not in AJAX-loaded modals):**
-
-```blade
-<div x-data="{
-    open: false,
-    selected: {{ json_encode($activeValues) }},
-    label() {
-        if (!this.selected.length) return 'All';
-        return this.selected.length + ' selected';
-    },
-    toggle(val) {
-        const i = this.selected.indexOf(val);
-        if (i === -1) this.selected.push(val); else this.selected.splice(i, 1);
-    }
-}" @click.outside="open = false">
-    <label class="label mb-1">Label</label>
-    <div class="relative">
-        <button type="button" @click="open = !open"
-                class="input w-full flex items-center justify-between gap-2 cursor-pointer"
-                :class="selected.length ? 'border-brand-400 bg-brand-50 text-brand-800' : ''">
-            <span x-text="label()"></span>
-            <svg :class="open ? 'rotate-180' : ''" class="w-4 h-4 transition-transform">...</svg>
-        </button>
-        <div x-show="open" x-cloak class="absolute z-30 mt-1 w-full bg-white border ... rounded-xl shadow-lg py-1">
-            @foreach($options as $opt)
-            <label class="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                   :class="selected.includes('{{ $opt->value }}') ? 'bg-brand-50' : ''">
-                <input type="checkbox" name="field[]" value="{{ $opt->value }}"
-                       {{ in_array($opt->value, $activeValues) ? 'checked' : '' }}
-                       @change="toggle('{{ $opt->value }}')">
-                <span>{{ $opt->label }}</span>
-            </label>
-            @endforeach
-        </div>
-    </div>
-</div>
-```
-
----
-
-## Blade / Frontend Rules
-
-### No `@php` in Blade Views
-
-**Zero `@php` blocks in any view file.** All logic belongs in:
-- Controllers (passed as view data)
-- `App\Providers\AppServiceProvider` View Composer for `layouts.app`
-- Model methods / accessors
-
-There are **no exceptions** — `isolated-html` was converted to a proper component class (`App\View\Components\IsolatedHtml`) which generates `uniqid()` in the constructor.
-
-### Blade Components
-
-| Component | Purpose |
-|-----------|---------|
-| `<x-isolated-html :content="$html">` | Renders arbitrary HTML inside a Shadow DOM so styles don't leak out. Used for email `body_html`. |
-| `<x-message-body :bodyHtml="..." :bodyText="..." :usesMarkdown="..." class="...">` | Renders a conversation message body. Handles: raw HTML (via Shadow DOM), markdown (GFM via `league/commonmark`, also Shadow DOM), or plain text. Entity-decodes `bodyText` automatically. |
-
-**Markdown detection** (set in the `conversations.partials.messages` View Composer in `AppServiceProvider`):
-- `$usesMarkdown = true` when: WHMCS tickets (`channel_type=ticket` + `system_type=whmcs`) OR Discord (`channel_type=discord`)
-- Slack: plain text for now (formatting spec unclear)
-- Emails: use `body_html` directly, never markdown
-
-### Layout View Composer
-
-`AppServiceProvider` registers a View Composer for `layouts.app` that provides:
-`$topSections`, `$sidebarItems`, `$syncItems`, `$drItems`, `$isConfigRoute`, `$onMapping`, `$currentMapping`, `$mainMargin`, `$disabledMsg`, `$taActive`, `$segActive`, `$configNeedsAttention`
-
-`AppServiceProvider` also registers a View Composer for `conversations.partials.messages` that provides:
-`$channelCfg`, `$isSlack`, `$isEmail`, `$isTicket`, `$usesMarkdown`, `$replies`, `$discordMentionMap`
-
-Do **not** put this logic back into the Blade layout.
-
-### Alpine.js Scope
-
-Alpine.js **only works on page-rendered content**. It does **not** auto-initialize inside AJAX-loaded content (modals, partial reloads). For interactive elements in AJAX content, use plain JS with `createElement` / `addEventListener`.
-
-### Inline Attribute Handler Quoting Bug
-
-Never do this in Blade:
-```blade
-{{-- BROKEN: JSON.stringify produces "value" (double-quoted) inside a double-quoted attribute --}}
-<input onkeydown="handler(event, {{ json_encode($val) }})">
-```
-
-Always use `addEventListener` in a closure instead.
+- **Tailwind v4 + Vue SFC:** `@apply` is NOT supported inside Vue `<style>` blocks — use plain CSS instead
+- **Markdown rendering:** `marked.js` for AI assistant messages via `.prose-ai` CSS class (plain CSS, not @apply)
+- **Permission gating in Vue:** use `usePage().props.auth.permissions` to conditionally show/hide UI elements
+- **Date filters in controllers:** use `!empty($f_date_from)` not `$f_date_from !== ''` — `ConvertEmptyStringsToNull` middleware converts empty values to `null`
 
 ---
 
@@ -1117,7 +721,7 @@ Always `.sidebar-link` / `.sidebar-icon` / `.sidebar-section` / `.sidebar-divide
 - `$identitiesByExtId` built over **all** accounts, not paginated subset.
 
 ### Activity Widget
-- **Never** pass `showPersonLink` / `showCompanyLink` to `activity/partials/timeline-items.blade.php`.
+- **Never** pass `showPersonLink` / `showCompanyLink` to the global activity timeline.
 - Global activity list must not show entity links — these are for entity-specific timelines only.
 
 ### Discord Avatars
@@ -1131,11 +735,6 @@ Always `.sidebar-link` / `.sidebar-icon` / `.sidebar-section` / `.sidebar-divide
 - `slackMentionMap`: `value_normalized → display_name` (from `meta_json.display_name`)
 - Built in `show()` and `modal()` of `ConversationController`, passed to messages partial as `$slackMentionMap`
 - `resolveMentions($text, $discordMap, $slackMap)` — always pass both maps
-
-### Filter Modal JS
-- Modals are AJAX-loaded → Alpine.js does not initialize inside them
-- All tag-input JS must use DOM `createElement` + `addEventListener`
-- `fmBeforeSubmit()` / `pfmBeforeSubmit()` / `cfmBeforeSubmit()` sync `rule_values[]` hidden inputs before form submit
 
 ### Breadcrumb Back-link
 - `Controller::resolveBackLink()` uses HTTP Referer
@@ -1153,26 +752,26 @@ Always `.sidebar-link` / `.sidebar-icon` / `.sidebar-section` / `.sidebar-divide
 ### Conversation Preview Modal
 - `?preview=1`: last 3 msgs (email/ticket), last 20 top-level (chat) + replies
 - Messages in `orderByDesc` order (newest first) — **do not reverse**
-- Auto-scrolls to bottom via `data-scroll-bottom` marker
 
 ---
 
 ## ACL / Permissions
 
 ### Permission Flags
-`browse_data`, `data_write`, `notes_write`, `configuration`
+`browse_data`, `data_write`, `notes_write`, `analyse`, `configuration`
 
 **Key:** `App\Models\User` / `App\Models\Group` (pivot: `group_user`)
 **Middleware:** `App\Http\Middleware\CheckPermission` — registered as `permission:{flag}`
 **Gates:** Defined in `AppServiceProvider` based on user's group permissions.
 
-### Blade Gating Rules
+### UI Permission Gating
 
 **Never show write UI to restricted users — hide completely, never rely on 403.**
 
-- Create/edit/delete buttons → `@can('data_write') … @endcan`
-- Notes write forms → `@can('notes_write') … @endcan`
-- Configuration pages are route-protected; no extra Blade gating needed.
+In Vue pages, use `usePage().props.auth.permissions` to conditionally render write-only UI:
+- Create/edit/delete buttons → check `permissions.data_write`
+- Notes write forms → check `permissions.notes_write`
+- Configuration pages are route-protected; no extra UI gating needed.
 
 ### Tests
 
@@ -1184,11 +783,13 @@ ACL tests: `tests/Feature/AuthAclTest.php`.
 
 ## Frontend
 
-Tailwind CSS v4 compiled by Vite. Assets in `public/build/`. `@vite` directive in `layouts/app.blade.php`.
+Tailwind CSS v4 compiled by Vite. Single entry point: `resources/js/app.js`. Assets in `public/build/`.
 
-`flatpickr` — date pickers (only runtime JS dependency outside of Alpine.js which is bundled).
-
-`marked` — markdown rendering for AI assistant messages in the Analyse chat interface (`ChatMessage.vue`).
+**Key JS dependencies:**
+- `@inertiajs/vue3` + `vue` — SPA routing and reactivity
+- `laravel-echo` + `pusher-js` — WebSocket client (Reverb) for Analyze chat streaming
+- `easepick` — date range pickers (accessed via `window.drp` IIFE)
+- `marked` — markdown rendering for AI assistant messages (`ChatMessage.vue`)
 
 ---
 
@@ -1220,7 +821,7 @@ Test database: PostgreSQL (`contact-monitor-test`) — configured in `phpunit.xm
 | `McpTest.php` | MCP auth, protocol, resources, tools, confirmation flow |
 | `AiCredentialsTest.php` | AI credentials CRUD, model config, costs pages, ACL (16 tests) |
 | `BrandProductsTest.php` | Brand product (segmentation) CRUD, optional fields |
-| `AnalyseTest.php` | Analyse chat UI — CRUD, messages, branching, sharing, projects, search, ACL (92 tests) |
+| `AnalyseTest.php` | Analyze chat UI — CRUD, messages, branching, sharing, projects, search, ACL (92 tests) |
 
 ### No SQLite — PostgreSQL only
 
@@ -1415,10 +1016,10 @@ AI is invoked server-side using configured provider credentials.
 - **AI Costs** — usage log with token counts + estimated costs
 - **MCP Server** — existing MCP server config (moved here)
 
-**Top Navigation:**
-- **Analyse** — full-screen ChatGPT-like chat interface (own layout, replaces app layout). Enabled when `ai_credentials` exist AND `ai_model_configs` has `analyze` action. Otherwise disabled with tooltip.
-- **Browse Data** — CRM section (sidebar visible)
-- **Configuration** — settings section (sidebar visible)
+**Top Navigation (TopBar):**
+- **Browse Data** — CRM section with entity sidebar
+- **Analyze** — AI chat interface, uses AppLayout with Analyze-specific sidebar. Enabled when `ai_credentials` exist AND `ai_model_configs` has `analyze` action. Otherwise disabled with tooltip.
+- **Configuration** — settings section with configuration sidebar
 
 **Browse Data:**
 - **MCP Log** — log of MCP tool calls
@@ -1429,7 +1030,7 @@ AI is invoked server-side using configured provider credentials.
 
 | Constant | Purpose |
 |----------|---------|
-| `analyze` | Analyse chat (ChatGPT-like interface) |
+| `analyze` | Analyze chat (ChatGPT-like interface) |
 | `company_analysis` | Automated company analysis |
 | `conv_summary_message` | Summarize single conversation message |
 | `conv_summary_company` | Summarize recent conversations for a company |
@@ -1444,7 +1045,7 @@ Each action type has: `credential_id + model_name` + optional `helper_credential
 
 | Context | Confirmation required? |
 |---------|----------------------|
-| Analyse chat (interactive) | Yes — AI summarizes planned action, user confirms |
+| Analyze chat (interactive) | Yes — AI summarizes planned action, user confirms |
 | Company Analysis | No — writes to dedicated `company_analyses` table only |
 | Notes Recognition | No — automated, no user interface |
 | Conversation Summary | No — writes to `conversation_summaries` table only |
@@ -1517,7 +1118,7 @@ app/Ai/
     CompanyAnalysisAction.php  (details TBD)
     ConversationSummaryAction.php  (details TBD)
     NotesRecognitionAction.php     (details TBD)
-  StreamingChat.php            WebSocket broadcast streaming wrapper (used by Analyse)
+  StreamingChat.php            WebSocket broadcast streaming wrapper (used by Analyze)
 ```
 
 **Credentials encrypted** using Laravel's `encrypt()`/`decrypt()`.
@@ -1611,7 +1212,7 @@ Use these accents sparingly — only on section labels and navigation badges, ne
 - [ ] Company Analysis logic + UI — TBD
 - [ ] Notes Recognition logic — TBD
 - [ ] Conversation Summary — TBD
-- [x] **Analyse chat UI** — complete (see Analyse section below)
+- [x] **Analyze chat UI** — complete (see Analyze section below)
 
 ### Tests
 
@@ -1619,25 +1220,24 @@ Use these accents sparingly — only on section labels and navigation badges, ne
 
 ---
 
-## Analyse (AI Chat)
+## Analyze (AI Chat)
 
 ### Overview
 
-Full-screen ChatGPT-like interface. Top-level nav section (alongside Browse Data and Configuration). Has its own layout — replaces app layout entirely. Active when `ai_credentials` exist AND `ai_model_configs` has `analyze` entry.
+Full-screen ChatGPT-like interface. Top-level nav section (alongside Browse Data and Configuration). Uses `AppLayout.vue` with the Analyze sidebar injected via `#sidebar` slot. Active when `ai_credentials` exist AND `ai_model_configs` has `analyze` entry.
 
-**Stack additions:** Vue 3 + Inertia.js · Laravel Reverb (WebSocket) · PostgreSQL FTS
+**Stack:** Vue 3 + Inertia.js · Laravel Reverb (WebSocket) · PostgreSQL FTS
 
-**Route prefix:** `/analyse` · **Route name prefix:** `analyse.`
+**Route prefix:** `/analyze` · **Route name prefix:** `analyze.` · **DB permission flag:** `analyse` (unchanged)
 
 ---
 
 ### Layout
 
-- `resources/views/analyse.blade.php` — Inertia root template (separate from `layouts/app.blade.php`)
-- `resources/js/analyse/app.js` — Vue + Inertia entry point
-- `resources/js/analyse/layouts/AnalyseLayout.vue` — full-screen, own sidebar + main area
-- Sidebar: ~260px, dark, sticky. Main area: flex-1.
-- Mobile: sidebar becomes a slide-over drawer.
+- Uses the shared `AppLayout.vue` — same TopBar, sidebar shell, and styling as all other sections
+- Main content area renders full-height with no padding (`h-[calc(100vh-4rem)] overflow-hidden`)
+- Analyze-specific sidebar (`AnalyseSidebar.vue`) injected via `<template #sidebar>` slot in each Analyze page
+- No separate Blade template or Vite entry point — uses the same `app.blade.php` and `app.js` as everything else
 
 ---
 
@@ -1671,8 +1271,8 @@ Full-screen ChatGPT-like interface. Top-level nav section (alongside Browse Data
 
 | Role | Presentation |
 |------|-------------|
-| `user` | Compact block, subtle bg, slightly narrower. In shared chats: show author name. |
-| `assistant` | Document-style, rich text (markdown via marked.js or equivalent), comfortable line length. |
+| `user` | Brand-50 bg bubble, gravatar avatar (md5 of email from `meta.user_email`). In shared chats: show author name. |
+| `assistant` | White bg bubble with shadow, `/ai-icon.svg` in gray circle avatar. Rich text (markdown via marked.js). |
 | `system_event` | Quiet single-line: "Shared with Anna", "Branch created from this point" etc. |
 
 **Message hover actions:**
@@ -1698,7 +1298,7 @@ Full-screen ChatGPT-like interface. Top-level nav section (alongside Browse Data
 | `ParticipantUpdated` | Share/leave | chatId, participants array |
 
 **AI Streaming flow:**
-1. Vue POST `/analyse/chats/{id}/messages`
+1. Vue POST `/analyze/chats/{id}/messages`
 2. Controller saves user message, broadcasts `UserMessageAdded` (for other participants)
 3. Starts AI provider stream (synchronous, same process)
 4. Each chunk → broadcast `AiMessageChunk` via Reverb
@@ -1708,7 +1308,7 @@ Full-screen ChatGPT-like interface. Top-level nav section (alongside Browse Data
 8. Vue assembles message progressively from chunks received on WS channel
 
 **Stop generation:**
-- Vue POST `/analyse/chats/{id}/stop` → sets `Cache::put("analyse.stop.{$chatId}", true, 60)`
+- Vue POST `/analyze/chats/{id}/stop` → sets `Cache::put("analyse.stop.{$chatId}", true, 60)`
 - Streaming loop checks this flag between chunks, breaks cleanly
 - `AiMessageComplete` broadcast with partial content on stop
 
@@ -1728,12 +1328,12 @@ Full-screen ChatGPT-like interface. Top-level nav section (alongside Browse Data
 
 ### Sharing
 
-- Owner POSTs to `/analyse/chats/{id}/share` with `user_id`
+- Owner POSTs to `/analyze/chats/{id}/share` with `user_id`
 - Creates `ai_chat_participants` record, sets `ai_chats.is_shared = true`
 - Shared user sees chat in "Shared With Me" section (NOT in their own Conversations list)
 - All participants share the same live thread, messages broadcast in real-time
-- Owner can remove participants: DELETE `/analyse/chats/{id}/participants/{user}`
-- Participant can hide from sidebar: DELETE `/analyse/chats/{id}/leave` (removes from their Shared With Me, does not delete)
+- Owner can remove participants: DELETE `/analyze/chats/{id}/participants/{user}`
+- Participant can hide from sidebar: DELETE `/analyze/chats/{id}/leave` (removes from their Shared With Me, does not delete)
 - Shared conversation added to a project: `ai_chats.project_id` not changed (owned by original owner); stored in `ai_chat_project_pins` table (user_id, chat_id, project_id) — allows participant to pin shared chat into their project without changing ownership
 
 ---
@@ -1768,7 +1368,7 @@ Full-screen ChatGPT-like interface. Top-level nav section (alongside Browse Data
 
 ---
 
-### Data Model (Analyse additions)
+### Data Model (Analyze additions)
 
 ```
 ai_chats  (extended from base)
@@ -1803,29 +1403,29 @@ ai_chat_project_pins
 ### Routes
 
 ```
-GET    /analyse                              → AnalyseController::index      (redirect to last chat or empty state)
-GET    /analyse/c/{chat}                    → AnalyseController::show       (Inertia: Chat page)
-GET    /analyse/p/{project}                 → AnalyseController::project    (Inertia: Project page)
+GET    /analyze                             → AnalyseController::index      (redirect to last chat or empty state)
+GET    /analyze/c/{chat}                    → AnalyseController::show       (Inertia: Chat page)
+GET    /analyze/p/{project}                 → AnalyseController::project    (Inertia: Project page)
 
-POST   /analyse/chats                       → AiChatController::store       (create new chat)
-PATCH  /analyse/chats/{chat}                → AiChatController::update      (rename, archive, move to project)
-DELETE /analyse/chats/{chat}                → AiChatController::destroy
-POST   /analyse/chats/{chat}/messages       → AiChatController::sendMessage (long-running WS stream)
-POST   /analyse/chats/{chat}/stop           → AiChatController::stop        (cancel generation)
-POST   /analyse/chats/{chat}/branch         → AiChatController::branch
-POST   /analyse/chats/{chat}/share          → AiChatController::share
-DELETE /analyse/chats/{chat}/participants/{user} → AiChatController::removeParticipant
-DELETE /analyse/chats/{chat}/leave          → AiChatController::leave       (participant hides from sidebar)
+POST   /analyze/chats                       → AiChatController::store       (create new chat)
+PATCH  /analyze/chats/{chat}                → AiChatController::update      (rename, archive, move to project)
+DELETE /analyze/chats/{chat}                → AiChatController::destroy
+POST   /analyze/chats/{chat}/messages       → AiChatController::sendMessage (long-running WS stream)
+POST   /analyze/chats/{chat}/stop           → AiChatController::stop        (cancel generation)
+POST   /analyze/chats/{chat}/branch         → AiChatController::branch
+POST   /analyze/chats/{chat}/share          → AiChatController::share
+DELETE /analyze/chats/{chat}/participants/{user} → AiChatController::removeParticipant
+DELETE /analyze/chats/{chat}/leave          → AiChatController::leave       (participant hides from sidebar)
 
-GET    /analyse/chats                       → AiChatController::list        (cursor pagination, JSON)
-GET    /analyse/shared                      → AiChatController::shared      (JSON)
-GET    /analyse/search                      → AiChatController::search      (FTS, JSON)
+GET    /analyze/chats                       → AiChatController::list        (cursor pagination, JSON)
+GET    /analyze/shared                      → AiChatController::shared      (JSON)
+GET    /analyze/search                      → AiChatController::search      (FTS, JSON)
 
-POST   /analyse/projects                    → AiProjectController::store
-PATCH  /analyse/projects/{project}          → AiProjectController::update
-DELETE /analyse/projects/{project}          → AiProjectController::destroy
-POST   /analyse/projects/{project}/pin-chat → AiProjectController::pinChat
-DELETE /analyse/projects/{project}/pin-chat/{chat} → AiProjectController::unpinChat
+POST   /analyze/projects                    → AiProjectController::store
+PATCH  /analyze/projects/{project}          → AiProjectController::update
+DELETE /analyze/projects/{project}          → AiProjectController::destroy
+POST   /analyze/projects/{project}/pin-chat → AiProjectController::pinChat
+DELETE /analyze/projects/{project}/pin-chat/{chat} → AiProjectController::unpinChat
 ```
 
 ---
@@ -1834,19 +1434,17 @@ DELETE /analyse/projects/{project}/pin-chat/{chat} → AiProjectController::unpi
 
 | Path | Purpose |
 |------|---------|
-| `resources/views/analyse.blade.php` | Inertia root template |
-| `resources/js/analyse/app.js` | Vue + Inertia + Echo entry point |
-| `resources/js/analyse/components/AnalyseSidebar.vue` | Sidebar shell — uses sub-components, handles modals (rename, move, share, delete, pin) |
-| `resources/js/analyse/components/sidebar/SearchBar.vue` | Live FTS search with debounce, snippet + owner display |
-| `resources/js/analyse/components/sidebar/ConversationRow.vue` | Row with three-dot hover menu (Rename, Move, Share, Archive, Delete) |
-| `resources/js/analyse/components/sidebar/ProjectRow.vue` | Project row with three-dot hover menu (Rename, Delete) |
-| `resources/js/analyse/components/sidebar/SharedRow.vue` | Shared-with-me row with hover menu (Add to project, Branch, Leave) |
-| `resources/js/analyse/components/sidebar/ContextMenu.vue` | Reusable teleported context menu component |
-| `resources/js/analyse/components/ChatMessage.vue` | Message with markdown rendering (`marked.js`), Edit/Retry/Branch/Copy hover actions |
-| `resources/js/analyse/pages/Analyse.vue` | Index page (no chat selected), mobile-responsive |
-| `resources/js/analyse/pages/Chat.vue` | Conversation page — header with project breadcrumb, badges, share/archive/delete panels |
-| `resources/js/analyse/pages/Project.vue` | Project view with owned + pinned chats, delete confirmation |
-| `app/Http/Controllers/AnalyseController.php` | Inertia page renders, passes `auth` user data in shared props |
+| `resources/js/pages/Analyze/Index.vue` | Index page (no chat selected) — uses AppLayout with AnalyseSidebar in #sidebar slot |
+| `resources/js/pages/Analyze/Chat.vue` | Conversation page — message list, composer, streaming, share/archive/delete panels |
+| `resources/js/pages/Analyze/Project.vue` | Project view with owned + pinned chats, delete confirmation |
+| `resources/js/analyze/components/AnalyseSidebar.vue` | Sidebar shell — search, shared/projects/conversations sections, modals |
+| `resources/js/analyze/components/sidebar/SearchBar.vue` | Live FTS search with debounce, snippet + owner display |
+| `resources/js/analyze/components/sidebar/ConversationRow.vue` | Row with three-dot hover menu (Rename, Move, Share, Archive, Delete) |
+| `resources/js/analyze/components/sidebar/ProjectRow.vue` | Project row with three-dot hover menu (Rename, Delete) |
+| `resources/js/analyze/components/sidebar/SharedRow.vue` | Shared-with-me row with hover menu (Add to project, Branch, Leave) |
+| `resources/js/analyze/components/sidebar/ContextMenu.vue` | Reusable teleported context menu component |
+| `resources/js/analyze/components/ChatMessage.vue` | Message with gravatar avatars, AI icon assistant avatar, markdown rendering (`marked.js`) |
+| `app/Http/Controllers/AnalyseController.php` | Inertia page renders (Analyze/Index, Analyze/Chat, Analyze/Project) |
 | `app/Http/Controllers/AiChatController.php` | Chat CRUD + message sending + streaming |
 | `app/Http/Controllers/AiProjectController.php` | Project CRUD + pin management |
 | `app/Events/AiMessageChunk.php` | Streaming chunk WS event |
@@ -1863,7 +1461,7 @@ DELETE /analyse/projects/{project}/pin-chat/{chat} → AiProjectController::unpi
 
 ---
 
-### Critical Rules (Analyse)
+### Critical Rules (Analyze)
 
 - **Never** auto-overwrite title when `title_is_manual = true`
 - **Shared thread editing/retry** → always auto-branch, never mutate shared history
@@ -1871,14 +1469,11 @@ DELETE /analyse/projects/{project}/pin-chat/{chat} → AiProjectController::unpi
 - **owner_id** = `ai_chats.user_id`; participants in `ai_chat_participants`
 - **`last_message_at`** updated on every new message (user or assistant); drives sidebar sort order
 - **FTS triggers** must fire on INSERT/UPDATE of `ai_chat_messages.content` and `ai_chats.title`
-- Inertia root view set per-request: `Inertia::setRootView('analyse')` in `AnalyseController`
-- Vue + Inertia entry point: `resources/js/analyse/app.js` — separate from main `app.js`
-- Vite: `analyse/app.js` added as separate entry point alongside existing `app.js`
-- Laravel Echo configured with Reverb in `analyse/app.js` only
+- Uses shared `AppLayout.vue` — no separate Inertia root view or Vite entry point
+- Laravel Echo configured with Reverb in `resources/js/app.js` (global bootstrap)
 - **Tailwind v4 + Vue SFC:** `@apply` is NOT supported inside Vue `<style>` blocks — use plain CSS instead
 - **Markdown rendering:** `marked.js` for assistant messages via `.prose-ai` CSS class (plain CSS, not @apply)
-- **`AnalyseController::sharedProps()`** passes `auth.user` (id, name, email) to all Inertia pages
-- **Mobile:** sidebar is a slide-over drawer on `< lg` breakpoints, toggled by hamburger button
+- **Avatars:** User messages show gravatar (from `message.meta.user_email`), assistant messages show `/ai-icon.svg` in gray circle. Use `:src="'/ai-icon.svg'"` (bind syntax) to prevent Vite treating it as module import.
 
 ---
 

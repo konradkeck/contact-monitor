@@ -5,11 +5,11 @@ namespace App\Http\Controllers\TeamAccess;
 use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\User;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class TeamAccessController extends Controller
 {
-    public function index(): View
+    public function index()
     {
         $groups = Group::withCount('users')->orderBy('name')->get();
         $users  = User::with('group')->orderBy('name')->get();
@@ -23,6 +23,11 @@ class TeamAccessController extends Controller
             'configuration' => 'Configuration',
         ];
 
-        return view('configuration.team-access.index', compact('groups', 'users', 'activeTab', 'permLabels'));
+        return Inertia::render('TeamAccess/Index', [
+            'groups'     => $groups,
+            'users'      => $users,
+            'activeTab'  => $activeTab,
+            'permLabels' => $permLabels,
+        ]);
     }
 }

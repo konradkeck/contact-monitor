@@ -115,7 +115,7 @@ class AiChatController extends Controller
             'chat_id'   => $chat->id,
             'role'      => 'user',
             'content'   => $data['content'],
-            'meta_json' => ['user_id' => $userId, 'user_name' => auth()->user()->name],
+            'meta_json' => ['user_id' => $userId, 'user_name' => auth()->user()->name, 'user_email' => auth()->user()->email],
         ]);
 
         // Update last_message_at

@@ -14,13 +14,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\View\View;
+
+use Inertia\Inertia;
 
 class PersonController extends Controller
 {
     use BuildsConvSubjectMap;
 
-    public function index(Request $request): View
+    public function index(Request $request)
     {
         $search   = $request->get('q');
         $sort     = $request->get('sort', 'updated_at');
@@ -162,10 +163,8 @@ class PersonController extends Controller
         }
 
         // Last contact: latest message in any conversation the person participated in
-        // (includes outbound messages we sent to them, not just messages from the person)
         $personIds = $people->pluck('id');
 
-        // Step 1: find all conversations where each person has sent at least one message
         $personConvs = DB::table('conversation_messages as cm_p')
             ->join('identities as i_p', 'i_p.id', '=', 'cm_p.identity_id')
             ->whereIn('i_p.person_id', $personIds)
@@ -178,15 +177,8 @@ class PersonController extends Controller
             $personConvMap[$row->person_id][] = $row->conversation_id;
         }
 
-        // Fallback: for people with no message-based conversations, look for outbound activities
-        // where contact_email matches one of the person's known emails.
-        // We use activity data directly (no conv link) to avoid bulk/template threads
-        // being shown as if they were individual conversations with this person.
-        $lastActivityFallback = collect(); // person_id => synthetic last_conv object (no last_conv_id)
-
         $allConvIds = collect($personConvMap)->flatten()->unique()->values()->all();
 
-        // Step 2: for those conversations, get latest non-system message per conversation
         $latestPerConv = collect();
         if (! empty($allConvIds)) {
             $latestPerConv = DB::table('conversation_messages as cm')
@@ -200,7 +192,6 @@ class PersonController extends Controller
                 ->keyBy('conversation_id');
         }
 
-        // Step 3: for each person pick the latest message among their conversations
         $lastMsgs = collect();
         foreach ($personConvMap as $personId => $convIds) {
             $best = null;
@@ -217,8 +208,6 @@ class PersonController extends Controller
         }
         $lastMsgs = $lastMsgs->keyBy('person_id');
 
-        // For people with no message-based last contact, fall back to outbound activity data.
-        // Find people on this page who still have no last_msg entry.
         $missingIds = $personIds->filter(fn ($id) => ! $lastMsgs->has($id))->values()->all();
         if (! empty($missingIds)) {
             $personEmailMap = DB::table('identities')
@@ -230,8 +219,6 @@ class PersonController extends Controller
                 ->groupBy('person_id')
                 ->map(fn ($rows) => $rows->pluck('value')->map('strtolower')->toArray());
 
-            // Latest outbound activity per person where contact_email matches their known email.
-            // Join conversation to get conv ID and subject for the clickable modal link.
             $fallbackRows = DB::table('activities as a')
                 ->leftJoin('conversations as c', function ($join) {
                     $join->whereRaw("c.external_thread_id = a.meta_json->>'conversation_external_id'")
@@ -251,10 +238,9 @@ class PersonController extends Controller
                 ->get()
                 ->filter(function ($row) use ($personEmailMap) {
                     $emails = $personEmailMap->get($row->person_id, []);
-
                     return in_array($row->contact_email, $emails, true);
                 })
-                ->unique('person_id'); // keep only latest per person (already ordered desc)
+                ->unique('person_id');
 
             foreach ($fallbackRows as $row) {
                 $lastMsgs->put($row->person_id, (object) [
@@ -263,28 +249,49 @@ class PersonController extends Controller
                     'channel_type' => $row->channel_type,
                     'conv_subject' => $row->conv_subject,
                     'last_conv_id' => $row->last_conv_id,
-                    'activity_date' => substr($row->occurred_at, 0, 10), // YYYY-MM-DD for modal date filter
+                    'activity_date' => substr($row->occurred_at, 0, 10),
                 ]);
             }
         }
 
+        // Prepare serializable data for each person
         foreach ($people as $person) {
-            $person->last_conv = $lastMsgs->get($person->id);
+            $lc = $lastMsgs->get($person->id);
+            if ($lc) {
+                $carbon = \Carbon\Carbon::parse($lc->occurred_at);
+                $person->last_conv = [
+                    'last_conv_id' => $lc->last_conv_id,
+                    'channel_type' => $lc->channel_type,
+                    'conv_subject' => $lc->conv_subject,
+                    'occurred_at' => $lc->occurred_at,
+                    'occurred_at_human' => $carbon->diffForHumans(),
+                    'occurred_at_short' => $carbon->diffForHumans(null, true, true),
+                    'occurred_at_full' => $carbon->format('D, j M Y H:i'),
+                    'activity_date' => $lc->activity_date ?? null,
+                    'modal_url' => $lc->last_conv_id
+                        ? route('conversations.modal', ['conversation' => $lc->last_conv_id]) . (!empty($lc->activity_date) ? '?date=' . $lc->activity_date : '')
+                        : null,
+                ];
+            } else {
+                $person->last_conv = null;
+            }
+
+            // Compute avatar URL
+            $emailIdentity = $person->identities->firstWhere('type', 'email');
+            $person->avatar_url = 'https://www.gravatar.com/avatar/' . md5(strtolower(trim($emailIdentity->value ?? $person->full_name))) . '?d=identicon&s=64';
+
+            // Compute identity types for display
+            $person->identity_types = $person->identities->take(6)->map(fn ($i) => [
+                'type' => $i->type,
+                'value' => $i->value,
+            ])->values()->toArray();
+
+            // Notes count
+            $person->notes_count = $person->notes->count();
+
+            // Filtered reason
+            $person->filtered_reason = $filteredReasons[$person->id] ?? null;
         }
-
-        $contactBadge = [
-            'ticket'       => 'bg-yellow-100 text-yellow-800',
-            'conversation' => 'bg-purple-100 text-purple-800',
-            'followup'     => 'bg-slate-100 text-slate-700',
-        ];
-
-        $sortLink = fn (string $col) =>
-            route('people.index', array_merge($request->query(), [
-                'sort' => $col,
-                'dir'  => ($sort === $col && $dir === 'asc') ? 'desc' : 'asc',
-            ]));
-        $sortIcon = fn (string $col) =>
-            $sort === $col ? ($dir === 'asc' ? "\u{2191}" : "\u{2193}") : "\u{2195}";
 
         $channelBadge = [
             'email'   => 'bg-sky-100 text-sky-700',
@@ -301,23 +308,33 @@ class PersonController extends Controller
         $activeFilterCount = ((!empty($f_lc_from) || !empty($f_lc_to)) ? 1 : 0)
                            + (!empty($f_has_company) ? 1 : 0)
                            + (!empty($f_channel) ? 1 : 0);
-        $hasFilters        = (bool) ($search || $activeFilterCount > 0);
 
         $channelTypes = DB::table('conversations')
             ->whereNotNull('channel_type')
             ->distinct()->orderBy('channel_type')->pluck('channel_type');
 
-        return view('people.index', compact(
-            'people', 'search', 'sort', 'dir', 'filteredCount', 'filteredReasons', 'showFiltered',
-            'contactBadge', 'sortLink', 'sortIcon', 'channelBadge', 'tab', 'tabCounts',
-            'f_lc_from', 'f_lc_to', 'f_has_company', 'f_channel', 'channelTypes',
-            'activeFilterCount', 'hasFilters',
-        ));
+        return Inertia::render('People/Index', [
+            'people' => $people,
+            'search' => $search,
+            'sort' => $sort,
+            'dir' => $dir,
+            'filteredCount' => $filteredCount,
+            'showFiltered' => $showFiltered,
+            'channelBadge' => $channelBadge,
+            'tab' => $tab,
+            'tabCounts' => $tabCounts,
+            'f_lc_from' => $f_lc_from ?? '',
+            'f_lc_to' => $f_lc_to ?? '',
+            'f_has_company' => $f_has_company ?? '',
+            'f_channel' => $f_channel ?? '',
+            'channelTypes' => $channelTypes,
+            'activeFilterCount' => $activeFilterCount,
+        ]);
     }
 
-    public function create(): View
+    public function create()
     {
-        return view('people.create');
+        return Inertia::render('People/Create');
     }
 
     public function store(Request $request): RedirectResponse
@@ -335,7 +352,7 @@ class PersonController extends Controller
         return redirect()->route('people.show', $person)->with('success', 'Person created.');
     }
 
-    public function show(Request $request, Person $person): View
+    public function show(Request $request, Person $person): \Inertia\Response
     {
         $person->load(['identities', 'companies.accounts', 'mergedPeople.identities']);
 
@@ -391,10 +408,10 @@ class PersonController extends Controller
         ", array_merge($allPersonIds, $allPersonIds)))->sortByDesc('last_message_at');
 
         // Conversation systems for filter dropdown (derived from convGroups)
-        $convSystems = $convGroups->map(fn ($g) => (object) [
+        $convSystems = $convGroups->map(fn ($g) => [
             'channel_type' => $g->channel_type,
-            'system_slug' => $g->system_slug,
-        ])->unique(fn ($g) => $g->channel_type.'|'.$g->system_slug)->values();
+            'system_slug'  => $g->system_slug,
+        ])->unique(fn ($g) => $g['channel_type'].'|'.$g['system_slug'])->values();
 
         $filteredConvCount = empty($filteredExtIds) ? 0 : DB::table('conversations as c')
             ->whereIn('c.external_thread_id', $filteredExtIds)
@@ -412,7 +429,6 @@ class PersonController extends Controller
         $backLink = $this->resolveBackLink($request);
 
         // Build WHMCS profile URL map: identity_id → profile_url
-        // Generated dynamically: base_url + admin_dir fetched from synchronizer, clientid from identity meta
         $whmcsProfileUrls = [];
         $whmcsIdentities  = $person->identities->filter(
             fn ($i) => ($i->meta_json['system_type'] ?? null) === 'whmcs'
@@ -431,8 +447,6 @@ class PersonController extends Controller
             }
         }
 
-        $initials = strtoupper(mb_substr($person->first_name, 0, 1) . mb_substr($person->last_name ?? '', 0, 1));
-
         $typeColors = [
             'payment'       => 'bg-green-400',
             'renewal'       => 'bg-blue-400',
@@ -445,11 +459,88 @@ class PersonController extends Controller
             'followup'      => 'bg-slate-300',
         ];
 
-        return view('people.show', compact(
-            'person', 'notes', 'allCompanies', 'timelinePage', 'convSubjectMap',
-            'convGroups', 'convSystems', 'filteredConvCount', 'activityTypes', 'backLink',
-            'initials', 'typeColors', 'mergedPeople', 'whmcsProfileUrls',
-        ));
+        // Serialize data
+        $serializedNotes = $notes->map(fn ($n) => [
+            'id'         => $n->id,
+            'content'    => $n->content,
+            'user_name'  => $n->user?->name,
+            'created_at' => $n->created_at?->toIso8601String(),
+        ])->all();
+
+        $serializedIdentities = $person->identities->map(function ($i) use ($whmcsProfileUrls) {
+            $sysType = $i->meta_json['system_type'] ?? '';
+            $href = \App\View\Components\IdentityIcon::hrefFor($i->type, $i->value);
+            return [
+                'id'           => $i->id,
+                'type'         => $i->type,
+                'value'        => $i->value,
+                'value_normalized' => $i->value_normalized,
+                'system_slug'  => $i->system_slug,
+                'system_type'  => $sysType,
+                'display_name' => $i->meta_json['display_name'] ?? null,
+                'avatar'       => $i->meta_json['avatar'] ?? null,
+                'is_team_member' => $i->is_team_member,
+                'is_bot'       => $i->is_bot,
+                'whmcs_url'    => $whmcsProfileUrls[$i->id] ?? null,
+                'href'         => $whmcsProfileUrls[$i->id] ?? $href,
+            ];
+        })->all();
+
+        $serializedCompanies = $person->companies->map(fn ($c) => [
+            'id'   => $c->id,
+            'name' => $c->name,
+            'role' => $c->pivot->role ?? null,
+        ])->all();
+
+        $serializedConvGroups = $convGroups->map(fn ($g) => [
+            'channel_type'   => $g->channel_type,
+            'system_slug'    => $g->system_slug,
+            'last_subject'   => $g->last_subject,
+            'conv_count'     => $g->conv_count,
+            'last_message_at' => $g->last_message_at,
+        ])->values()->all();
+
+        $serializedMerged = $mergedPeople->map(fn ($mp) => [
+            'id'        => $mp->id,
+            'full_name' => $mp->full_name ?: '(unnamed)',
+            'first_identity' => $mp->identities->first()?->value,
+        ])->all();
+
+        $serializedAllCompanies = $allCompanies->map(fn ($c) => [
+            'id'   => $c->id,
+            'name' => $c->name,
+        ])->values()->all();
+
+        return Inertia::render('People/Show', [
+            'person' => [
+                'id'         => $person->id,
+                'first_name' => $person->first_name,
+                'last_name'  => $person->last_name,
+                'full_name'  => $person->full_name,
+                'is_our_org' => $person->is_our_org,
+                'merged_into_id' => $person->merged_into_id,
+                'created_at' => $person->created_at?->format('d M Y'),
+                'initials'   => strtoupper(mb_substr($person->first_name, 0, 1) . mb_substr($person->last_name ?? '', 0, 1)),
+            ],
+            'identities'      => $serializedIdentities,
+            'companies'       => $serializedCompanies,
+            'allCompanies'    => $serializedAllCompanies,
+            'notes'           => $serializedNotes,
+            'convGroups'      => $serializedConvGroups,
+            'mergedPeople'    => $serializedMerged,
+            'timeline' => [
+                'items'      => $this->serializeTimelineItems($timelinePage->items()),
+                'nextCursor' => $timelinePage->nextCursor()?->encode(),
+            ],
+            'convSystems'      => $convSystems->all(),
+            'filteredConvCount' => $filteredConvCount,
+            'activityTypes'    => $activityTypes->all(),
+            'typeColors'       => $typeColors,
+            'backLink'         => $backLink,
+            'filterModalUrl'   => route('people.filter-modal'),
+            'hourlyActivityUrl' => route('people.hourly-activity', $person),
+            'activityAvailabilityUrl' => route('people.activity-availability', $person),
+        ]);
     }
 
     public function timeline(Request $request, Person $person)
@@ -495,16 +586,17 @@ class PersonController extends Controller
         $convSubjectMap = $this->buildConvSubjectMap($page->items());
         $this->prepareTimelineDisplay($page->items(), $convSubjectMap);
 
-        return view('people.partials.timeline-items', [
-            'activities' => $page->items(),
-            'convSubjectMap' => $convSubjectMap,
+        return response()->json([
+            'items'      => $this->serializeTimelineItems($page->items()),
             'nextCursor' => $page->nextCursor()?->encode(),
         ]);
     }
 
-    public function edit(Person $person): View
+    public function edit(Person $person)
     {
-        return view('people.edit', compact('person'));
+        return Inertia::render('People/Edit', [
+            'person' => $person,
+        ]);
     }
 
     public function update(Request $request, Person $person): RedirectResponse
@@ -602,7 +694,7 @@ class PersonController extends Controller
 
     // ── Merge ───────────────────────────────────────────────────
 
-    public function mergeModal(Request $request): View
+    public function mergeModal(Request $request): JsonResponse
     {
         $ids = array_values(array_unique(array_filter(array_map('intval', (array) $request->get('ids', [])))));
         abort_if(count($ids) < 2, 400, 'Select at least 2 people to merge.');
@@ -614,7 +706,21 @@ class PersonController extends Controller
 
         abort_if($people->count() < 2, 400, 'Not enough valid (non-merged) people selected.');
 
-        return view('people.merge-modal', compact('people'));
+        return response()->json([
+            'people' => $people->map(fn ($p) => [
+                'id'         => $p->id,
+                'full_name'  => $p->full_name ?: '(unnamed)',
+                'is_our_org' => $p->is_our_org,
+                'identities' => $p->identities->map(fn ($i) => [
+                    'type'  => $i->type,
+                    'value' => $i->value,
+                ])->values()->all(),
+                'companies' => $p->companies->map(fn ($c) => [
+                    'id'   => $c->id,
+                    'name' => $c->name,
+                ])->values()->all(),
+            ])->values()->all(),
+        ]);
     }
 
     public function merge(Request $request): JsonResponse
@@ -866,13 +972,6 @@ class PersonController extends Controller
     }
 
     // ── Assign Company ───────────────────────────────────────────
-
-    public function assignCompanyModal(Request $request): View
-    {
-        $ids = array_filter(array_map('intval', (array) $request->get('ids', [])));
-
-        return view('people.assign-company-modal', ['ids' => $ids]);
-    }
 
     public function assignCompany(Person $person, Request $request): JsonResponse
     {

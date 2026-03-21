@@ -10,11 +10,11 @@ use App\Models\SystemSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
         $from = $request->filled('from')
             ? Carbon::parse($request->input('from'))->startOfDay()
@@ -62,7 +62,6 @@ class DashboardController extends Controller
         $filteredIds = array_unique($filteredIds);
 
         // ── Most Active People (external contacts) ───────────────────────────
-        // Conversations link to people via activities (type='conversation', person_id)
         $activePeople = Person::notMerged()->where('is_our_org', false)
             ->when(!empty($filteredIds), fn ($q) => $q->whereNotIn('id', $filteredIds))
             ->selectRaw('people.*, (
@@ -76,7 +75,15 @@ class DashboardController extends Controller
             ->orderByDesc('conv_count')
             ->limit(8)
             ->get()
-            ->filter(fn ($p) => $p->conv_count > 0);
+            ->filter(fn ($p) => $p->conv_count > 0)
+            ->map(fn ($p) => [
+                'id'         => $p->id,
+                'full_name'  => $p->full_name,
+                'first_name' => $p->first_name,
+                'last_name'  => $p->last_name,
+                'conv_count' => (int) $p->conv_count,
+            ])
+            ->values();
 
         // ── Most Active Team Members ─────────────────────────────────────────
         $activeTeam = Person::notMerged()->where('is_our_org', true)
@@ -91,7 +98,15 @@ class DashboardController extends Controller
             ->orderByDesc('conv_count')
             ->limit(8)
             ->get()
-            ->filter(fn ($p) => $p->conv_count > 0);
+            ->filter(fn ($p) => $p->conv_count > 0)
+            ->map(fn ($p) => [
+                'id'         => $p->id,
+                'full_name'  => $p->full_name,
+                'first_name' => $p->first_name,
+                'last_name'  => $p->last_name,
+                'conv_count' => (int) $p->conv_count,
+            ])
+            ->values();
 
         // ── Recent Notes ─────────────────────────────────────────────────────
         $recentNotes = Note::with(['user', 'links' => fn ($q) => $q->with('linkable')->limit(1)])
@@ -110,16 +125,25 @@ class DashboardController extends Controller
                     $url  = route('people.show', $entity);
                     $name = $entity->full_name;
                 }
-                $note->entity_url  = $url;
-                $note->entity_name = $name;
-                return $note;
+                return [
+                    'id'          => $note->id,
+                    'content'     => $note->content,
+                    'entity_url'  => $url,
+                    'entity_name' => $name,
+                    'user_name'   => $note->user?->name,
+                    'created_ago' => $note->created_at->diffForHumans(),
+                ];
             });
 
-        return view('dashboard', compact(
-            'from', 'to',
-            'conversationsCount', 'newCompaniesCount', 'newPeopleCount',
-            'activePeople', 'activeTeam',
-            'recentNotes',
-        ));
+        return Inertia::render('Dashboard', [
+            'from'               => $from->format('Y-m-d'),
+            'to'                 => $to->format('Y-m-d'),
+            'conversationsCount' => $conversationsCount,
+            'newCompaniesCount'  => $newCompaniesCount,
+            'newPeopleCount'     => $newPeopleCount,
+            'activePeople'       => $activePeople,
+            'activeTeam'         => $activeTeam,
+            'recentNotes'        => $recentNotes,
+        ]);
     }
 }

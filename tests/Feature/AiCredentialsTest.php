@@ -6,6 +6,7 @@ use App\Models\AiCredential;
 use App\Models\AiModelConfig;
 use App\Models\SynchronizerServer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class AiCredentialsTest extends TestCase
@@ -30,21 +31,27 @@ class AiCredentialsTest extends TestCase
     {
         $this->get(route('ai-config.index', ['tab' => 'credentials']))
             ->assertStatus(200)
-            ->assertSee('Add Credential');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('AiConfig/Index')
+                ->where('activeTab', 'credentials')
+            );
     }
 
     public function test_ai_config_page_loads_models_tab(): void
     {
         $this->get(route('ai-config.index', ['tab' => 'models']))
             ->assertStatus(200)
-            ->assertSee('Model Assignment');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('AiConfig/Index')
+                ->where('activeTab', 'models')
+            );
     }
 
     public function test_mcp_server_page_loads(): void
     {
         $this->get(route('mcp-server.index'))
             ->assertStatus(200)
-            ->assertSee('MCP Server');
+            ->assertInertia(fn (Assert $page) => $page->component('McpServer'));
     }
 
     public function test_ai_config_page_loads_with_existing_credentials(): void
@@ -63,8 +70,10 @@ class AiCredentialsTest extends TestCase
 
         $this->get(route('ai-config.index', ['tab' => 'credentials']))
             ->assertStatus(200)
-            ->assertSee('Key A')
-            ->assertSee('Key B');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('AiConfig/Index')
+                ->has('credentials', 2)
+            );
     }
 
     public function test_ai_config_models_tab_with_credentials(): void
@@ -83,7 +92,11 @@ class AiCredentialsTest extends TestCase
 
         $this->get(route('ai-config.index', ['tab' => 'models']))
             ->assertStatus(200)
-            ->assertSee('My Key');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('AiConfig/Index')
+                ->has('credentials', 1)
+                ->has('modelConfigs')
+            );
     }
 
     // ── Credential CRUD ───────────────────────────────────────────────────────
@@ -165,8 +178,10 @@ class AiCredentialsTest extends TestCase
 
         $this->get(route('ai-credentials.edit', $cred))
             ->assertStatus(200)
-            ->assertSee('Edit Credential')
-            ->assertSee('My Key');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('AiConfig/CredentialForm')
+                ->where('credential.name', 'My Key')
+            );
     }
 
     public function test_update_credential(): void

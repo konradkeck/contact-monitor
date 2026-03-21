@@ -8,11 +8,11 @@ use App\Models\AiModelConfig;
 use App\Models\SystemSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
 
 class AiConfigController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request)
     {
         $credentials  = AiCredential::orderBy('provider')->orderBy('name')->get();
         $providers    = AiProviderFactory::providers();
@@ -20,25 +20,30 @@ class AiConfigController extends Controller
         $actionTypes  = AiModelConfig::actionLabels();
         $activeTab    = $request->input('tab', 'credentials');
 
-        return view('configuration.ai.index', compact(
-            'credentials', 'providers',
-            'modelConfigs', 'actionTypes', 'activeTab'
-        ));
+        return Inertia::render('AiConfig/Index', [
+            'credentials'  => $credentials,
+            'providers'    => $providers,
+            'modelConfigs' => $modelConfigs,
+            'actionTypes'  => $actionTypes,
+            'activeTab'    => $activeTab,
+        ]);
     }
 
-    public function mcpServer(): View
+    public function mcpServer()
     {
         $enabled         = (bool) SystemSetting::get('mcp_enabled', false);
         $externalEnabled = (bool) SystemSetting::get('mcp_external_enabled', false);
         $hasApiKey       = (bool) SystemSetting::get('mcp_api_key', null);
         $endpointUrl     = url('/api/mcp');
-        $tab             = 'settings';
-        $logs            = null;
 
-        return view('configuration.ai.mcp-server', compact(
-            'enabled', 'externalEnabled', 'hasApiKey', 'endpointUrl',
-            'tab', 'logs'
-        ));
+        return Inertia::render('McpServer', [
+            'enabled'         => $enabled,
+            'externalEnabled' => $externalEnabled,
+            'hasApiKey'       => $hasApiKey,
+            'endpointUrl'     => $endpointUrl,
+            'tab'             => 'settings',
+            'logs'            => null,
+        ]);
     }
 
     public function updateSettings(Request $request): RedirectResponse

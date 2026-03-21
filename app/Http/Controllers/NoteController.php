@@ -70,7 +70,7 @@ class NoteController extends Controller
         return redirect($redirect)->with('success', 'Note added.');
     }
 
-    public function destroy(Request $request, Note $note): \Illuminate\Http\Response|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+    public function destroy(Request $request, Note $note): \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
     {
         abort_if(! auth()->user()->can('notes_write'), 403);
 
