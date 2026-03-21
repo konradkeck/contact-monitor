@@ -270,4 +270,34 @@ class RoutesSmokeTest extends TestCase
     {
         $this->get(route('ai-costs.pricing'))->assertStatus(200);
     }
+
+    public function test_company_analysis_config_loads(): void
+    {
+        $this->get(route('company-analysis.config.index'))->assertStatus(200);
+    }
+
+    public function test_company_analysis_preview_loads(): void
+    {
+        $company = Company::create(['name' => 'Preview Co']);
+        $this->getJson(route('company-analysis.preview', $company))->assertStatus(200);
+    }
+
+    public function test_company_analysis_latest_loads(): void
+    {
+        $company = Company::create(['name' => 'Latest Co']);
+        $this->getJson(route('company-analysis.latest', $company))->assertStatus(200);
+    }
+
+    public function test_company_analysis_show_loads(): void
+    {
+        $company = Company::create(['name' => 'Show Co']);
+        $run = \App\Models\AnalysisRun::create([
+            'company_id' => $company->id,
+            'user_id' => auth()->id(),
+            'status' => 'completed',
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+        $this->get(route('company-analysis.show', [$company, $run]))->assertStatus(200);
+    }
 }

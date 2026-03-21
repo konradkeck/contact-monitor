@@ -12,6 +12,8 @@ use App\Http\Controllers\McpLogController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrandProductController;
+use App\Http\Controllers\CompanyAnalysisConfigController;
+use App\Http\Controllers\CompanyAnalysisController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\DashboardController;
@@ -56,6 +58,12 @@ Route::middleware('auth')->group(function () {
         Route::get('companies/{company}', [CompanyController::class, 'show'])->name('companies.show')->whereNumber('company');
         Route::get('companies/{company}/timeline', [CompanyController::class, 'timeline'])->name('companies.timeline')->whereNumber('company');
 
+        // Company Analysis (browse_data — read-only endpoints)
+        Route::get('companies/{company}/analysis/preview', [CompanyAnalysisController::class, 'preview'])->name('company-analysis.preview')->whereNumber('company');
+        Route::get('companies/{company}/analysis/latest', [CompanyAnalysisController::class, 'latestSummary'])->name('company-analysis.latest')->whereNumber('company');
+        Route::get('companies/{company}/analysis/history', [CompanyAnalysisController::class, 'history'])->name('company-analysis.history')->whereNumber('company');
+        Route::get('companies/{company}/analysis/{run}', [CompanyAnalysisController::class, 'show'])->name('company-analysis.show')->whereNumber(['company', 'run']);
+
         // People (read)
         Route::get('people/search', [PersonController::class, 'search'])->name('people.search');
         Route::get('people/filter-modal', [FilteringController::class, 'personFilterModal'])->name('people.filter-modal');
@@ -81,6 +89,9 @@ Route::middleware('auth')->group(function () {
 
         // ── Data write routes ────────────────────────────────────────────────
         Route::middleware('permission:data_write')->group(function () {
+            // Company Analysis (write)
+            Route::post('companies/{company}/analysis/run', [CompanyAnalysisController::class, 'run'])->name('company-analysis.run')->whereNumber('company');
+
             // Companies (write)
             Route::get('companies/merge-modal', [CompanyController::class, 'mergeModal'])->name('companies.merge-modal');
             Route::post('companies/merge', [CompanyController::class, 'merge'])->name('companies.merge');
@@ -224,6 +235,15 @@ Route::middleware('auth')->group(function () {
         Route::post('configuration/smart-notes/filters', [SmartNotesConfigController::class, 'storeFilter'])->name('smart-notes.config.filters.store');
         Route::delete('configuration/smart-notes/filters/{filter}', [SmartNotesConfigController::class, 'destroyFilter'])->name('smart-notes.config.filters.destroy');
         Route::post('configuration/smart-notes/scan', [SmartNotesConfigController::class, 'scan'])->name('smart-notes.config.scan');
+
+        // Company Analysis Configuration
+        Route::get('configuration/company-analysis', [CompanyAnalysisConfigController::class, 'index'])->name('company-analysis.config.index');
+        Route::post('configuration/company-analysis/steps', [CompanyAnalysisConfigController::class, 'storeStep'])->name('company-analysis.config.steps.store');
+        Route::put('configuration/company-analysis/steps/{step}', [CompanyAnalysisConfigController::class, 'updateStep'])->name('company-analysis.config.steps.update');
+        Route::delete('configuration/company-analysis/steps/{step}', [CompanyAnalysisConfigController::class, 'destroyStep'])->name('company-analysis.config.steps.destroy');
+        Route::post('configuration/company-analysis/steps/reorder', [CompanyAnalysisConfigController::class, 'reorderSteps'])->name('company-analysis.config.steps.reorder');
+        Route::post('configuration/company-analysis/domain-sync', [CompanyAnalysisConfigController::class, 'domainSync'])->name('company-analysis.config.domain-sync');
+        Route::post('configuration/company-analysis/domain-settings', [CompanyAnalysisConfigController::class, 'domainSettings'])->name('company-analysis.config.domain-settings');
 
         // AI Configuration
         Route::get('configuration/ai', [AiConfigController::class, 'index'])->name('ai-config.index');

@@ -116,6 +116,11 @@ class Company extends Model
         });
     }
 
+    public function analysisRuns(): HasMany
+    {
+        return $this->hasMany(AnalysisRun::class);
+    }
+
     public function notes(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
     {
         // Notes linked to this company via note_links

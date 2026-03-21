@@ -821,6 +821,7 @@ Test database: PostgreSQL (`contact-monitor-test`) — configured in `phpunit.xm
 | `McpTest.php` | MCP auth, protocol, resources, tools, confirmation flow |
 | `AiCredentialsTest.php` | AI credentials CRUD, model config, costs pages, ACL (16 tests) |
 | `BrandProductsTest.php` | Brand product (segmentation) CRUD, optional fields |
+| `CompanyAnalysisTest.php` | Company analysis config CRUD, step reorder, ACL, preview, show, domain classification, prompt renderer, result extractor, domain sync (23 tests) |
 | `AnalyseTest.php` | Analyze chat UI — CRUD, messages, branching, sharing, projects, search, ACL (92 tests) |
 
 ### No SQLite — PostgreSQL only
@@ -1170,7 +1171,7 @@ app/Ai/
 ```
 ── AI Functionality ─────────────
   Connect AI
-  Company Analysis      (disabled: "Coming soon")
+  Company Analysis
   AI Costs              (disabled when no AI credentials)
   MCP Server            (separate page, not a tab)
 
@@ -1208,8 +1209,8 @@ Use these accents sparingly — only on section labels and navigation badges, ne
 - [x] AI Costs — complete
 - [x] Connect AI UI (credentials + models tabs) — complete
 - [x] AI Functionality sidebar section — complete
-- [ ] Company Analysis config page (placeholder) — TBD
-- [ ] Company Analysis logic + UI — TBD
+- [x] Company Analysis config page — complete
+- [x] Company Analysis logic + UI — complete (see Company Analysis section below)
 - [ ] Notes Recognition logic — TBD
 - [ ] Conversation Summary — TBD
 - [x] **Analyze chat UI** — complete (see Analyze section below)
@@ -1217,6 +1218,102 @@ Use these accents sparingly — only on section labels and navigation badges, ne
 ### Tests
 
 `tests/Feature/AiCredentialsTest.php` — 16 tests covering credentials CRUD, model config, costs pages, ACL.
+`tests/Feature/CompanyAnalysisTest.php` — 23 tests covering config CRUD, step reorder, ACL, preview, analysis show, domain classification, prompt renderer, result extractor, domain sync.
+
+---
+
+## Company Analysis
+
+### Overview
+
+Configurable, manual, multi-step AI analysis for company records. Triggered from Company Show page via "Analyse Company" button. Each step sends a rendered prompt to the configured AI provider, parses structured JSON results, and stores discrete fields + entities.
+
+**Execution:** Synchronous (no queue). `set_time_limit(120)`. Uses `AiModelConfig::forAction('company_analysis')` for provider selection.
+
+---
+
+### Data Model
+
+```
+analysis_steps        (key, name, description, prompt_template, is_enabled, sort_order)
+analysis_runs         (company_id, user_id, status, base_context_json, started_at, completed_at)
+analysis_step_runs    (run_id, step_id, step_key, status, prompt_template_used, rendered_prompt,
+                       raw_response, parsed_response jsonb, error_message, model_name,
+                       input_tokens, output_tokens, started_at, completed_at)
+analysis_fields       (company_id, run_id, step_run_id, field_group, field_key, field_value,
+                       field_type, confidence, is_inferred, sort_order)
+                       UNIQUE(run_id, field_key)
+analysis_entities     (company_id, run_id, step_run_id, entity_type, display_name,
+                       data_json jsonb, confidence, sort_order)
+domain_classifications (domain, type: free_email/disposable, source)
+                       UNIQUE(domain, type)
+```
+
+---
+
+### Services — `app/Ai/CompanyAnalysis/`
+
+| Service | Purpose |
+|---------|---------|
+| `ContextBuilder` | Builds variable context from Company + relations (domains, people, conversations, brand statuses, domain classification) |
+| `PromptRenderer` | `{{var}}` → base context, `{{previous.step_key.field}}` → prior step output, `{{previous.step_key}}` → full JSON |
+| `ResultExtractor` | Strips markdown fences, parses JSON, extracts fields + entities into DB records |
+| `AnalysisPipeline` | Orchestrates: create run → build context → iterate steps → render → AI call → parse → persist |
+| `DomainSyncService` | Lazy sync (>24h) of free/disposable email domain lists from configurable URLs |
+
+---
+
+### Default Seeded Steps
+
+1. `company_identity_resolution` (sort_order 10) — Resolve company identity from weak signals
+2. `company_profile_enrichment` (sort_order 20) — Build commercial profile
+3. `gap_fill_missing_fields` (sort_order 30) — Fill missing/low-confidence fields
+
+---
+
+### Routes
+
+**Configuration (permission:configuration):**
+```
+GET    /configuration/company-analysis                    → config.index
+POST   /configuration/company-analysis/steps              → steps.store
+PUT    /configuration/company-analysis/steps/{step}       → steps.update
+DELETE /configuration/company-analysis/steps/{step}       → steps.destroy
+POST   /configuration/company-analysis/steps/reorder      → steps.reorder
+POST   /configuration/company-analysis/domain-sync        → domain-sync
+POST   /configuration/company-analysis/domain-settings    → domain-settings
+```
+
+**Browse Data (permission:browse_data + require.setup):**
+```
+GET    /companies/{company}/analysis/preview              → preview (JSON)
+GET    /companies/{company}/analysis/latest               → latestSummary (JSON)
+GET    /companies/{company}/analysis/history              → history (JSON)
+POST   /companies/{company}/analysis/run                  → run (data_write)
+GET    /companies/{company}/analysis/{run}                → show (Inertia)
+```
+
+---
+
+### Vue Files
+
+| Path | Purpose |
+|------|---------|
+| `pages/CompanyAnalysisConfig/Index.vue` | Tabs: Steps (CRUD + reorder) and Domain Classification (sync, settings) |
+| `pages/CompanyAnalysis/Show.vue` | Full run detail: fields table, entities, step runs with prompt/response |
+| `components/CompanyAnalysisCard.vue` | Compact card on Company Show — key fields, entity counts, run metadata |
+| `components/CompanyAnalysisModal.vue` | Pre-run modal: step selection, prompt preview/edit, context summary |
+
+---
+
+### Key Rules
+
+- **Prompt template variables** use `{{double_braces}}` — in Vue templates, use `wrapVar(v)` helper (`'{' + '{' + v + '}' + '}'`) to avoid Vue interpolation conflicts
+- **Per-run prompt overrides** stored on `analysis_step_runs.prompt_template_used`, never modify the step template
+- **Field uniqueness** per `(run_id, field_key)` — later steps can overwrite earlier fields
+- **Confidence** as varchar: `high`/`medium`/`low`
+- **Domain sync** is lazy — checks `>24h` on config page load and before analysis run
+- **Failed steps** don't block subsequent steps in the pipeline
 
 ---
 

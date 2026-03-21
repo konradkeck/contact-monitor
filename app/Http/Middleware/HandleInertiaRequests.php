@@ -155,7 +155,7 @@ class HandleInertiaRequests extends Middleware
             'filtering.*', 'segmentation.*', 'configuration.*', 'team-access.*',
             'setup-assistant.*', 'smart-notes.config.*',
             'ai-config.*', 'ai-credentials.*', 'ai-model-configs.*', 'ai-costs.*',
-            'mcp-server.*', 'mcp-log.*'
+            'mcp-server.*', 'mcp-log.*', 'company-analysis.config.*'
         );
         $isAnalyseRoute = $request->routeIs('analyze.*');
         $isBrowseRoute = !$isConfigRoute && !$isAnalyseRoute;
@@ -368,11 +368,11 @@ class HandleInertiaRequests extends Middleware
                 ],
                 [
                     'label'       => 'Company Analysis',
-                    'href'        => '#',
-                    'active'      => false,
+                    'href'        => $hasAiCredentials ? route('company-analysis.config.index') : '#',
+                    'active'      => $request->routeIs('company-analysis.config.*'),
                     'icon'        => 'company_analysis',
-                    'disabled'    => true,
-                    'disabledMsg' => !$hasAiCredentials ? 'Add an AI credential first' : 'Coming soon',
+                    'disabled'    => !$hasAiCredentials,
+                    'disabledMsg' => !$hasAiCredentials ? 'Add an AI credential first' : null,
                 ],
                 [
                     'label'       => 'AI Costs',

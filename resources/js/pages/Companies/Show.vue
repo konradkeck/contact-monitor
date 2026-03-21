@@ -66,11 +66,8 @@
             </div>
           </div>
 
-          <!-- Analysis placeholder -->
-          <div class="-mt-4 mx-4 mb-4 bg-white rounded-lg border border-brand-100 shadow-sm px-4 py-3">
-            <p class="text-xs font-semibold text-brand-400 uppercase tracking-wide mb-1">Company Analysis</p>
-            <p class="text-xs text-brand-200 italic">AI summary coming soon…</p>
-          </div>
+          <!-- Company Analysis Card -->
+          <CompanyAnalysisCard :company-id="company.id" :can-write="$page.props.auth.permissions.data_write" @open-modal="showAnalysisModal = true" />
         </div>
 
         <!-- Contacts -->
@@ -443,6 +440,8 @@
     <FilterRuleModal :show="showFilterModal" :fetchUrl="filterFetchUrl" :submitUrl="'/data-relations/filtering/apply-rule'"
                      title="Filter Company" @close="showFilterModal = false" />
 
+    <CompanyAnalysisModal :visible="showAnalysisModal" :company-id="company.id" @close="showAnalysisModal = false" />
+
   </AppLayout>
 </template>
 
@@ -457,6 +456,8 @@ import ScoreRing from '../../components/ScoreRing.vue'
 import StageBadge from '../../components/StageBadge.vue'
 import Timeline from '../../components/Timeline.vue'
 import ConversationQuickView from '../../components/ConversationQuickView.vue'
+import CompanyAnalysisCard from '../../components/CompanyAnalysisCard.vue'
+import CompanyAnalysisModal from '../../components/CompanyAnalysisModal.vue'
 import FilterRuleModal from '../../components/FilterRuleModal.vue'
 
 const props = defineProps({
@@ -488,6 +489,7 @@ const canWrite = computed(() => page.props.auth?.permissions?.data_write)
 
 // Popup state
 const popup = ref(null)
+const showAnalysisModal = ref(false)
 const showConvModal = ref(false)
 const convModalSrc = ref('')
 const showFilterModal = ref(false)
