@@ -23,6 +23,8 @@ class Person extends Model
         'merged_into_id',
     ];
 
+    protected $appends = ['full_name'];
+
     protected $casts = [
         'meta_json' => 'array',
         'is_our_org' => 'boolean',

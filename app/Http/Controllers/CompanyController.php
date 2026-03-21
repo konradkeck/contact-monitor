@@ -453,7 +453,7 @@ class CompanyController extends Controller
             'id'        => $p->id,
             'full_name' => $p->full_name,
             'role'      => $p->pivot->role ?? null,
-            'avatar_url' => $p->avatar_url ?? null,
+            'avatar_url' => $p->gravatarUrl(40),
             'initials'  => mb_strtoupper(mb_substr($p->first_name ?? '', 0, 1) . mb_substr($p->last_name ?? '', 0, 1)),
         ])->values()->all();
 
@@ -632,7 +632,7 @@ class CompanyController extends Controller
                 'name'           => $c->name,
                 'primary_domain' => $c->domains->firstWhere('is_primary', true)?->domain,
                 'contacts_count' => $c->people->count(),
-                'convs_count'    => $c->conversations->count(),
+                'conversations_count' => $c->conversations->count(),
                 'accounts_count' => $c->accounts->count(),
                 'domains_count'  => $c->domains->count(),
                 'system_types'   => $c->accounts->pluck('system_type')->unique()->values()->all(),

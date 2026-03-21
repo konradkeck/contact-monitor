@@ -1,6 +1,5 @@
 <template>
-  <header class="flex-shrink-0 z-20 sticky top-0 border-b"
-          style="background:rgba(33,39,49,0.97);border-color:rgba(255,255,255,0.07);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+  <header class="topbar flex-shrink-0 z-20 sticky top-0 border-b">
     <div class="flex items-center h-16 px-5 gap-6">
       <!-- Hamburger (mobile only) -->
       <button @click="$emit('toggle-sidebar')"

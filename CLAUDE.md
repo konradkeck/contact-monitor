@@ -127,7 +127,7 @@ companies
   └─ mergedCompanies        (HasMany Company — companies merged into this one)
 
 people
-  ├─ identities             (type: email / slack_user / discord_user; value_normalized auto-lowercased)
+  ├─ identities             (type: email / slack_id / discord_id / phone / linkedin / twitter; value_normalized auto-lowercased)
   ├─ company_person pivot
   ├─ activities
   ├─ mergedInto             (BelongsTo Person — self-referential, nullable merged_into_id)
@@ -138,8 +138,8 @@ notes → note_links          (polymorphic: Company / Person / Conversation)
 brand_products → company_brand_statuses
 synchronizer_servers        (url, api_token, ingest_secret)
 system_settings             (key-value JSON store)
-filter_contacts             (pivot: person_id, reason)
-audit_logs                  (user_id, entity_type, entity_id, action, description)
+filter_contacts             (pivot: person_id)
+audit_logs                  (actor_user_id, entity_type, entity_id, action, message)
 smart_note_filters          (type, criteria jsonb, as_internal_note, is_active)
 smart_notes                 (filter_id, source_type, content, sender_*, status, segments_json jsonb, softDeletes)
 ```
@@ -286,14 +286,13 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 ### Dashboard (`/`)
 
 **Controller:** `DashboardController::index()`
-**Purpose:** Executive overview — 4 stat cards + most active contacts + team members + recent notes.
+**Purpose:** Executive overview — 3 stat cards + most active people + team members + recent notes.
 
 - Date range selector (default last 30 days)
-- Stats: conversations (period), new companies, new people, active people
-- Most active contacts: top 8 people by activity count in period (excluding filtered contacts)
-- Most active team members: top 8 `is_team_member=true` identities
+- Stats: conversations (period), new companies, new people
+- Most active people: top 8 by conversation count in period (excluding filtered contacts)
+- Most active team members: top 8 `is_our_org=true` people by conversation activity
 - Recent notes (10) with entity link
-- Create buttons for Company / Person (gated by `data_write` permission)
 
 ---
 
@@ -303,21 +302,24 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 **Tabs:** Clients / Our Organization
 
 **Index:**
-- Sortable columns: name, primary domain, contacts count, channel types, brand scores, updated_at
+- Sortable columns: name, primary domain, contacts count, last conversation, brand scores, updated_at
 - Filter panel: domain text, min contacts, channel type, brand stage, brand score min/max, updated date range
 - Filtered indicator badge (shows count of filtered companies, toggle to show/hide them)
 - Create button (gated)
 
 **Show (`/companies/{id}`):**
 - Breadcrumb back-link (resolveBackLink from Referer)
+- 3-column grid layout: left 1/3 (company card with analysis, contacts, accounts, notes, merged), right 2/3 (segmentation, services, activity timeline)
+- Domains & Aliases managed via popup modals from the company card header
 - Card sections:
-  1. **Domains & Aliases** — list with "set primary" action, add/remove (gated)
-  2. **Linked People** — company_person pivot table: role, started_at, ended_at; link/unlink (gated)
-  3. **Brand Statuses** — per brand product: stage dropdown + score 0-100 + notes + last evaluated; edit popup (gated)
+  1. **Company Card** — name, primary domain, timezone; domains/aliases via popup modals (gated)
+  2. **Company Analysis** — AI analysis card with key fields, entity counts, run metadata
+  3. **Linked People** — company_person pivot table: role, started_at, ended_at; link/unlink (gated)
   4. **Accounts** — external system accounts (system_type, system_slug, external_id); add/remove (gated)
-  5. **Recent Conversations** — last 10, with channel badge, subject, message count, date
-  6. **Notes** — notes-section component (gated write)
-  7. **Activity Timeline** — AJAX cursor pagination, `showCompanyLink=false`
+  5. **Notes** — notes-section component (gated write)
+  6. **Brand Statuses** — per brand product: stage dropdown + score 1-10 + notes + last evaluated; edit popup (gated)
+  7. **Services** — external system service accounts
+  8. **Activity Timeline** — AJAX cursor pagination, `showCompanyLink=false`
 
 **Forms:** Separate `/create` and `/{id}/edit` Vue pages — name, primary domain, timezone.
 
@@ -336,10 +338,10 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 - No per-row Our Org toggle — bulk only
 
 **Show (`/people/{id}`):**
-- Card header gradient: `from-brand-600 to-brand-800` (brand magenta)
+- Card header gradient: `from-brand-600 to-brand-800` for Our Org people, `from-[#1c2028] to-[#252d3b]` for regular people
 - "Unmark Our Org" / "Our Org" button in header (reloads page on success)
 - Card sections:
-  1. **Identities** — type (email/slack_user/discord_user), value, system_slug, is_team_member, is_bot; add/remove (gated)
+  1. **Identities** — type (email/slack_id/discord_id/phone/linkedin/twitter), value; add/remove (gated, add form has Type and Value fields only)
   2. **Companies** — linked via company_person pivot; manage links (gated)
   3. **Hourly Activity** — bar chart (last 90 days, by hour of day)
   4. **Activity Availability** — heatmap grid (day-of-week × hour)
@@ -371,7 +373,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 - Messages partial: chat layout (Slack/Discord) or bubble layout (email/ticket)
 - Slack messages: `<@USERID>` resolved to display names via `slackMentionMap`
 - Discord messages: `<@ID>` resolved via `discordMentionMap`
-- Participants list, notes section
+- Notes section
 
 **Quick-view modal (`/conversations/{id}/modal`):**
 - `?preview=1` — last 3 messages (email/ticket) or last 20 top-level messages (Slack/Discord) + their replies
@@ -461,7 +463,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 **Controller:** `FilteringController`
 **Tabs:** Domains / Emails / Subjects / Contacts
 
-- **Domains/Emails/Subjects:** textarea with newline/comma parsing, lowercase, unique, stored in `SystemSetting` JSON
+- **Domains/Emails/Subjects:** TagInput component for domain, email, subject rule management, lowercase, unique, stored in `SystemSetting` JSON
 - **Contacts:** filterable people list, add/remove from `filter_contacts` table
 - `applyRule()` accepts `rule_values[]` array (multiple values); falls back to single `rule_value` for backwards compat
 - Conversation `archiveWithRule()` same pattern
@@ -471,10 +473,11 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 ### Configuration: Our Organization (`/data-relations/our-company`)
 
 **Controller:** `OurCompanyController`
-**Tabs:** Team Domains / Team Members
+**Tabs:** Members / Team Identities / Email Domains
 
-- **Team domains:** text input, saves to SystemSetting, marks matching identities as `is_team_member=true`
-- **Team members:** people with `is_our_org=true` OR linked `is_team_member` identity
+- **Members:** people with `is_our_org=true` OR linked `is_team_member` identity
+- **Team Identities:** identities marked as `is_team_member=true`
+- **Email Domains:** text input, saves to SystemSetting, marks matching identities as `is_team_member=true`
 
 ---
 
@@ -505,7 +508,7 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 **Filter types:**
 | Type | Criteria |
 |------|---------|
-| `email_address` | `{address, direction: any/to/from}` — matches email conversations with that address |
+| `email_message` | `{mailbox_slugs, address, direction: any/to/from}` — matches email conversations with that address |
 | `email_subject` | `{keyword}` — matches conversations (email/ticket) with subject containing keyword |
 | `discord_any` | `{guild_id?, channel_id?}` — matches Discord conversations, optionally filtered |
 | `slack_any` | `{channel_id?}` — matches Slack conversations, optionally filtered |
@@ -678,16 +681,19 @@ All global styles in **`resources/css/app.css`**. Do not invent per-page inline 
 | `.row-action` | Gray text, hover brand |
 | `.row-action-danger` | Gray text, hover red |
 | `.empty-state` | Gray italic empty message |
+| `.topbar` | TopBar dark glass header — same dark styling as sidebar |
+| `.modal-panel` | Standard modal dialog sizing (800px max-width, 95% width, 90vh max-height) |
+| `.modal-panel-sm` | Smaller modal dialog sizing (700px max-width, 95% width, 90vh max-height) |
 
 ### Brand Colors
 
 | Token | Hex | Usage |
 |-------|-----|-------|
-| **Primary** | `#A40057` | Logo, primary buttons, active states. `--color-brand-*` shades from brand-50 to brand-900. |
+| **Primary** | `#e00078` | Logo, primary buttons, active states. `--color-brand-*` shades from brand-50 to brand-900. |
 | **Dark base** | `#212731` | Top header, sidebar, dark UI elements. |
 | **Light accent** | `#F1FFFA` | AI-related features. Light shades only. |
 
-`--color-brand-600` = `#A40057` (anchor point of the scale).
+`--color-brand-600` = `#e00078` (anchor point of the scale).
 
 ### Sidebar
 
@@ -747,7 +753,7 @@ Always `.sidebar-link` / `.sidebar-icon` / `.sidebar-section` / `.sidebar-divide
 - Per-row toggle removed from people/index — bulk only
 
 ### Person Show Card
-- Header gradient: `from-brand-600 to-brand-800` (brand magenta) — never dark indigo or arbitrary colors
+- Header gradient: `from-brand-600 to-brand-800` for Our Org people, `from-[#1c2028] to-[#252d3b]` for regular people
 
 ### Conversation Preview Modal
 - `?preview=1`: last 3 msgs (email/ticket), last 20 top-level (chat) + replies
@@ -837,7 +843,7 @@ All tests run on PostgreSQL (same engine as production). No `markTestSkipped` fo
 A proper **Model Context Protocol** server (JSON-RPC 2.0) is built into contact-monitor.
 It exposes read resources and write tools for AI clients (Claude Desktop, automated workflows, etc.).
 
-**Entry point:** `POST /mcp` (single JSON-RPC endpoint)
+**Entry point:** `POST /api/mcp` (single JSON-RPC endpoint)
 **Controller:** `App\Http\Controllers\Api\McpController`
 **Protocol:** MCP spec — `initialize`, `resources/list`, `resources/read`, `tools/list`, `tools/call`
 
@@ -864,7 +870,7 @@ It exposes read resources and write tools for AI clients (Claude Desktop, automa
 
 ```
 API (no session, stateless):
-  POST /mcp    → McpAuth middleware → McpController::handle()
+  POST /api/mcp    → McpAuth middleware → McpController::handle()
 ```
 
 ---
@@ -895,8 +901,6 @@ Write tools called with `"_context": "chat"` in params require a two-step confir
 | `notes://list` | Notes. Params: `entity_type` (App\Models\Company etc.), `entity_id` |
 | `smart_notes://list` | Smart notes. Params: `status` (unrecognized/recognized), `page` |
 | `audit_log://list` | Audit log entries. Params: `entity_type`, `entity_id`, `action`, `from`, `to`, `page` |
-| `timeline://company/{id}` | Company activity timeline (cursor-paginated). Params: `cursor` |
-| `timeline://person/{id}` | Person activity timeline (cursor-paginated). Params: `cursor` |
 
 ---
 
@@ -941,7 +945,7 @@ input_json (jsonb), output_json (jsonb), context (chat/automated/unknown),
 ip_address, created_at
 ```
 
-**Browse Data sidebar:** "AI Log" entry, disabled when `mcp_enabled=false`.
+**Configuration sidebar:** MCP Log is under Configuration → MCP Server, not in Browse Data sidebar.
 
 ---
 
@@ -1022,8 +1026,8 @@ AI is invoked server-side using configured provider credentials.
 - **Analyze** — AI chat interface, uses AppLayout with Analyze-specific sidebar. Enabled when `ai_credentials` exist AND `ai_model_configs` has `analyze` action. Otherwise disabled with tooltip.
 - **Configuration** — settings section with configuration sidebar
 
-**Browse Data:**
-- **MCP Log** — log of MCP tool calls
+**Configuration:**
+- **MCP Log** — log of MCP tool calls (under MCP Server section)
 
 ---
 
@@ -1047,7 +1051,7 @@ Each action type has: `credential_id + model_name` + optional `helper_credential
 | Context | Confirmation required? |
 |---------|----------------------|
 | Analyze chat (interactive) | Yes — AI summarizes planned action, user confirms |
-| Company Analysis | No — writes to dedicated `company_analyses` table only |
+| Company Analysis | No — writes to dedicated `analysis_*` tables only |
 | Notes Recognition | No — automated, no user interface |
 | Conversation Summary | No — writes to `conversation_summaries` table only |
 
@@ -1085,10 +1089,6 @@ ai_projects  (id, user_id→users, name varchar(100), created_at, updated_at)
 
 ai_chat_participants  (id, chat_id→ai_chats, user_id→users,
                        added_by→users nullable, added_at timestamp)
-
-company_analyses  (id, company_id→companies, content text markdown,
-                   model_name, created_at)
-                   -- multiple per company, latest = current
 
 conversation_summaries  (id, conversation_id→conversations nullable,
                           company_id nullable, person_id nullable,
@@ -1128,7 +1128,7 @@ app/Ai/
 
 ### Connect AI — Credentials Tab
 
-- Table of saved credentials (name, provider, status, last tested)
+- Table of saved credentials (name, provider)
 - Add/Edit: name, provider dropdown, API key input, Save button
 - **Validation on save:** test connection before persisting — if fails, show error, do not save
 - Test Connection button on existing credentials
@@ -1137,12 +1137,11 @@ app/Ai/
 ### Connect AI — Models Tab
 
 - Per action type: credential dropdown → model dropdown (fetched from provider API)
-- Helper model: same credential+model selectors, optional
 - Pricing Overrides section: table of known models with default price, editable input/output per 1M tokens
 
 ### AI Costs Page
 
-- Period selector (default: last 30 days)
+- Period selector (no default date range — shows all time when no dates selected)
 - Summary cards: total input tokens, total output tokens, estimated total cost
 - Table: action type, model, entity link (e.g. Company #5 "Acme"), prompt excerpt, input tokens, output tokens, cost, date
 
@@ -1154,7 +1153,7 @@ app/Ai/
 |-------|-----------|------------|
 | claude-opus-4-6 | 15.00 | 75.00 |
 | claude-sonnet-4-6 | 3.00 | 15.00 |
-| claude-haiku-4-5 | 0.80 | 4.00 |
+| claude-haiku-4-5-20251001 | 0.80 | 4.00 |
 | gpt-4o | 2.50 | 10.00 |
 | gpt-4o-mini | 0.15 | 0.60 |
 | gpt-4-turbo | 10.00 | 30.00 |
@@ -1163,6 +1162,8 @@ app/Ai/
 | gemini-1.5-flash | 0.075 | 0.30 |
 | gemini-2.0-flash | 0.10 | 0.40 |
 | grok-2 | 2.00 | 10.00 |
+
+Note: The registry contains additional models beyond those listed here.
 
 ---
 

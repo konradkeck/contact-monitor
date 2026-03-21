@@ -102,8 +102,8 @@
     </div>
 
     <!-- Step Form Modal -->
-    <div v-if="showForm" class="modal-overlay" @click.self="showForm = false">
-      <div class="modal-center" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+    <div v-if="showForm" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay" @click.self="showForm = false">
+      <div class="bg-white rounded-lg shadow-xl modal-panel-sm">
         <div class="p-5">
           <h2 class="text-lg font-bold mb-4">{{ editing ? 'Edit Step' : 'Create Step' }}</h2>
           <form @submit.prevent="saveStep" class="space-y-4">

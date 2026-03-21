@@ -1,6 +1,6 @@
 <template>
-  <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-center" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+  <div v-if="visible" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay" @click.self="$emit('close')">
+    <div class="bg-white rounded-lg shadow-xl modal-panel">
       <div class="p-5">
         <h2 class="text-lg font-bold mb-1">Analyse Company</h2>
         <p class="text-sm text-gray-500 mb-4">Select steps and optionally edit prompts before running.</p>

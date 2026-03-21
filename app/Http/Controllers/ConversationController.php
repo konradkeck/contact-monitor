@@ -135,9 +135,12 @@ class ConversationController extends Controller
             $q->where('is_archived', true);
             $this->applySystemFilters($q, $filterDomains, $filterEmails, $filterSubjectsCount, 'include');
         });
+        $excludeFiltered = function ($q) use ($filterDomains, $filterEmails, $filterSubjectsCount) {
+            $this->applySystemFilters($q, $filterDomains, $filterEmails, $filterSubjectsCount, 'exclude');
+        };
         $tabCounts = [
-            'unassigned' => Conversation::whereNull('company_id')->tap($active)->count(),
-            'assigned' => Conversation::whereNotNull('company_id')->tap($active)->count(),
+            'unassigned' => Conversation::whereNull('company_id')->tap($active)->tap($excludeFiltered)->count(),
+            'assigned' => Conversation::whereNotNull('company_id')->tap($active)->tap($excludeFiltered)->count(),
             'filtered' => (clone $filteredQuery)->count(),
         ];
 
@@ -216,7 +219,7 @@ class ConversationController extends Controller
         }
 
         $q = $search;
-        $activeConvFilterCount = (($f_date_from !== '' || $f_date_to !== '') ? 1 : 0) + (count($systems) > 0 ? 1 : 0);
+        $activeConvFilterCount = ((!empty($f_date_from) || !empty($f_date_to)) ? 1 : 0) + (count($systems) > 0 ? 1 : 0);
 
         // Serialize conversations for JSON
         $convItems = $conversations->map(function ($conv) use ($convParticipants) {

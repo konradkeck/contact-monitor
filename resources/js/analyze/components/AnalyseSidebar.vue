@@ -81,7 +81,7 @@
 
   <!-- New project modal -->
   <Teleport to="body">
-    <div v-if="newProjectModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black/40" @click.self="newProjectModal = false">
+    <div v-if="newProjectModal" class="fixed inset-0 flex items-center justify-center z-50 modal-overlay" @click.self="newProjectModal = false">
       <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 w-72 shadow-xl">
         <h3 class="text-sm font-semibold text-gray-200 mb-3">New Project</h3>
         <input
@@ -102,7 +102,7 @@
 
   <!-- Rename modal -->
   <Teleport to="body">
-    <div v-if="renameModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black/40" @click.self="renameModal = false">
+    <div v-if="renameModal" class="fixed inset-0 flex items-center justify-center z-50 modal-overlay" @click.self="renameModal = false">
       <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 w-72 shadow-xl">
         <h3 class="text-sm font-semibold text-gray-200 mb-3">Rename</h3>
         <input
@@ -122,7 +122,7 @@
 
   <!-- Move to project modal -->
   <Teleport to="body">
-    <div v-if="moveModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black/40" @click.self="moveModal = false">
+    <div v-if="moveModal" class="fixed inset-0 flex items-center justify-center z-50 modal-overlay" @click.self="moveModal = false">
       <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 w-72 shadow-xl">
         <h3 class="text-sm font-semibold text-gray-200 mb-3">Move to project</h3>
         <select v-model="moveProjectId" class="input w-full text-sm mb-3">
@@ -139,7 +139,7 @@
 
   <!-- Share modal -->
   <Teleport to="body">
-    <div v-if="shareModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black/40" @click.self="shareModal = false">
+    <div v-if="shareModal" class="fixed inset-0 flex items-center justify-center z-50 modal-overlay" @click.self="shareModal = false">
       <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 w-80 shadow-xl">
         <h3 class="text-sm font-semibold text-gray-200 mb-3">Share conversation</h3>
         <div class="flex gap-2 mb-3">
@@ -158,7 +158,7 @@
 
   <!-- Confirm delete modal -->
   <Teleport to="body">
-    <div v-if="deleteModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black/40" @click.self="deleteModal = false">
+    <div v-if="deleteModal" class="fixed inset-0 flex items-center justify-center z-50 modal-overlay" @click.self="deleteModal = false">
       <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 w-72 shadow-xl">
         <h3 class="text-sm font-semibold text-gray-200 mb-2">Confirm delete</h3>
         <p class="text-xs text-gray-400 mb-4">Are you sure you want to delete "{{ deleteTarget?.title || deleteTarget?.name }}"? This cannot be undone.</p>
@@ -172,7 +172,7 @@
 
   <!-- Pin to project modal (for shared chats) -->
   <Teleport to="body">
-    <div v-if="pinModal" class="fixed inset-0 flex items-center justify-center z-50 bg-black/40" @click.self="pinModal = false">
+    <div v-if="pinModal" class="fixed inset-0 flex items-center justify-center z-50 modal-overlay" @click.self="pinModal = false">
       <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 w-72 shadow-xl">
         <h3 class="text-sm font-semibold text-gray-200 mb-3">Add to project</h3>
         <select v-model="pinProjectId" class="input w-full text-sm mb-3">
@@ -337,7 +337,7 @@ async function branchSharedToPrivate(chat) {
   const res = await fetch(`/analyze/chats/${chat.id}/branch`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken() },
-    body: JSON.stringify({ message_id: chat.last_message_id }),
+    body: JSON.stringify({}),
   })
   const data = await res.json()
   if (data.chat) router.visit(`/analyze/c/${data.chat.id}`)

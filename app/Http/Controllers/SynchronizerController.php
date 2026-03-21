@@ -245,7 +245,7 @@ class SynchronizerController extends Controller
     public function testConnection(Request $request): JsonResponse
     {
         try {
-            $res = $this->api()->post('/connections/test', $request->all());
+            $res = $this->api()->timeout(30)->post('/connections/test', $request->all());
 
             return response()->json($res->json(), $res->status());
         } catch (\Exception $e) {

@@ -312,11 +312,17 @@ class AiChatController extends Controller
         abort_unless($chat->canAccess(auth()->id()), 403);
 
         $data = $request->validate([
-            'message_id' => ['required', 'integer', 'exists:ai_chat_messages,id'],
+            'message_id' => ['nullable', 'integer', 'exists:ai_chat_messages,id'],
         ]);
 
-        $sourceMessage = AiChatMessage::findOrFail($data['message_id']);
-        abort_unless($sourceMessage->chat_id === $chat->id, 422);
+        if (!empty($data['message_id'])) {
+            $sourceMessage = AiChatMessage::findOrFail($data['message_id']);
+            abort_unless($sourceMessage->chat_id === $chat->id, 422);
+        } else {
+            $sourceMessage = AiChatMessage::where('chat_id', $chat->id)
+                ->orderByDesc('id')->first();
+            abort_unless($sourceMessage, 422, 'Chat has no messages to branch from.');
+        }
 
         $branchedChat = null;
 

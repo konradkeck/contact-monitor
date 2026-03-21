@@ -94,7 +94,7 @@
           :activities="tlItems"
           :initialCursor="tlNextCursor"
           :timelineUrl="timelineUrl"
-          gridClass="relative z-10"
+          gridClass="relative z-10 grid grid-cols-[1fr_2rem_1fr]"
           @openModal="openConvQuickView"
         />
       </div>
@@ -162,7 +162,7 @@ const timelineUrl = computed(() => {
     p.set('exclude_type', 'conversation')
   }
 
-  return `/activities/timeline?${p}`
+  return `/activity/timeline?${p}`
 })
 
 function setTab(tab) {

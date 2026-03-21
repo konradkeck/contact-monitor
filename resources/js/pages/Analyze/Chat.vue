@@ -202,7 +202,7 @@
 
     <!-- Delete confirmation -->
     <Teleport to="body">
-      <div v-if="deleteConfirm" class="fixed inset-0 flex items-center justify-center z-50 bg-black/40" @click.self="deleteConfirm = false">
+      <div v-if="deleteConfirm" class="fixed inset-0 flex items-center justify-center z-50 modal-overlay" @click.self="deleteConfirm = false">
         <div class="bg-white border border-gray-200 rounded-xl p-5 w-72 shadow-xl">
           <h3 class="text-sm font-semibold text-gray-800 mb-2">Delete conversation?</h3>
           <p class="text-xs text-gray-500 mb-4">This cannot be undone.</p>

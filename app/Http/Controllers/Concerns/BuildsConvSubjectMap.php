@@ -103,8 +103,9 @@ trait BuildsConvSubjectMap
         $ourOrgNames = [];
         if (! empty($senderNames)) {
             $uniqueSenders = array_unique($senderNames);
-            \App\Models\Person::notMerged()->where('is_our_org', true)
-                ->orWhereHas('identities', fn ($q) => $q->where('is_team_member', true))
+            \App\Models\Person::notMerged()
+                ->where(fn ($q) => $q->where('is_our_org', true)
+                    ->orWhereHas('identities', fn ($q2) => $q2->where('is_team_member', true)))
                 ->get(['first_name', 'last_name'])
                 ->each(function ($p) use ($uniqueSenders, &$ourOrgNames) {
                     if (in_array($p->full_name, $uniqueSenders, true)) {

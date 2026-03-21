@@ -164,7 +164,7 @@ function submit() {
       entity_id: s.entity_id,
     })),
   }
-  router.post(`/smart-notes/${props.smartNote.id}/save-recognition`, payload, {
+  router.post(`/smart-notes/${props.smartNote.id}/recognize`, payload, {
     onFinish: () => { processing.value = false },
   })
 }
