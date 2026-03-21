@@ -49,8 +49,6 @@ class ActivitiesTest extends TestCase
 
     public function test_activity_index_shows_activity(): void
     {
-        $this->markTestSkipped('PostgreSQL JSON operators in ActivityController::index() — fails on SQLite');
-
         $this->createServer();
 
         $company = Company::create(['name' => 'Activity Co']);
@@ -77,8 +75,6 @@ class ActivitiesTest extends TestCase
 
     public function test_activity_timeline_with_cursor_pagination(): void
     {
-        $this->markTestSkipped('PostgreSQL JSON operators in ActivityController — fails on SQLite');
-
         $this->createServer();
 
         $company = Company::create(['name' => 'Timeline Co']);
@@ -102,6 +98,34 @@ class ActivitiesTest extends TestCase
         $this->createServer();
 
         $response = $this->get(route('activity.timeline', ['exclude_type' => 'conversation']));
+
+        $response->assertStatus(200);
+    }
+
+    public function test_activity_timeline_search(): void
+    {
+        $this->createServer();
+
+        $company = Company::create(['name' => 'Search Target Co']);
+
+        Activity::create([
+            'company_id'  => $company->id,
+            'type'        => 'note',
+            'occurred_at' => now(),
+            'meta_json'   => ['description' => 'important meeting notes'],
+        ]);
+
+        $response = $this->get(route('activity.timeline', ['q' => 'meeting']));
+
+        $response->assertStatus(200);
+    }
+
+    public function test_activity_timeline_search_empty_query(): void
+    {
+        $this->createServer();
+
+        // Empty search should not crash
+        $response = $this->get(route('activity.timeline', ['q' => '']));
 
         $response->assertStatus(200);
     }

@@ -30,7 +30,7 @@ class BrandProductController extends Controller
             'slug' => 'nullable|string|max:255|unique:brand_products,slug',
         ]);
 
-        $data['slug'] ??= Str::slug($data['name'].($data['variant'] ? '-'.$data['variant'] : ''));
+        $data['slug'] ??= Str::slug($data['name'].(! empty($data['variant']) ? '-'.$data['variant'] : ''));
 
         BrandProduct::create($data);
 

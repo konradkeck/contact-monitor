@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Contact Monitor** is a multi-channel contact hub that centralizes a company's communications with clients across email, Gmail, Slack, Discord, tickets, and other integrations. It links conversations and activities to company and person profiles, tracks brand product pipeline stages, and provides a unified activity timeline across all channels.
 
-**Stack:** Laravel 12 · PHP 8.3 · PostgreSQL 16 · Tailwind CSS v4 · Vite · Alpine.js
+**Stack:** Laravel 12 · PHP 8.3 · PostgreSQL 16 · Tailwind CSS v4 · Vite · Alpine.js · **Vue 3 + Inertia.js** (Analyse section only) · **Laravel Reverb** (WebSocket)
 
 **No queue worker, no scheduler** — all operations are synchronous. No Redis; sessions and cache use database tables.
 
@@ -30,14 +30,17 @@ docker exec contact-monitor_app php artisan migrate
 # Artisan tinker
 docker exec contact-monitor_app php artisan tinker
 
-# Run tests (SQLite in-memory)
+# Run tests (PostgreSQL — uses contact-monitor-test database)
 docker exec contact-monitor_app php artisan test
 
 # Run a specific test file
 docker exec contact-monitor_app php artisan test tests/Feature/SetupTest.php
 
-# Rebuild frontend assets
+# Rebuild frontend assets (includes Vue compilation)
 docker exec contact-monitor_app npm run build
+
+# Start Reverb WebSocket server (dev only — production: run as daemon)
+docker exec contact-monitor_app php artisan reverb:start
 
 # Deploy to production
 ./ops/deploy-production.sh
@@ -535,9 +538,9 @@ Located in `app/Integrations/`. Known types: `WhmcsIntegration`, `MetricscubeInt
 
 **Notes created from Smart Notes:** `source='smart_note'`, `meta_json.smart_note_id` = SmartNote id, `meta_json.as_internal_note` = bool.
 
-**Unrecognize:** Uses `whereJsonContains('meta_json->smart_note_id', $id)` — **PostgreSQL only**, mark tests as skipped on SQLite.
+**Unrecognize:** Uses `whereJsonContains('meta_json->smart_note_id', $id)` + `forceDelete()` to permanently remove notes.
 
-**Tests:** `tests/Feature/SmartNotesTest.php` (22 tests, 1 skipped on SQLite for JSON operator).
+**Tests:** `tests/Feature/SmartNotesTest.php` (24 tests).
 
 ---
 
@@ -730,15 +733,19 @@ function entityClearSelection() {
 
 ### PATTERN 5 — Table Section
 
+**Create/Add buttons go OUTSIDE the table card** — either in `page-header` (standalone pages) or in a title row above the card (tabbed pages, sub-sections). The table card (`card-xl-overflow`) contains only the table itself. Never put action buttons inside `card-header` of a table card.
+
 **Standard table in a card:**
 ```blade
+{{-- Title + action button ABOVE the table card --}}
+<div class="flex items-center justify-between mb-4">
+    <h2 class="section-header-title">Title</h2>
+    @can('data_write')
+    <a href="{{ route('entity.create') }}" class="btn btn-sm btn-primary">Add</a>
+    @endcan
+</div>
+
 <div class="card-xl-overflow">    {{-- use card-xl-overflow when card contains a table --}}
-    <div class="card-header">
-        <span class="section-header-title">Title</span>
-        @can('data_write')
-        <a href="{{ route('entity.create') }}" class="btn btn-sm btn-primary">Add</a>
-        @endcan
-    </div>
     <table class="w-full text-sm">
         <thead class="tbl-header">
             <tr>
@@ -760,6 +767,20 @@ function entityClearSelection() {
     @if($items->hasPages())
     <div class="px-4 py-3 border-t border-gray-100">{{ $items->links() }}</div>
     @endif
+</div>
+```
+
+**Standalone page variant** — button in `page-header`:
+```blade
+<div class="page-header">
+    <h1 class="page-title">Entities</h1>
+    @can('data_write')
+    <a href="{{ route('entity.create') }}" class="btn btn-sm btn-primary">Add</a>
+    @endcan
+</div>
+
+<div class="card-xl-overflow">
+    <table>...</table>
 </div>
 ```
 
@@ -1031,6 +1052,7 @@ All global styles in **`resources/css/app.css`**. Do not invent per-page inline 
 | `.modal-overlay` | Full-screen glassmorphism scrim |
 | `.sidebar` | Dark sidebar shell |
 | `.sidebar-section` | Muted uppercase section label |
+| `.sidebar-section-ai` | AI gradient text on section label (add to `.sidebar-section`) |
 | `.sidebar-link` | Nav link — `is-active` for active, `is-disabled` for disabled |
 | `.sidebar-icon` | Icon inside `.sidebar-link` — color managed by parent state |
 | `.sidebar-divider` | Horizontal rule between sidebar sections |
@@ -1076,6 +1098,8 @@ Always `.sidebar-link` / `.sidebar-icon` / `.sidebar-section` / `.sidebar-divide
 5. Page titles → `.page-header` + `.page-title`.
 6. Section headers → `.section-header` + `.section-header-title`.
 7. New repeated pattern → add class to `app.css` before second use.
+8. **Disabled elements must always explain why** — show a short text near the disabled control explaining the prerequisite (e.g. "Add an AI credential to configure model assignments"). Sidebar disabled items use `title` tooltip; page-level disabled sections add visible explanatory text.
+9. **AI accent** — use `.sidebar-section-ai` for AI section labels. Use `ai-icon.svg` sparkle for AI-powered items in nav. Keep accents subtle and limited to navigation/labels.
 
 ---
 
@@ -1164,12 +1188,14 @@ Tailwind CSS v4 compiled by Vite. Assets in `public/build/`. `@vite` directive i
 
 `flatpickr` — date pickers (only runtime JS dependency outside of Alpine.js which is bundled).
 
+`marked` — markdown rendering for AI assistant messages in the Analyse chat interface (`ChatMessage.vue`).
+
 ---
 
 ## Tests
 
 PHPUnit with two suites: `Unit` (`tests/Unit/`) and `Feature` (`tests/Feature/`)
-Test database: SQLite in-memory (`:memory:`) — configured in `phpunit.xml`
+Test database: PostgreSQL (`contact-monitor-test`) — configured in `phpunit.xml`. Tests run on the same engine as production to catch real SQL issues.
 
 ### Testing Rules
 
@@ -1188,20 +1214,686 @@ Test database: SQLite in-memory (`:memory:`) — configured in `phpunit.xml`
 | `ApiIngestTest.php` | `/api/ingest/batch` — `X-Ingest-Secret` authentication |
 | `DashboardTest.php` | Dashboard stats, require.setup middleware redirect |
 | `SynchronizerTest.php` | Synchronizer connections page, server listing |
+| `ActivitiesTest.php` | Activity timeline, search (PostgreSQL JSON), cursor pagination |
+| `MergeTest.php` | Company/person merge, unmerge, scope exclusions, ACL |
+| `SmartNotesTest.php` | Smart note filters CRUD, recognize/unrecognize flow, scan |
+| `McpTest.php` | MCP auth, protocol, resources, tools, confirmation flow |
+| `AiCredentialsTest.php` | AI credentials CRUD, model config, costs pages, ACL (16 tests) |
+| `BrandProductsTest.php` | Brand product (segmentation) CRUD, optional fields |
+| `AnalyseTest.php` | Analyse chat UI — CRUD, messages, branching, sharing, projects, search, ACL (92 tests) |
 
-### Known SQLite limitations
+### No SQLite — PostgreSQL only
 
-Tests run on SQLite. Some features use PostgreSQL-specific SQL that doesn't work in SQLite — those tests use `$this->markTestSkipped(...)`:
+All tests run on PostgreSQL (same engine as production). No `markTestSkipped` for DB compatibility — every test must pass. This catches real SQL issues (JSON operators, `DISTINCT ON`, window functions) that SQLite would silently ignore.
 
-- `DISTINCT ON (...)` — used in company/person show pages
-- `meta_json->>'key'` JSON operators — used in ActivityController queries
-- Window functions (`OVER`, `PARTITION BY`) — used in person show page
+---
 
-Do not remove these skips. When the full test suite runs in CI against PostgreSQL, they will execute.
+## MCP Server (AI Integration)
 
-### Pre-existing known failures (SQLite only)
+### Overview
 
-- `ActivitiesTest::test_activity_index_shows_activity` — PostgreSQL JSON operators in `ActivityController::index()`
-- `ActivitiesTest::test_activity_timeline_with_cursor_pagination` — same cause
+A proper **Model Context Protocol** server (JSON-RPC 2.0) is built into contact-monitor.
+It exposes read resources and write tools for AI clients (Claude Desktop, automated workflows, etc.).
 
-These are not regressions — they fail because the test database is SQLite. The features work correctly on PostgreSQL (production and staging).
+**Entry point:** `POST /mcp` (single JSON-RPC endpoint)
+**Controller:** `App\Http\Controllers\Api\McpController`
+**Protocol:** MCP spec — `initialize`, `resources/list`, `resources/read`, `tools/list`, `tools/call`
+
+---
+
+### Access Control
+
+| Caller origin | Auth required |
+|---------------|--------------|
+| localhost / 127.0.0.1 | None — auto-allowed |
+| External | `Authorization: Bearer <api_key>` header |
+
+**Settings** (in `SystemSetting`):
+- `mcp_enabled` — master on/off toggle (bool)
+- `mcp_external_enabled` — allow external connections (bool)
+- `mcp_api_key` — hashed API key for external access (string)
+
+**Middleware:** `App\Http\Middleware\McpAuth`
+- Returns MCP error `-32001` (Unauthorized) when auth fails instead of HTTP 401
+
+---
+
+### Route Middleware Stack addition
+
+```
+API (no session, stateless):
+  POST /mcp    → McpAuth middleware → McpController::handle()
+```
+
+---
+
+### Confirmation System (chat context)
+
+Write tools called with `"_context": "chat"` in params require a two-step confirmation:
+
+1. First call → returns `{"confirmation_required": true, "description": "...", "confirm_token": "abc123"}`
+2. Second call with `"_confirm_token": "abc123"` → executes the action
+
+**Token storage:** Cache table (existing database cache driver), TTL 60 seconds, key `mcp_confirm_{token}`.
+**Automated context:** `"_context": "automated"` or no `_context` → skips confirmation entirely.
+
+---
+
+### Resources (read)
+
+| Resource URI | Description |
+|-------------|-------------|
+| `companies://list` | Paginated company list (name, primary domain, id). Params: `page`, `q` (search) |
+| `companies://{id}` | Company + domains + aliases + accounts + brand statuses + linked people |
+| `people://list` | Paginated people list. Params: `page`, `q`, `is_our_org` |
+| `people://{id}` | Person + identities + linked companies |
+| `conversations://list` | Conversation headers. Params: `page`, `company_id`, `person_id`, `channel_type` |
+| `conversations://{id}` | 3-level depth controlled by `depth` param: `headers` (default) / `recent` (last 20 msgs) / `full` (all msgs) |
+| `activity://search` | Activity search. Params: `q`, `from`, `to`, `type`, `systems[]`, `company_id`, `person_id` |
+| `notes://list` | Notes. Params: `entity_type` (App\Models\Company etc.), `entity_id` |
+| `smart_notes://list` | Smart notes. Params: `status` (unrecognized/recognized), `page` |
+| `audit_log://list` | Audit log entries. Params: `entity_type`, `entity_id`, `action`, `from`, `to`, `page` |
+| `timeline://company/{id}` | Company activity timeline (cursor-paginated). Params: `cursor` |
+| `timeline://person/{id}` | Person activity timeline (cursor-paginated). Params: `cursor` |
+
+---
+
+### Tools (write)
+
+**Companies:**
+- `company_create` — `{name, primary_domain?}`
+- `company_update` — `{id, name?, timezone?}`
+- `company_add_domain` — `{company_id, domain, set_primary?}`
+- `company_add_account` — `{company_id, system_type, system_slug, external_id}`
+- `company_set_brand_status` — `{company_id, brand_product_id, stage, score?, notes?}`
+- `company_merge` — `{source_id, target_id}` — merges source into target (sets merged_into_id)
+
+**People:**
+- `person_create` — `{first_name, last_name?, is_our_org?}`
+- `person_update` — `{id, first_name?, last_name?}`
+- `person_add_identity` — `{person_id, type, value, system_slug?}`
+- `person_link_company` — `{person_id, company_id, role?, started_at?, ended_at?}`
+- `person_mark_our_org` — `{person_id, is_our_org}` — sets/clears is_our_org flag
+- `person_merge` — `{source_id, target_id}`
+
+**Notes:**
+- `note_create` — `{content, entity_type, entity_id, source?}` — source defaults to `'mcp'`; `meta_json.as_internal_note` can be passed
+- `note_delete` — `{note_id}`
+
+**Smart Notes:**
+- `smart_note_recognize` — `{smart_note_id, segments: [{content, company_id?, person_id?}]}`
+
+**Conversations:**
+- `conversation_archive` — `{conversation_id}`
+
+All write tools log to `ai_logs` table.
+
+---
+
+### AI Log
+
+**Table:** `ai_logs`
+```
+id, user_id (nullable), tool_name, entity_type (nullable), entity_id (nullable),
+input_json (jsonb), output_json (jsonb), context (chat/automated/unknown),
+ip_address, created_at
+```
+
+**Browse Data sidebar:** "AI Log" entry, disabled when `mcp_enabled=false`.
+
+---
+
+### Configuration Pages
+
+**Connect AI:** `GET /configuration/ai` → `AiConfigController::index()`
+- Tabs: Credentials, Model Assignment (disabled when no credentials)
+
+**MCP Server:** `GET /configuration/mcp-server` → `AiConfigController::mcpServer()`
+- `POST /configuration/mcp-server/settings` → `AiConfigController::updateSettings()`
+- `POST /configuration/mcp-server/regenerate-key` → `AiConfigController::regenerateKey()`
+- Sections: Enable/Disable toggle, Endpoint URL, External access + API key
+
+**Sidebar:** In Configuration → "AI Functionality" section with entries: Connect AI, Company Analysis (disabled), AI Costs (disabled when no credentials), MCP Server.
+
+---
+
+### Data Model
+
+```
+mcp_logs  (id, user_id→users nullable, tool_name, entity_type, entity_id,
+           input_json jsonb, output_json jsonb, context, ip_address, created_at)
+```
+
+No `updated_at` — append-only log. **Note: was `ai_logs`, renamed to `mcp_logs`.**
+
+---
+
+### MCP Implementation Files
+
+| Path | Purpose |
+|------|---------|
+| `app/Http/Middleware/McpAuth.php` | Auth middleware (localhost bypass + Bearer token check) |
+| `app/Http/Controllers/Api/McpController.php` | JSON-RPC dispatcher |
+| `app/Mcp/McpServer.php` | Protocol handler (initialize, resources/list, tools/list etc.) |
+| `app/Mcp/Resources/` | One class per resource URI |
+| `app/Mcp/Tools/` | One class per tool |
+| `app/Models/McpLog.php` | McpLog model (was AiLog) |
+| `app/Http/Controllers/AiConfigController.php` | Connect AI + MCP Server configuration |
+| `app/Http/Controllers/McpLogController.php` | MCP Log browse (was AiLogController) |
+| `tests/Feature/McpTest.php` | MCP auth, resources, tools tests |
+
+---
+
+### Tests for MCP
+
+`tests/Feature/McpTest.php`:
+- Auth: unauthenticated external request returns error `-32001`
+- Auth: localhost bypasses auth
+- Auth: valid Bearer token allows access
+- `initialize` returns server info + capabilities
+- `resources/list` returns all resource descriptors
+- `tools/list` returns all tool descriptors
+- `resources/read companies://list` returns company data
+- `resources/read people://list` returns people data
+- `tools/call company_create` creates company
+- `tools/call note_create` creates note + logs to mcp_logs
+- Chat context confirmation flow (two-step)
+- MCP disabled returns error `-32002`
+
+---
+
+## AI Functionality
+
+### Overview
+
+AI features built into contact-monitor. Separate from MCP (which is an external protocol).
+AI is invoked server-side using configured provider credentials.
+
+**Sections in Configuration → AI Functionality:**
+- **Connect AI** — credentials CRUD + model-per-action config + pricing overrides
+- **Company Analysis** — config for analysis prompt + data scope (details TBD)
+- **AI Costs** — usage log with token counts + estimated costs
+- **MCP Server** — existing MCP server config (moved here)
+
+**Top Navigation:**
+- **Analyse** — full-screen ChatGPT-like chat interface (own layout, replaces app layout). Enabled when `ai_credentials` exist AND `ai_model_configs` has `analyze` action. Otherwise disabled with tooltip.
+- **Browse Data** — CRM section (sidebar visible)
+- **Configuration** — settings section (sidebar visible)
+
+**Browse Data:**
+- **MCP Log** — log of MCP tool calls
+
+---
+
+### AI Action Types
+
+| Constant | Purpose |
+|----------|---------|
+| `analyze` | Analyse chat (ChatGPT-like interface) |
+| `company_analysis` | Automated company analysis |
+| `conv_summary_message` | Summarize single conversation message |
+| `conv_summary_company` | Summarize recent conversations for a company |
+| `conv_summary_person` | Summarize recent conversations for a person |
+| `notes_recognition` | Auto-recognize which company/person a Smart Note belongs to |
+
+Each action type has: `credential_id + model_name` + optional `helper_credential_id + helper_model_name` (e.g. cheap model for pre-summarizing before main call).
+
+---
+
+### AI Write Confirmation Rules
+
+| Context | Confirmation required? |
+|---------|----------------------|
+| Analyse chat (interactive) | Yes — AI summarizes planned action, user confirms |
+| Company Analysis | No — writes to dedicated `company_analyses` table only |
+| Notes Recognition | No — automated, no user interface |
+| Conversation Summary | No — writes to `conversation_summaries` table only |
+
+---
+
+### Data Model (AI)
+
+```
+ai_credentials  (id, name, provider: claude/openai/gemini/grok,
+                 api_key encrypted, extra_config jsonb, is_active, timestamps)
+
+ai_model_configs  (id, action_type, credential_id→ai_credentials,
+                   model_name, helper_credential_id nullable, helper_model_name nullable,
+                   extra_config jsonb, timestamps)
+
+ai_usage_logs  (id, action_type, credential_id→ai_credentials, model_name,
+                entity_type nullable, entity_id nullable,
+                input_tokens, output_tokens, cost_input_usd, cost_output_usd,
+                prompt_excerpt varchar(200), meta_json, created_at)
+
+ai_chats  (id, user_id→users,                -- owner
+           project_id→ai_projects nullable,
+           title nullable, title_is_manual bool default false,
+           is_archived bool default false,
+           is_shared bool default false,
+           source_chat_id→ai_chats nullable,       -- branched from
+           source_message_id→ai_chat_messages nullable,
+           last_message_at timestamp nullable,      -- for sidebar sorting
+           created_at, updated_at)
+
+ai_chat_messages  (id, chat_id→ai_chats, role: user/assistant/tool/system_event,
+                   content text, tool_calls_json jsonb nullable, meta_json, created_at)
+
+ai_projects  (id, user_id→users, name varchar(100), created_at, updated_at)
+
+ai_chat_participants  (id, chat_id→ai_chats, user_id→users,
+                       added_by→users nullable, added_at timestamp)
+
+company_analyses  (id, company_id→companies, content text markdown,
+                   model_name, created_at)
+                   -- multiple per company, latest = current
+
+conversation_summaries  (id, conversation_id→conversations nullable,
+                          company_id nullable, person_id nullable,
+                          summary_type: message/company/person,
+                          content text, model_name, created_at)
+```
+
+Pricing overrides stored in `system_settings` key `ai_pricing_overrides`:
+`{"model-name": {"input_per_m": X, "output_per_m": Y}}`
+
+---
+
+### AI Provider Architecture
+
+```
+app/Ai/
+  Providers/
+    AiProviderInterface.php    testConnection(), fetchModels(), complete(), stream()
+    ClaudeProvider.php
+    OpenAiProvider.php
+    GeminiProvider.php
+    GrokProvider.php
+  AiProviderFactory.php        credential_id → AiProviderInterface instance
+  Pricing/
+    PricingRegistry.php        hardcoded defaults + reads overrides from SystemSetting
+  Actions/
+    AnalyzeAction.php          (details TBD)
+    CompanyAnalysisAction.php  (details TBD)
+    ConversationSummaryAction.php  (details TBD)
+    NotesRecognitionAction.php     (details TBD)
+  StreamingChat.php            WebSocket broadcast streaming wrapper (used by Analyse)
+```
+
+**Credentials encrypted** using Laravel's `encrypt()`/`decrypt()`.
+
+---
+
+### Connect AI — Credentials Tab
+
+- Table of saved credentials (name, provider, status, last tested)
+- Add/Edit: name, provider dropdown, API key input, Save button
+- **Validation on save:** test connection before persisting — if fails, show error, do not save
+- Test Connection button on existing credentials
+- Delete (confirm)
+
+### Connect AI — Models Tab
+
+- Per action type: credential dropdown → model dropdown (fetched from provider API)
+- Helper model: same credential+model selectors, optional
+- Pricing Overrides section: table of known models with default price, editable input/output per 1M tokens
+
+### AI Costs Page
+
+- Period selector (default: last 30 days)
+- Summary cards: total input tokens, total output tokens, estimated total cost
+- Table: action type, model, entity link (e.g. Company #5 "Acme"), prompt excerpt, input tokens, output tokens, cost, date
+
+---
+
+### PricingRegistry Defaults
+
+| Model | Input $/1M | Output $/1M |
+|-------|-----------|------------|
+| claude-opus-4-6 | 15.00 | 75.00 |
+| claude-sonnet-4-6 | 3.00 | 15.00 |
+| claude-haiku-4-5 | 0.80 | 4.00 |
+| gpt-4o | 2.50 | 10.00 |
+| gpt-4o-mini | 0.15 | 0.60 |
+| gpt-4-turbo | 10.00 | 30.00 |
+| o1 | 15.00 | 60.00 |
+| gemini-1.5-pro | 1.25 | 5.00 |
+| gemini-1.5-flash | 0.075 | 0.30 |
+| gemini-2.0-flash | 0.10 | 0.40 |
+| grok-2 | 2.00 | 10.00 |
+
+---
+
+### Sidebar (Configuration)
+
+```
+── AI Functionality ─────────────
+  Connect AI
+  Company Analysis      (disabled: "Coming soon")
+  AI Costs              (disabled when no AI credentials)
+  MCP Server            (separate page, not a tab)
+
+── Data Relations ───────────────
+  ...
+
+── Segmentation ─────────────────
+  ...
+```
+
+### AI Feature Availability Rule
+
+AI-dependent features are **disabled in the UI** when no AI credentials exist (`ai_credentials` table empty):
+- **Sidebar:** AI Costs shows as `is-disabled` with tooltip "Add an AI credential first"
+- **Connect AI page:** Model Assignment tab is visually disabled (grayed out, not clickable)
+- **MCP Server** is independent of AI credentials — it has its own separate page (`/configuration/mcp-server`)
+
+This is checked via `$hasAiCredentials = AiCredential::exists()` (cached 60s in `layout.has_ai_credentials`).
+
+### AI Visual Accent
+
+AI-related sections use the AI gradient (`#0AFFA9 → #EBFFF8 → #E00078`) for subtle visual distinction:
+- **Sidebar section label** "AI Functionality" uses `.sidebar-section-ai` (gradient text, 70% opacity)
+- **Top nav** Analyze link shows the `ai-icon.svg` sparkle icon
+- **Browse Data sidebar** AI-powered items (Smart Notes) show a small `ai-icon.svg` next to the label
+
+Use these accents sparingly — only on section labels and navigation badges, never on content areas or buttons.
+
+### Implementation Status
+
+- [x] MCP Server (JSON-RPC 2.0) — complete
+- [x] MCP Log — complete
+- [x] AI Credentials + provider abstraction — complete
+- [x] AI Model configs — complete
+- [x] AI Costs — complete
+- [x] Connect AI UI (credentials + models tabs) — complete
+- [x] AI Functionality sidebar section — complete
+- [ ] Company Analysis config page (placeholder) — TBD
+- [ ] Company Analysis logic + UI — TBD
+- [ ] Notes Recognition logic — TBD
+- [ ] Conversation Summary — TBD
+- [x] **Analyse chat UI** — complete (see Analyse section below)
+
+### Tests
+
+`tests/Feature/AiCredentialsTest.php` — 16 tests covering credentials CRUD, model config, costs pages, ACL.
+
+---
+
+## Analyse (AI Chat)
+
+### Overview
+
+Full-screen ChatGPT-like interface. Top-level nav section (alongside Browse Data and Configuration). Has its own layout — replaces app layout entirely. Active when `ai_credentials` exist AND `ai_model_configs` has `analyze` entry.
+
+**Stack additions:** Vue 3 + Inertia.js · Laravel Reverb (WebSocket) · PostgreSQL FTS
+
+**Route prefix:** `/analyse` · **Route name prefix:** `analyse.`
+
+---
+
+### Layout
+
+- `resources/views/analyse.blade.php` — Inertia root template (separate from `layouts/app.blade.php`)
+- `resources/js/analyse/app.js` — Vue + Inertia entry point
+- `resources/js/analyse/layouts/AnalyseLayout.vue` — full-screen, own sidebar + main area
+- Sidebar: ~260px, dark, sticky. Main area: flex-1.
+- Mobile: sidebar becomes a slide-over drawer.
+
+---
+
+### Sidebar Structure (top → bottom)
+
+1. **New Conversation** — creates private chat, opens immediately
+2. **Search Conversations** — FTS across titles + message content, live as you type
+3. **Shared With Me** — collapsible section; chats owned by others, shared with current user
+4. **Projects** — collapsible section; folders owned by current user, + add button
+5. **Conversations** — private chats owned by current user; cursor pagination; sorted by `last_message_at` desc
+
+**Row rules (all sections):** single-line, ellipsis overflow, full title on tooltip hover, active highlight, three-dot menu on hover only.
+
+**Shared With Me rows:** badge/indicator showing it's not owned. Actions: Open, Add to my project, Remove from my sidebar, Branch to private.
+
+**Project rows:** Actions: Rename, Delete. Clicking opens project view (list of conversations in project).
+
+**Conversation rows (private):** Actions: Rename, Move to project, Share with user, Archive, Delete.
+
+---
+
+### Main Area Structure
+
+1. **Top bar** — title (inline rename on click), ownership/sharing badge, project breadcrumb if assigned, actions menu (right)
+2. **Message list** — scrollable, chronological, auto-scroll to bottom on open/new message
+3. **Composer** — sticky bottom, multiline textarea (auto-grows, max-height with internal scroll), Enter=send, Shift+Enter=newline, Send/Stop button
+
+---
+
+### Message Types
+
+| Role | Presentation |
+|------|-------------|
+| `user` | Compact block, subtle bg, slightly narrower. In shared chats: show author name. |
+| `assistant` | Document-style, rich text (markdown via marked.js or equivalent), comfortable line length. |
+| `system_event` | Quiet single-line: "Shared with Anna", "Branch created from this point" etc. |
+
+**Message hover actions:**
+- User message: Edit (own messages only, auto-branch in shared), Copy, Branch from here
+- Assistant message: Copy, Retry (auto-branch in shared), Branch from here
+
+**Editing:** replaces message with textarea, Save+resubmit / Cancel. In shared thread → auto-branch.
+
+---
+
+### WebSocket Architecture (Laravel Reverb)
+
+**Channel:** `private-chat.{chatId}` per conversation.
+
+**Events broadcast:**
+
+| Event | When | Payload |
+|-------|------|---------|
+| `AiMessageChunk` | Each streaming chunk | chatId, messageId, chunk, index |
+| `AiMessageComplete` | Stream done | chatId, messageId, inputTokens, outputTokens |
+| `UserMessageAdded` | Another participant sends | chatId, message object |
+| `ChatTitleGenerated` | Auto-title ready | chatId, title |
+| `ParticipantUpdated` | Share/leave | chatId, participants array |
+
+**AI Streaming flow:**
+1. Vue POST `/analyse/chats/{id}/messages`
+2. Controller saves user message, broadcasts `UserMessageAdded` (for other participants)
+3. Starts AI provider stream (synchronous, same process)
+4. Each chunk → broadcast `AiMessageChunk` via Reverb
+5. Stream end → broadcast `AiMessageComplete`, save full message + usage log
+6. If first message in chat → fire title-generation AI call, broadcast `ChatTitleGenerated`
+7. HTTP POST returns `{ok: true}` when done (client ignores response body, reads via WS)
+8. Vue assembles message progressively from chunks received on WS channel
+
+**Stop generation:**
+- Vue POST `/analyse/chats/{id}/stop` → sets `Cache::put("analyse.stop.{$chatId}", true, 60)`
+- Streaming loop checks this flag between chunks, breaks cleanly
+- `AiMessageComplete` broadcast with partial content on stop
+
+---
+
+### Branching
+
+- Any message (user or assistant) has "Branch from here" action
+- Creates new `ai_chat` with `source_chat_id` + `source_message_id`
+- Copies all messages up to and including the branch point
+- New chat is private, owned by current user, appears at top of Conversations list
+- Original chat unchanged
+- **Auto-branch triggers:** editing a message in shared thread, regenerating in shared thread
+- Branch metadata stored but shown subtly in UI (system_event message: "Branched from [original title]")
+
+---
+
+### Sharing
+
+- Owner POSTs to `/analyse/chats/{id}/share` with `user_id`
+- Creates `ai_chat_participants` record, sets `ai_chats.is_shared = true`
+- Shared user sees chat in "Shared With Me" section (NOT in their own Conversations list)
+- All participants share the same live thread, messages broadcast in real-time
+- Owner can remove participants: DELETE `/analyse/chats/{id}/participants/{user}`
+- Participant can hide from sidebar: DELETE `/analyse/chats/{id}/leave` (removes from their Shared With Me, does not delete)
+- Shared conversation added to a project: `ai_chats.project_id` not changed (owned by original owner); stored in `ai_chat_project_pins` table (user_id, chat_id, project_id) — allows participant to pin shared chat into their project without changing ownership
+
+---
+
+### Projects
+
+- Simple folders owned by a user
+- A private chat is "in" a project when `ai_chats.project_id = project.id` AND `ai_chats.user_id = current user`
+- A shared chat is "pinned" to a project via `ai_chat_project_pins` (does not change ownership)
+- Project view shows both types with visual distinction
+
+---
+
+### Title Generation
+
+1. After first `AiMessageComplete`, fire separate AI call to same credential+model:
+   - System: "You generate concise conversation titles. Respond with only the title, max 6 words, no quotes."
+   - User: first user message content (truncated to 500 chars)
+2. Update `ai_chats.title`, set `title_is_manual = false`
+3. Broadcast `ChatTitleGenerated`
+4. If `title_is_manual = true` → skip (never overwrite manual rename)
+
+---
+
+### Search (FTS)
+
+- `tsvector` columns: `ai_chats.title_tsv` (GIN indexed) and `ai_chat_messages.content_tsv` (GIN indexed)
+- Triggers maintain tsvectors on insert/update
+- Query: `ts_rank` for relevance, `ts_headline` for snippet
+- Scope: chats where `user_id = me` OR `id IN (SELECT chat_id FROM ai_chat_participants WHERE user_id = me)`
+- Returns: title, snippet, last_message_at, owner name, project name
+
+---
+
+### Data Model (Analyse additions)
+
+```
+ai_chats  (extended from base)
+  + project_id → ai_projects nullable
+  + title_is_manual bool default false
+  + is_archived bool default false
+  + is_shared bool default false
+  + source_chat_id → ai_chats nullable (self-ref, branch source)
+  + source_message_id bigint nullable
+  + last_message_at timestamp nullable
+  + title_tsv tsvector (maintained by trigger)
+
+ai_chat_messages  (extended)
+  + content_tsv tsvector (maintained by trigger)
+  -- role gains 'system_event' value
+
+ai_projects
+  id, user_id → users, name varchar(100), created_at, updated_at
+
+ai_chat_participants
+  id, chat_id → ai_chats (cascadeDelete), user_id → users (cascadeDelete),
+  added_by → users nullable, added_at timestamp default now()
+  UNIQUE(chat_id, user_id)
+
+ai_chat_project_pins
+  id, user_id → users, chat_id → ai_chats, project_id → ai_projects
+  UNIQUE(user_id, chat_id)
+```
+
+---
+
+### Routes
+
+```
+GET    /analyse                              → AnalyseController::index      (redirect to last chat or empty state)
+GET    /analyse/c/{chat}                    → AnalyseController::show       (Inertia: Chat page)
+GET    /analyse/p/{project}                 → AnalyseController::project    (Inertia: Project page)
+
+POST   /analyse/chats                       → AiChatController::store       (create new chat)
+PATCH  /analyse/chats/{chat}                → AiChatController::update      (rename, archive, move to project)
+DELETE /analyse/chats/{chat}                → AiChatController::destroy
+POST   /analyse/chats/{chat}/messages       → AiChatController::sendMessage (long-running WS stream)
+POST   /analyse/chats/{chat}/stop           → AiChatController::stop        (cancel generation)
+POST   /analyse/chats/{chat}/branch         → AiChatController::branch
+POST   /analyse/chats/{chat}/share          → AiChatController::share
+DELETE /analyse/chats/{chat}/participants/{user} → AiChatController::removeParticipant
+DELETE /analyse/chats/{chat}/leave          → AiChatController::leave       (participant hides from sidebar)
+
+GET    /analyse/chats                       → AiChatController::list        (cursor pagination, JSON)
+GET    /analyse/shared                      → AiChatController::shared      (JSON)
+GET    /analyse/search                      → AiChatController::search      (FTS, JSON)
+
+POST   /analyse/projects                    → AiProjectController::store
+PATCH  /analyse/projects/{project}          → AiProjectController::update
+DELETE /analyse/projects/{project}          → AiProjectController::destroy
+POST   /analyse/projects/{project}/pin-chat → AiProjectController::pinChat
+DELETE /analyse/projects/{project}/pin-chat/{chat} → AiProjectController::unpinChat
+```
+
+---
+
+### Implementation Files
+
+| Path | Purpose |
+|------|---------|
+| `resources/views/analyse.blade.php` | Inertia root template |
+| `resources/js/analyse/app.js` | Vue + Inertia + Echo entry point |
+| `resources/js/analyse/components/AnalyseSidebar.vue` | Sidebar shell — uses sub-components, handles modals (rename, move, share, delete, pin) |
+| `resources/js/analyse/components/sidebar/SearchBar.vue` | Live FTS search with debounce, snippet + owner display |
+| `resources/js/analyse/components/sidebar/ConversationRow.vue` | Row with three-dot hover menu (Rename, Move, Share, Archive, Delete) |
+| `resources/js/analyse/components/sidebar/ProjectRow.vue` | Project row with three-dot hover menu (Rename, Delete) |
+| `resources/js/analyse/components/sidebar/SharedRow.vue` | Shared-with-me row with hover menu (Add to project, Branch, Leave) |
+| `resources/js/analyse/components/sidebar/ContextMenu.vue` | Reusable teleported context menu component |
+| `resources/js/analyse/components/ChatMessage.vue` | Message with markdown rendering (`marked.js`), Edit/Retry/Branch/Copy hover actions |
+| `resources/js/analyse/pages/Analyse.vue` | Index page (no chat selected), mobile-responsive |
+| `resources/js/analyse/pages/Chat.vue` | Conversation page — header with project breadcrumb, badges, share/archive/delete panels |
+| `resources/js/analyse/pages/Project.vue` | Project view with owned + pinned chats, delete confirmation |
+| `app/Http/Controllers/AnalyseController.php` | Inertia page renders, passes `auth` user data in shared props |
+| `app/Http/Controllers/AiChatController.php` | Chat CRUD + message sending + streaming |
+| `app/Http/Controllers/AiProjectController.php` | Project CRUD + pin management |
+| `app/Events/AiMessageChunk.php` | Streaming chunk WS event |
+| `app/Events/AiMessageComplete.php` | Stream done WS event |
+| `app/Events/UserMessageAdded.php` | New message from another user |
+| `app/Events/ChatTitleGenerated.php` | Auto-title ready |
+| `app/Events/ParticipantUpdated.php` | Share/leave notification |
+| `app/Models/AiChat.php` | Chat model with access control, sidebar serialization |
+| `app/Models/AiChatMessage.php` | Message model with FTS tsvector |
+| `app/Models/AiProject.php` | Project model |
+| `app/Models/AiChatParticipant.php` | Participant model |
+| `app/Models/AiChatProjectPin.php` | Shared-chat-in-project pin model |
+| `app/Broadcasting/ChatChannel.php` | Private channel auth |
+
+---
+
+### Critical Rules (Analyse)
+
+- **Never** auto-overwrite title when `title_is_manual = true`
+- **Shared thread editing/retry** → always auto-branch, never mutate shared history
+- **Stop flag** lives in cache key `analyse.stop.{chatId}`, TTL 60s; cleared after streaming ends
+- **owner_id** = `ai_chats.user_id`; participants in `ai_chat_participants`
+- **`last_message_at`** updated on every new message (user or assistant); drives sidebar sort order
+- **FTS triggers** must fire on INSERT/UPDATE of `ai_chat_messages.content` and `ai_chats.title`
+- Inertia root view set per-request: `Inertia::setRootView('analyse')` in `AnalyseController`
+- Vue + Inertia entry point: `resources/js/analyse/app.js` — separate from main `app.js`
+- Vite: `analyse/app.js` added as separate entry point alongside existing `app.js`
+- Laravel Echo configured with Reverb in `analyse/app.js` only
+- **Tailwind v4 + Vue SFC:** `@apply` is NOT supported inside Vue `<style>` blocks — use plain CSS instead
+- **Markdown rendering:** `marked.js` for assistant messages via `.prose-ai` CSS class (plain CSS, not @apply)
+- **`AnalyseController::sharedProps()`** passes `auth.user` (id, name, email) to all Inertia pages
+- **Mobile:** sidebar is a slide-over drawer on `< lg` breakpoints, toggled by hamburger button
+
+---
+
+### Tests
+
+`tests/Feature/AnalyseTest.php` — 92 tests:
+- **ACL:** viewer blocked, analyst/admin allowed, unauthenticated redirected
+- **Chat CRUD:** create (with/without title, with project), rename (sets manual flag), archive/unarchive, delete (cascades messages + participants)
+- **Chat show (Inertia):** loads for owner, forbidden for non-participant, accessible to participant, includes auth data, project_id, messages, participants
+- **Messages:** send stores user message, validation (required, max length), updates last_message_at, archived chat blocked
+- **Streaming:** stop sets cache flag, user message stored even if AI fails
+- **Branching:** creates new chat with source reference, copies messages up to branch point, adds system_event, leaves original unchanged, participant can branch shared, rejects cross-chat message_id
+- **Sharing:** adds participant + sets is_shared, appears in shared list, idempotent (no duplicate), non-owner blocked, remove participant, remove last clears is_shared, participant leave, owner cannot leave
+- **Projects:** create (validates name), rename, delete (unassigns chats, removes pins), forbidden for non-owner, pin/unpin chat (idempotent), project page shows owned + pinned chats
+- **Move to project:** assign/remove chat from project, cannot assign to another user's project
+- **Search:** empty for short query, matches by title, only accessible chats, includes shared, empty for no matches
+- **Sidebar data:** includes projects, shared chats, users for sharing
+- **Index:** redirects to last chat when enabled, shows empty state when no chats

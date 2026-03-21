@@ -63,7 +63,7 @@
     @if($unlinked->isNotEmpty())
     <div class="bg-white rounded-lg border border-gray-200 mobile-overflow-visible overflow-x-auto">
         <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+            <thead class="tbl-header">
                 <tr>
                     @if($systemType === 'whmcs')
                         <th class="px-4 py-2 text-left font-medium col-mobile-hidden">Client ID</th>
@@ -131,7 +131,7 @@
                         </td>
                     </tr>
                     @foreach($identitiesByExtId->get((string) $account->external_id, collect()) as $contact)
-                    <tr class="border-t-0" style="background:oklch(97.5% 0 0)" x-data="{ linkOpen: false }">
+                    <tr class="border-t-0 contact-subrow" x-data="{ linkOpen: false }">
                         <td class="pl-5 pr-2 py-1.5 col-mobile-hidden">
                             <span class="text-gray-300 text-xs select-none">↳</span>
                         </td>
@@ -188,14 +188,14 @@
 @else {{-- linked --}}
     @if($linked->isNotEmpty())
     <div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-        <table class="w-full text-sm" style="table-layout:fixed;min-width:400px">
+        <table class="w-full text-sm table-fixed min-w-[400px]">
             <colgroup>
-                <col style="width:110px">
-                @if($systemType === 'whmcs')<col style="width:220px">@endif
+                <col class="w-[110px]">
+                @if($systemType === 'whmcs')<col class="w-[220px]">@endif
                 <col>
-                <col style="width:80px">
+                <col class="w-20">
             </colgroup>
-            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+            <thead class="tbl-header">
                 <tr>
                     <th class="px-4 py-2 text-left font-medium whitespace-nowrap col-mobile-hidden">External ID</th>
                     @if($systemType === 'whmcs')<th class="px-4 py-2 text-left font-medium col-mobile-hidden">Company name (WHMCS)</th>@endif
@@ -219,7 +219,7 @@
                         </td>
                     </tr>
                     @foreach($identitiesByExtId->get((string) $account->external_id, collect()) as $contact)
-                    <tr class="border-t-0" style="background:oklch(97.5% 0 0)" x-data="{ linkOpen: false }">
+                    <tr class="border-t-0 contact-subrow" x-data="{ linkOpen: false }">
                         <td class="pl-5 pr-2 py-1.5 col-mobile-hidden">
                             <span class="text-gray-300 text-xs select-none">↳</span>
                         </td>
@@ -284,7 +284,7 @@
 @if($unregisteredUsers->isNotEmpty())
 <div class="bg-white rounded-lg border border-gray-200 mobile-overflow-visible">
     <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+        <thead class="tbl-header">
             <tr>
                 <th class="px-4 py-2 text-left font-medium">Email address</th>
                 <th class="px-4 py-2 text-left font-medium col-mobile-hidden">Display name</th>
@@ -383,7 +383,7 @@
     @if($unlinked->isNotEmpty())
     <div class="bg-white rounded-lg border border-gray-200 mobile-overflow-visible">
         <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+            <thead class="tbl-header">
                 <tr>
                     @if($systemType === 'imap')
                         <th class="px-4 py-2 text-left font-medium">Email address</th>
@@ -501,7 +501,7 @@
     @if($linked->isNotEmpty())
     <div class="bg-white rounded-lg border border-gray-200 mobile-overflow-visible">
         <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+            <thead class="tbl-header">
                 <tr>
                     <th class="px-4 py-2 text-left font-medium">
                         @if($systemType === 'slack')<span class="hidden md:inline">Slack user ID</span><span class="md:hidden">User</span>
@@ -609,8 +609,8 @@
     </div>
 </div>
 <div class="bg-white rounded-lg border border-gray-200 overflow-x-auto">
-    <table id="ch-table" class="w-full text-sm" style="min-width:480px">
-        <thead class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+    <table id="ch-table" class="w-full text-sm min-w-[480px]">
+        <thead class="tbl-header">
             <tr>
                 <th class="px-4 py-2 text-left font-medium">Channel</th>
                 <th class="px-4 py-2 text-left font-medium">Company in Contact Monitor</th>

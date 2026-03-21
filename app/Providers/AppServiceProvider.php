@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\Account;
+use App\Models\AiCredential;
+use App\Models\AiModelConfig;
 use App\Models\Identity;
 use App\Models\Person;
 use App\Models\SmartNote;
@@ -164,7 +166,9 @@ class AppServiceProvider extends ServiceProvider
             $isConfigRoute = request()->routeIs(
                 'synchronizer.*', 'data-relations.*', 'our-company.*',
                 'filtering.*', 'segmentation.*', 'configuration.*', 'team-access.*',
-                'setup-assistant.*', 'smart-notes.config.*'
+                'setup-assistant.*', 'smart-notes.config.*',
+                'ai-config.*', 'ai-credentials.*', 'ai-model-configs.*', 'ai-costs.*',
+                'mcp-server.*', 'mcp-log.*'
             );
 
             $topSections = [
@@ -175,10 +179,11 @@ class AppServiceProvider extends ServiceProvider
                     'type'     => 'normal',
                 ],
                 'Analyze' => [
-                    'route'    => null,
-                    'pattern'  => [],
-                    'disabled' => true,
+                    'route'    => 'analyse.index',
+                    'pattern'  => ['analyse.*'],
+                    'disabled' => !Cache::remember('layout.analyse_enabled', 60, fn () => AiModelConfig::where('action_type', 'analyze')->whereNotNull('credential_id')->whereNotNull('model_name')->exists()),
                     'type'     => 'ai',
+                    'disabledMsg' => 'Configure an AI credential and assign a model for Analyse Chat first',
                 ],
                 'Configuration' => [
                     'route'    => 'setup-assistant.index',
@@ -202,8 +207,10 @@ class AppServiceProvider extends ServiceProvider
             $taActive  = false;
             $segActive = false;
             $saActive  = false;
-            $syncItems = [];
-            $drItems = [];
+            $aiActive  = false;
+            $syncItems    = [];
+            $drItems      = [];
+            $aiItems      = [];
             $sidebarItems = [];
 
             if ($isConfigRoute) {
@@ -215,6 +222,27 @@ class AppServiceProvider extends ServiceProvider
                 $taActive  = request()->routeIs('team-access.*');
                 $segActive = request()->routeIs('segmentation.*');
                 $saActive  = request()->routeIs('setup-assistant.*');
+                $aiActive  = request()->routeIs('ai-config.*', 'ai-credentials.*', 'ai-model-configs.*', 'ai-costs.*', 'mcp-server.*', 'mcp-log.*');
+
+                $hasAiCredentials = Cache::remember('layout.has_ai_credentials', 60, fn () => AiCredential::exists());
+
+                $aiItems = [
+                    ['label' => 'Connect AI',        'route' => 'ai-config.index',   'match' => ['ai-config.*', 'ai-credentials.*', 'ai-model-configs.*'],
+                     'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>'],
+                    ['label' => 'Company Analysis',  'route' => 'ai-config.index', 'match' => ['ai-company-analysis.*'],
+                     'is_disabled' => true, 'disabledMsg' => !$hasAiCredentials ? 'Add an AI credential first' : 'Coming soon',
+                     'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'],
+                    ['label' => 'AI Costs',          'route' => 'ai-costs.index',    'match' => ['ai-costs.*'],
+                     'is_disabled' => !$hasAiCredentials, 'disabledMsg' => 'Add an AI credential first',
+                     'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'],
+                    ['label' => 'MCP Server',        'route' => 'mcp-server.index',  'match' => ['mcp-server.*', 'mcp-log.*'],
+                     'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1 1 .03 2.7-1.31 2.7H4.11c-1.34 0-2.31-1.7-1.31-2.7L4.2 15.3"/>'],
+                ];
+
+                foreach ($aiItems as &$item) {
+                    $item['active'] = !empty($item['match']) && request()->routeIs($item['match']);
+                }
+                unset($item);
 
                 $syncItems = [
                     ['label' => 'Connections',          'route' => 'synchronizer.index',         'match' => ['synchronizer.index', 'synchronizer.connections.*', 'synchronizer.runs*', 'synchronizer.kill-all', 'synchronizer.run-all'], 'disabled' => !$hasServers, 'dot' => false,
@@ -273,26 +301,9 @@ class AppServiceProvider extends ServiceProvider
                 'mappingNeedsAttention', 'mappingUnhealthySystems',
                 'setupStatus',
                 'disabledMsg', 'isConfigRoute', 'topSections',
-                'onMapping', 'currentMapping', 'taActive', 'segActive', 'saActive',
-                'syncItems', 'drItems', 'sidebarItems', 'mainMargin'
+                'onMapping', 'currentMapping', 'taActive', 'segActive', 'saActive', 'aiActive',
+                'syncItems', 'drItems', 'aiItems', 'sidebarItems', 'mainMargin'
             ));
-        });
-
-        View::composer('synchronizer.*', function (\Illuminate\View\View $view) {
-            $view->with('typeColors', [
-                'whmcs'       => ['bg' => 'rgba(88,166,255,.1)',  'color' => '#388bfd', 'border' => 'rgba(88,166,255,.25)'],
-                'gmail'       => ['bg' => 'rgba(248,81,73,.1)',   'color' => '#f85149', 'border' => 'rgba(248,81,73,.25)'],
-                'imap'        => ['bg' => 'rgba(63,185,80,.1)',   'color' => '#3fb950', 'border' => 'rgba(63,185,80,.25)'],
-                'metricscube' => ['bg' => 'rgba(139,92,246,.1)',  'color' => '#7c3aed', 'border' => 'rgba(139,92,246,.25)'],
-                'discord'     => ['bg' => 'rgba(88,101,242,.12)', 'color' => '#5865f2', 'border' => 'rgba(88,101,242,.3)'],
-                'slack'       => ['bg' => 'rgba(74,21,75,.1)',    'color' => '#e01e5a', 'border' => 'rgba(224,30,90,.3)'],
-            ]);
-            $view->with('statusColors', [
-                'completed' => ['color' => '#3fb950', 'bg' => 'rgba(63,185,80,.1)',  'border' => 'rgba(63,185,80,.25)'],
-                'running'   => ['color' => '#388bfd', 'bg' => 'rgba(88,166,255,.1)', 'border' => 'rgba(88,166,255,.25)'],
-                'pending'   => ['color' => '#b45309', 'bg' => 'rgba(251,191,36,.12)', 'border' => 'rgba(251,191,36,.4)'],
-                'failed'    => ['color' => '#f85149', 'bg' => 'rgba(248,81,73,.1)',  'border' => 'rgba(248,81,73,.25)'],
-            ]);
         });
 
         View::composer('conversations.partials.messages', function (\Illuminate\View\View $view) {

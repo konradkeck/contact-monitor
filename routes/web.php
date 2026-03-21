@@ -1,6 +1,14 @@
 <?php
 
 use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\AiChatController;
+use App\Http\Controllers\AiConfigController;
+use App\Http\Controllers\AiProjectController;
+use App\Http\Controllers\AnalyseController;
+use App\Http\Controllers\AiCredentialController;
+use App\Http\Controllers\AiModelConfigController;
+use App\Http\Controllers\AiCostsController;
+use App\Http\Controllers\McpLogController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrandProductController;
@@ -65,6 +73,7 @@ Route::middleware('auth')->group(function () {
 
         // Audit log
         Route::get('audit-log', [AuditLogController::class, 'index'])->name('audit-log.index');
+
 
         // Activities
         Route::get('activity', [ActivityController::class, 'index'])->name('activity.index');
@@ -224,6 +233,33 @@ Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsCont
         Route::delete('configuration/smart-notes/filters/{filter}', [SmartNotesConfigController::class, 'destroyFilter'])->name('smart-notes.config.filters.destroy');
         Route::post('configuration/smart-notes/scan', [SmartNotesConfigController::class, 'scan'])->name('smart-notes.config.scan');
 
+        // AI Configuration
+        Route::get('configuration/ai', [AiConfigController::class, 'index'])->name('ai-config.index');
+
+        // MCP Server Configuration
+        Route::get('configuration/mcp-server', [AiConfigController::class, 'mcpServer'])->name('mcp-server.index');
+        Route::get('configuration/mcp-server/log', [McpLogController::class, 'index'])->name('mcp-log.index');
+        Route::post('configuration/mcp-server/settings', [AiConfigController::class, 'updateSettings'])->name('ai-config.settings');
+        Route::post('configuration/mcp-server/regenerate-key', [AiConfigController::class, 'regenerateKey'])->name('ai-config.regenerate-key');
+
+        // AI Credentials
+        Route::get('configuration/ai/credentials/create', [AiCredentialController::class, 'create'])->name('ai-credentials.create');
+        Route::post('configuration/ai/credentials', [AiCredentialController::class, 'store'])->name('ai-credentials.store');
+        Route::get('configuration/ai/credentials/{aiCredential}/edit', [AiCredentialController::class, 'edit'])->name('ai-credentials.edit');
+        Route::put('configuration/ai/credentials/{aiCredential}', [AiCredentialController::class, 'update'])->name('ai-credentials.update');
+        Route::delete('configuration/ai/credentials/{aiCredential}', [AiCredentialController::class, 'destroy'])->name('ai-credentials.destroy');
+        Route::post('configuration/ai/credentials/test', [AiCredentialController::class, 'testRaw'])->name('ai-credentials.test-raw');
+        Route::post('configuration/ai/credentials/{aiCredential}/test', [AiCredentialController::class, 'test'])->name('ai-credentials.test');
+        Route::get('configuration/ai/credentials/{aiCredential}/models', [AiCredentialController::class, 'models'])->name('ai-credentials.models');
+
+        // AI Model Configs
+        Route::post('configuration/ai/model-configs', [AiModelConfigController::class, 'update'])->name('ai-model-configs.update');
+
+        // AI Costs
+        Route::get('configuration/ai-costs', [AiCostsController::class, 'index'])->name('ai-costs.index');
+        Route::get('configuration/ai-costs/pricing', [AiCostsController::class, 'pricingIndex'])->name('ai-costs.pricing');
+        Route::post('configuration/ai-costs/pricing', [AiCostsController::class, 'pricingUpdate'])->name('ai-costs.pricing.update');
+
         // Team Access
         Route::get('configuration/team-access', [TeamAccessController::class, 'index'])->name('team-access.index');
         Route::get('configuration/team-access/users/create', [UsersController::class, 'create'])->name('team-access.users.create');
@@ -236,6 +272,37 @@ Route::post('configuration/identities/{identity}/toggle-bot', [DataRelationsCont
         Route::get('configuration/team-access/groups/{group}/edit', [GroupsController::class, 'edit'])->name('team-access.groups.edit');
         Route::put('configuration/team-access/groups/{group}', [GroupsController::class, 'update'])->name('team-access.groups.update');
         Route::delete('configuration/team-access/groups/{group}', [GroupsController::class, 'destroy'])->name('team-access.groups.destroy');
+    });
+
+    // ── Analyse (AI Chat) ──────────────────────────────────────────────────────
+    Route::middleware(['permission:analyse', 'require.setup'])->prefix('analyse')->name('analyse.')->group(function () {
+        // Inertia pages
+        Route::get('/', [AnalyseController::class, 'index'])->name('index');
+        Route::get('/c/{chat}', [AnalyseController::class, 'show'])->name('chat.show')->whereNumber('chat');
+        Route::get('/p/{project}', [AnalyseController::class, 'project'])->name('project.show')->whereNumber('project');
+
+        // Chat CRUD
+        Route::post('/chats', [AiChatController::class, 'store'])->name('chats.store');
+        Route::patch('/chats/{chat}', [AiChatController::class, 'update'])->name('chats.update')->whereNumber('chat');
+        Route::delete('/chats/{chat}', [AiChatController::class, 'destroy'])->name('chats.destroy')->whereNumber('chat');
+        Route::post('/chats/{chat}/messages', [AiChatController::class, 'sendMessage'])->name('chats.messages.store')->whereNumber('chat');
+        Route::post('/chats/{chat}/stop', [AiChatController::class, 'stop'])->name('chats.stop')->whereNumber('chat');
+        Route::post('/chats/{chat}/branch', [AiChatController::class, 'branch'])->name('chats.branch')->whereNumber('chat');
+        Route::post('/chats/{chat}/share', [AiChatController::class, 'share'])->name('chats.share')->whereNumber('chat');
+        Route::delete('/chats/{chat}/participants/{user}', [AiChatController::class, 'removeParticipant'])->name('chats.participants.remove')->whereNumber(['chat', 'user']);
+        Route::delete('/chats/{chat}/leave', [AiChatController::class, 'leave'])->name('chats.leave')->whereNumber('chat');
+
+        // JSON API
+        Route::get('/chats', [AiChatController::class, 'list'])->name('chats.list');
+        Route::get('/shared', [AiChatController::class, 'shared'])->name('shared');
+        Route::get('/search', [AiChatController::class, 'search'])->name('search');
+
+        // Projects
+        Route::post('/projects', [AiProjectController::class, 'store'])->name('projects.store');
+        Route::patch('/projects/{project}', [AiProjectController::class, 'update'])->name('projects.update')->whereNumber('project');
+        Route::delete('/projects/{project}', [AiProjectController::class, 'destroy'])->name('projects.destroy')->whereNumber('project');
+        Route::post('/projects/{project}/pin-chat', [AiProjectController::class, 'pinChat'])->name('projects.pin-chat')->whereNumber('project');
+        Route::delete('/projects/{project}/pin-chat/{chat}', [AiProjectController::class, 'unpinChat'])->name('projects.unpin-chat')->whereNumber(['project', 'chat']);
     });
 
     // Synchronizer Wizard (no configuration permission required — needed for initial server setup)

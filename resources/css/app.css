@@ -78,6 +78,26 @@ html, body { background: #f7f6fb; }
 .badge-red     { background: rgba(220,38,38,.1); color: #dc2626; border: 1px solid rgba(220,38,38,.2); }
 .badge-yellow  { background: rgba(202,138,4,.1); color: #92400e; border: 1px solid rgba(202,138,4,.2); }
 .badge-brand   { background: rgba(164,0,87,.1); color: #a40057; border: 1px solid rgba(164,0,87,.2); }
+.badge-purple  { background: rgba(139,92,246,.1); color: #7c3aed; border: 1px solid rgba(139,92,246,.25); }
+.badge-indigo  { background: rgba(88,101,242,.12); color: #5865f2; border: 1px solid rgba(88,101,242,.3); }
+.badge-pink    { background: rgba(224,30,90,.1); color: #e01e5a; border: 1px solid rgba(224,30,90,.3); }
+
+/* Synchronizer type badges */
+.badge-sync-whmcs       { background: rgba(88,166,255,.1);  color: #388bfd; border: 1px solid rgba(88,166,255,.25); }
+.badge-sync-gmail       { background: rgba(248,81,73,.1);   color: #f85149; border: 1px solid rgba(248,81,73,.25); }
+.badge-sync-imap        { background: rgba(63,185,80,.1);   color: #3fb950; border: 1px solid rgba(63,185,80,.25); }
+.badge-sync-metricscube { background: rgba(139,92,246,.1);  color: #7c3aed; border: 1px solid rgba(139,92,246,.25); }
+.badge-sync-discord     { background: rgba(88,101,242,.12); color: #5865f2; border: 1px solid rgba(88,101,242,.3); }
+.badge-sync-slack       { background: rgba(74,21,75,.1);    color: #e01e5a; border: 1px solid rgba(224,30,90,.3); }
+
+/* Synchronizer status badges */
+.badge-status-completed { background: rgba(63,185,80,.1);   color: #3fb950; border: 1px solid rgba(63,185,80,.25); }
+.badge-status-running   { background: rgba(88,166,255,.1);  color: #388bfd; border: 1px solid rgba(88,166,255,.25); }
+.badge-status-pending   { background: rgba(251,191,36,.12); color: #b45309; border: 1px solid rgba(251,191,36,.4); }
+.badge-status-failed    { background: rgba(248,81,73,.1);   color: #f85149; border: 1px solid rgba(248,81,73,.25); }
+
+/* Mapping contact subrow */
+.contact-subrow { background: oklch(97.5% 0 0); }
 
 /* ── Table rows ── */
 .tbl-header { background: #f9fafb; border-bottom: 1px solid #e5e7eb;
@@ -143,6 +163,9 @@ html, body { background: #f7f6fb; }
 .sidebar-section { display: block; padding: 0.25rem 0.5rem 0.2rem;
                    font-size: 0.68rem; font-weight: 600; color: #9aacbf;
                    text-transform: uppercase; letter-spacing: .07em; }
+.sidebar-section-ai { background: linear-gradient(90deg, #0AFFA9, #EBFFF8, #E00078);
+                      -webkit-background-clip: text; background-clip: text;
+                      -webkit-text-fill-color: transparent; opacity: 0.7; }
 .sidebar-link { display: flex; align-items: center; gap: 0.625rem;
                 padding: 0.5rem 0.5rem; border-radius: 0.375rem;
                 font-size: 0.875rem; color: #b0bdd0;

@@ -292,10 +292,6 @@ class SmartNotesTest extends TestCase
 
     public function test_can_unrecognize_smart_note(): void
     {
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('whereJsonContains on meta_json->smart_note_id requires PostgreSQL.');
-        }
-
         $person = Person::create(['first_name' => 'John', 'last_name' => 'Smith']);
         $smartNote = SmartNote::create([
             'source_type'  => 'email',

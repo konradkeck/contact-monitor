@@ -16,7 +16,7 @@
 
 @if($servers->isEmpty())
     <div class="card p-12 text-center max-w-lg mx-auto mt-8">
-        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style="background:#f1f5f9">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 bg-slate-100">
             <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
             </svg>
@@ -164,17 +164,17 @@ async function pingServer({ id, url }) {
         const res  = await fetch(url);
         const data = await res.json();
         if (data.ok) {
-            el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1" style="background:#3fb950"></span>'
-                         + '<span style="color:#15803d">Online</span>'
+            el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1 bg-green-500"></span>'
+                         + '<span class="text-green-700">Online</span>'
                          + '<span class="text-gray-400 ml-1.5">' + data.connections + ' integration(s)</span>';
         } else {
-            el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1" style="background:#f85149"></span>'
-                         + '<span style="color:#dc2626" title="' + escHtml(data.error) + '">'
+            el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1 bg-red-500"></span>'
+                         + '<span class="text-red-600" title="' + escHtml(data.error) + '">'
                          + truncate(data.error, 50) + '</span>';
         }
     } catch (e) {
-        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1" style="background:#f85149"></span>'
-                     + '<span style="color:#dc2626">' + escHtml(e.message) + '</span>';
+        el.innerHTML = '<span class="inline-block w-1.5 h-1.5 rounded-full mr-1 bg-red-500"></span>'
+                     + '<span class="text-red-600">' + escHtml(e.message) + '</span>';
     }
 }
 

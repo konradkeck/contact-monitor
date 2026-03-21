@@ -48,9 +48,6 @@ class RoutesSmokeTest extends TestCase
 
     public function test_company_show_loads(): void
     {
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('DISTINCT ON requires PostgreSQL');
-        }
         $company = Company::create(['name' => 'Test Co']);
 
         $this->get(route('companies.show', $company))->assertStatus(200);
@@ -58,9 +55,6 @@ class RoutesSmokeTest extends TestCase
 
     public function test_company_show_with_activities_loads(): void
     {
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('DISTINCT ON requires PostgreSQL');
-        }
         $company = Company::create(['name' => 'Active Co']);
         Activity::create([
             'company_id'  => $company->id,
@@ -80,9 +74,6 @@ class RoutesSmokeTest extends TestCase
 
     public function test_company_timeline_ajax_loads(): void
     {
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('DISTINCT ON requires PostgreSQL');
-        }
         $company = Company::create(['name' => 'Timeline Co']);
         Activity::create([
             'company_id'  => $company->id,
@@ -113,9 +104,6 @@ class RoutesSmokeTest extends TestCase
 
     public function test_person_show_loads(): void
     {
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('Requires PostgreSQL (window functions)');
-        }
         $person = Person::create(['first_name' => 'Jane', 'last_name' => 'Doe']);
 
         $this->get(route('people.show', $person))->assertStatus(200);
@@ -123,9 +111,6 @@ class RoutesSmokeTest extends TestCase
 
     public function test_person_show_with_activities_loads(): void
     {
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('Requires PostgreSQL (window functions)');
-        }
         $company = Company::create(['name' => 'Corp']);
         $person  = Person::create(['first_name' => 'Jane', 'last_name' => 'Doe']);
         Activity::create([
@@ -141,9 +126,6 @@ class RoutesSmokeTest extends TestCase
 
     public function test_person_timeline_ajax_loads(): void
     {
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('Requires PostgreSQL (window functions)');
-        }
         $company = Company::create(['name' => 'Corp']);
         $person  = Person::create(['first_name' => 'Jane', 'last_name' => 'Doe']);
         Activity::create([
@@ -246,5 +228,46 @@ class RoutesSmokeTest extends TestCase
     public function test_synchronizer_wizard_connect_existing_loads(): void
     {
         $this->get(route('synchronizer.wizard.connect-existing'))->assertStatus(200);
+    }
+
+    public function test_ai_config_loads(): void
+    {
+        $this->get(route('ai-config.index'))->assertStatus(200);
+    }
+
+    public function test_ai_credentials_create_loads(): void
+    {
+        $this->get(route('ai-credentials.create'))->assertStatus(200);
+    }
+
+    public function test_ai_credentials_edit_loads(): void
+    {
+        $cred = \App\Models\AiCredential::create([
+            'provider' => 'claude',
+            'name'     => 'Test Key',
+            'api_key'  => 'sk-test',
+        ]);
+
+        $this->get(route('ai-credentials.edit', $cred))->assertStatus(200);
+    }
+
+    public function test_mcp_server_config_loads(): void
+    {
+        $this->get(route('mcp-server.index'))->assertStatus(200);
+    }
+
+    public function test_mcp_log_loads(): void
+    {
+        $this->get(route('mcp-log.index'))->assertStatus(200);
+    }
+
+    public function test_ai_costs_loads(): void
+    {
+        $this->get(route('ai-costs.index'))->assertStatus(200);
+    }
+
+    public function test_ai_costs_pricing_loads(): void
+    {
+        $this->get(route('ai-costs.pricing'))->assertStatus(200);
     }
 }

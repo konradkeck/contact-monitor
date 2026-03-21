@@ -70,6 +70,38 @@ class BrandProductsTest extends TestCase
         $this->assertDatabaseHas('brand_products', ['name' => 'New Product', 'slug' => 'new-product']);
     }
 
+    public function test_segmentation_store_without_optional_fields(): void
+    {
+        $this->createServer();
+
+        // Submit with only required 'name' — no variant, no slug
+        $response = $this->post(route('segmentation.store'), [
+            'name' => 'Minimal Product',
+        ]);
+
+        $response->assertRedirect(route('segmentation.index'));
+        $this->assertDatabaseHas('brand_products', [
+            'name' => 'Minimal Product',
+            'slug' => 'minimal-product',
+        ]);
+    }
+
+    public function test_segmentation_store_with_variant(): void
+    {
+        $this->createServer();
+
+        $response = $this->post(route('segmentation.store'), [
+            'name'    => 'Product',
+            'variant' => 'Pro',
+        ]);
+
+        $response->assertRedirect(route('segmentation.index'));
+        $this->assertDatabaseHas('brand_products', [
+            'name' => 'Product',
+            'slug' => 'product-pro',
+        ]);
+    }
+
     public function test_segmentation_store_validation_fails_without_name(): void
     {
         $this->createServer();

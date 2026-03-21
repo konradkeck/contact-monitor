@@ -140,7 +140,7 @@ class SmartNotesController extends Controller
 
             if ($noteIds->isNotEmpty()) {
                 NoteLink::whereIn('note_id', $noteIds)->delete();
-                Note::whereIn('id', $noteIds)->delete();
+                Note::whereIn('id', $noteIds)->forceDelete();
             }
         }
 

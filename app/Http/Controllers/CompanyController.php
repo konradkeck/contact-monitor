@@ -369,6 +369,9 @@ class CompanyController extends Controller
 
         $contacts = $company->people->filter(fn ($p) => ! $p->is_our_org && is_null($p->merged_into_id));
         $mergedCompanies = $company->mergedCompanies;
+        $mergedPrimaryDomains = $mergedCompanies->mapWithKeys(fn ($mc) => [
+            $mc->id => $mc->domains->firstWhere('is_primary', true) ?? $mc->domains->first(),
+        ]);
 
         // Group services by system_slug (each WHMCS instance = separate tab)
         // Include accounts from merged companies as well
@@ -432,6 +435,7 @@ class CompanyController extends Controller
             'serviceSystems',
             'svcWidgets',
             'mergedCompanies',
+            'mergedPrimaryDomains',
         ));
     }
 

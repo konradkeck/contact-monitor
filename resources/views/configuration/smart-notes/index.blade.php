@@ -51,20 +51,21 @@
     </div>
 
     {{-- Filters list --}}
-    <div class="card-xl-overflow mb-5 max-w-4xl">
-        <div class="card-header">
-            <span class="section-header-title">Active Filters</span>
-            <div class="flex items-center gap-2">
-                <form method="POST" action="{{ route('smart-notes.config.scan') }}">
-                    @csrf
-                    <button type="submit" class="btn btn-secondary btn-sm" title="Scan existing messages against these filters">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                        Scan Existing
-                    </button>
-                </form>
-                <a href="{{ route('smart-notes.config.filters.create') }}" class="btn btn-sm btn-primary">Add Filter</a>
-            </div>
+    <div class="flex items-center justify-between mb-4 max-w-4xl">
+        <h2 class="section-header-title">Active Filters</h2>
+        <div class="flex items-center gap-2">
+            <form method="POST" action="{{ route('smart-notes.config.scan') }}">
+                @csrf
+                <button type="submit" class="btn btn-secondary btn-sm" title="Scan existing messages against these filters">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Scan Existing
+                </button>
+            </form>
+            <a href="{{ route('smart-notes.config.filters.create') }}" class="btn btn-sm btn-primary">Add Filter</a>
         </div>
+    </div>
+
+    <div class="card-xl-overflow mb-5 max-w-4xl">
         <table class="w-full text-sm">
             <thead class="tbl-header">
                 <tr>

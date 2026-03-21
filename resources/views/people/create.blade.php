@@ -14,32 +14,34 @@
         </div>
     </div>
 
-    <form action="{{ route('people.store') }}" method="POST" class="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
+    <div class="card p-6">
+    <form action="{{ route('people.store') }}" method="POST">
         @csrf
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">First Name <span class="text-red-500">*</span></label>
-                <input type="text" name="first_name" value="{{ old('first_name') }}" required
-                       class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="label">First Name <span class="text-red-500">*</span></label>
+                    <input type="text" name="first_name" value="{{ old('first_name') }}" required class="input w-full">
+                </div>
+                <div>
+                    <label class="label">Last Name</label>
+                    <input type="text" name="last_name" value="{{ old('last_name') }}" class="input w-full">
+                </div>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                <input type="text" name="last_name" value="{{ old('last_name') }}"
-                       class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <div class="pt-1">
+                <label class="flex items-center gap-2.5 cursor-pointer select-none group">
+                    <input type="checkbox" name="is_our_org" value="1"
+                           class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500">
+                    <span class="text-sm font-medium text-gray-700">Our Organization</span>
+                    <span class="text-xs text-gray-400">(member of our team)</span>
+                </label>
             </div>
         </div>
-        <div class="pt-1">
-            <label class="flex items-center gap-2.5 cursor-pointer select-none group">
-                <input type="checkbox" name="is_our_org" value="1"
-                       class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                <span class="text-sm font-medium text-gray-700">Our Organization</span>
-                <span class="text-xs text-gray-400">(member of our team)</span>
-            </label>
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-            <a href="{{ route('people.index') }}" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</a>
-            <button type="submit" class="px-4 py-2 bg-brand-600 text-white text-sm rounded hover:bg-brand-700 transition">Create</button>
+        <div class="flex gap-2 mt-6">
+            <button type="submit" class="btn btn-primary">Create</button>
+            <a href="{{ route('people.index') }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
+    </div>
 </div>
 @endsection

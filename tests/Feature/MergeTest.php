@@ -111,10 +111,6 @@ class MergeTest extends TestCase
 
     public function test_merged_company_activities_appear_on_primary(): void
     {
-        if (config('database.default') === 'sqlite') {
-            $this->markTestSkipped('Requires PostgreSQL (json operators)');
-        }
-
         $primary   = Company::create(['name' => 'Primary']);
         $secondary = Company::create(['name' => 'Secondary', 'merged_into_id' => $primary->id]);
 

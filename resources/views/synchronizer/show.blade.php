@@ -52,7 +52,7 @@
         <a href="{{ route('synchronizer.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">&larr; Connections</a>
         <span class="text-gray-300">/</span>
         <h1 class="page-title">{{ $conn['name'] }}</h1>
-        <span class="badge" style="background:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['bg'] }}; color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['color'] }}; border-color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['border'] }}">
+        <span class="badge badge-sync-{{ $conn['type'] }}">
             {{ $conn['type'] }}
         </span>
     </div>
@@ -102,10 +102,9 @@
         <div class="text-xs text-gray-400 mb-0.5">Status</div>
         <div class="flex items-center gap-2">
             <span class="badge"
-                  :style="`background:${statusBg(runStatus)}; color:${statusColor(runStatus)}; border-color:${statusBorder(runStatus)}`">
+                  :class="'badge-status-' + (runStatus || 'pending')">
                 <span x-show="runStatus === 'running' || runStatus === 'pending'"
-                      class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse"
-                      :style="`background:${statusColor(runStatus)}`"></span>
+                      class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse bg-current"></span>
                 <span x-text="runStatus ?? '—'"></span>
             </span>
             <template x-if="runStatus === 'running' || runStatus === 'pending'">
@@ -130,8 +129,7 @@
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
         </button>
         <div x-show="open" x-cloak
-             class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-y-auto"
-             style="max-height:280px">
+             class="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 overflow-y-auto max-h-72">
             @forelse($runs as $run)
                 <button
                     onclick="window.history.pushState({}, '', '?run_id={{ $run['id'] }}')"
@@ -140,7 +138,7 @@
                     class="w-full text-left px-4 py-2.5 border-b border-gray-50 transition text-sm">
                     <div class="flex items-center justify-between gap-2">
                         <span class="font-mono text-xs text-gray-400">#{{ $run['id'] }}</span>
-                        <span class="badge text-xs" style="background:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['bg'] }}; color:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['color'] }}; border-color:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['border'] }}">
+                        <span class="badge text-xs badge-status-{{ $run['status'] ?? 'pending' }}">
                             {{ $run['status'] }}
                         </span>
                     </div>
@@ -162,11 +160,11 @@
 <div class="flex gap-4 items-start">
 
     {{-- RUN HISTORY (desktop only) --}}
-    <div class="card overflow-hidden flex-shrink-0 hidden md:block" style="width:320px">
+    <div class="card overflow-hidden flex-shrink-0 hidden md:block w-80">
         <div class="px-4 py-2.5 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Run history
         </div>
-        <div class="overflow-y-auto" style="max-height:560px">
+        <div class="overflow-y-auto max-h-[560px]">
             @forelse($runs as $run)
                 <button
                     onclick="window.history.pushState({}, '', '?run_id={{ $run['id'] }}')"
@@ -175,7 +173,7 @@
                     class="w-full text-left px-4 py-2.5 border-b border-gray-50 transition text-sm">
                     <div class="flex items-center justify-between gap-2">
                         <span class="font-mono text-xs text-gray-400">#{{ $run['id'] }}</span>
-                        <span class="badge text-xs" style="background:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['bg'] }}; color:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['color'] }}; border-color:{{ ($statusColors[$run['status']] ?? $statusColors['pending'])['border'] }}">
+                        <span class="badge text-xs badge-status-{{ $run['status'] ?? 'pending' }}">
                             {{ $run['status'] }}
                         </span>
                     </div>
@@ -196,7 +194,7 @@
     </div>
 
     {{-- LOG VIEWER --}}
-    <div class="card flex flex-col flex-1 overflow-hidden" style="min-height:400px">
+    <div class="card flex flex-col flex-1 overflow-hidden min-h-[400px]">
         <div class="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
             <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Logs
@@ -217,8 +215,7 @@
         </div>
 
         <div x-ref="logEl"
-             class="flex-1 overflow-y-auto font-mono text-xs p-4 space-y-0.5"
-             style="background:#f9fafb; min-height:360px">
+             class="flex-1 overflow-y-auto font-mono text-xs p-4 space-y-0.5 bg-gray-50 min-h-[360px]"
             <template x-if="loading">
                 <div class="text-gray-400">Loading...</div>
             </template>
@@ -338,16 +335,6 @@ function showPage(connId, initialRunId, initialStatus) {
             });
         },
 
-        // Status badge helpers (replaces PHP $statusColors for Alpine-driven badge)
-        statusColor(s) {
-            return { completed: '#3fb950', running: '#388bfd', pending: '#8b949e', failed: '#f85149' }[s] ?? '#8b949e';
-        },
-        statusBg(s) {
-            return { completed: 'rgba(63,185,80,.1)', running: 'rgba(88,166,255,.1)', pending: 'rgba(139,148,158,.1)', failed: 'rgba(248,81,73,.1)' }[s] ?? 'rgba(139,148,158,.1)';
-        },
-        statusBorder(s) {
-            return { completed: 'rgba(63,185,80,.25)', running: 'rgba(88,166,255,.25)', pending: 'rgba(139,148,158,.25)', failed: 'rgba(248,81,73,.25)' }[s] ?? 'rgba(139,148,158,.25)';
-        },
     };
 }
 

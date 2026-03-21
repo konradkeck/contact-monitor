@@ -1,11 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\IngestController;
+use App\Http\Controllers\Api\McpController;
 use App\Models\PendingSynchronizerRegistration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/ingest/batch', [IngestController::class, 'batch'])->middleware('throttle:120,1');
+
+Route::post('/mcp', [McpController::class, 'handle'])->middleware('mcp.auth');
 
 Route::post('/synchronizer/register', function (Request $request) {
     $pending = PendingSynchronizerRegistration::where('token', $request->input('verify_token', ''))

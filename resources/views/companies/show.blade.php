@@ -163,14 +163,13 @@
             </div>
             <div class="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
                 @foreach($mergedCompanies as $merged)
-                @php $mDomain = $merged->domains->firstWhere('is_primary', true) ?? $merged->domains->first(); @endphp
                 <div class="flex items-center gap-3 px-4 py-3">
                     <div class="flex-1 min-w-0">
                         <a href="{{ route('companies.show', $merged) }}" class="font-medium text-sm text-gray-800 hover:text-brand-700 truncate block">
                             {{ $merged->name }}
                         </a>
-                        @if($mDomain)
-                            <p class="text-xs text-gray-400 font-mono truncate">{{ $mDomain->domain }}</p>
+                        @if($mergedPrimaryDomains[$merged->id] ?? null)
+                            <p class="text-xs text-gray-400 font-mono truncate">{{ $mergedPrimaryDomains[$merged->id]->domain }}</p>
                         @endif
                         <p class="text-xs text-gray-400 mt-0.5">
                             {{ $merged->accounts->count() }} account{{ $merged->accounts->count() === 1 ? '' : 's' }}

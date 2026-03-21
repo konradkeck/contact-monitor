@@ -58,10 +58,10 @@ class PersonController extends Controller
 
         // Last contact date filter
         $lcSubquery = "(SELECT MAX(cm.occurred_at) FROM conversation_messages cm JOIN identities i ON i.id = cm.identity_id WHERE i.person_id = people.id AND cm.direction != 'system' AND i.deleted_at IS NULL)";
-        if ($f_lc_from !== '') {
+        if (!empty($f_lc_from)) {
             $query->whereRaw("{$lcSubquery} >= ?", [$f_lc_from]);
         }
-        if ($f_lc_to !== '') {
+        if (!empty($f_lc_to)) {
             $query->whereRaw("{$lcSubquery} <= ?", [$f_lc_to . ' 23:59:59']);
         }
 
@@ -73,7 +73,7 @@ class PersonController extends Controller
         }
 
         // Channel filter
-        if ($f_channel !== '') {
+        if (!empty($f_channel)) {
             $query->whereExists(function ($sub) use ($f_channel) {
                 $sub->select(DB::raw(1))
                     ->from('conversation_messages as cm_f')
@@ -298,9 +298,9 @@ class PersonController extends Controller
             'our_org' => Person::notMerged()->where('is_our_org', true)->count(),
         ];
 
-        $activeFilterCount = (($f_lc_from !== '' || $f_lc_to !== '') ? 1 : 0)
-                           + ($f_has_company !== '' ? 1 : 0)
-                           + ($f_channel !== '' ? 1 : 0);
+        $activeFilterCount = ((!empty($f_lc_from) || !empty($f_lc_to)) ? 1 : 0)
+                           + (!empty($f_has_company) ? 1 : 0)
+                           + (!empty($f_channel) ? 1 : 0);
         $hasFilters        = (bool) ($search || $activeFilterCount > 0);
 
         $channelTypes = DB::table('conversations')

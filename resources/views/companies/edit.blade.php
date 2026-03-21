@@ -16,35 +16,34 @@
         </div>
     </div>
 
-    <form action="{{ route('companies.update', $company) }}" method="POST" class="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
+    <div class="card p-6">
+    <form action="{{ route('companies.update', $company) }}" method="POST">
         @csrf
         @method('PUT')
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
-            <input type="text" name="name" value="{{ old('name', $company->name) }}" required
-                   class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <div class="space-y-4">
+            <div>
+                <label class="label">Name <span class="text-red-500">*</span></label>
+                <input type="text" name="name" value="{{ old('name', $company->name) }}" required class="input w-full">
+            </div>
+
+            <div>
+                <label class="label">Primary Domain <span class="text-xs text-gray-400">(display only)</span></label>
+                <input type="text" name="primary_domain" value="{{ old('primary_domain', $company->primary_domain) }}" class="input w-full">
+            </div>
+
+            <div>
+                <label class="label">Timezone</label>
+                <input type="text" name="timezone" value="{{ old('timezone', $company->timezone) }}" class="input w-full">
+            </div>
         </div>
 
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Primary Domain <span class="text-xs text-gray-400">(display only)</span></label>
-            <input type="text" name="primary_domain" value="{{ old('primary_domain', $company->primary_domain) }}"
-                   class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
-        </div>
-
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
-            <input type="text" name="timezone" value="{{ old('timezone', $company->timezone) }}"
-                   class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
-        </div>
-
-        <div class="flex justify-end gap-2 pt-2">
-            <a href="{{ route('companies.show', $company) }}" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</a>
-            <button type="submit" class="px-4 py-2 bg-brand-600 text-white text-sm rounded hover:bg-brand-700 transition">
-                Save
-            </button>
+        <div class="flex gap-2 mt-6">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{{ route('companies.show', $company) }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
+    </div>
 
     <div class="mt-4 pt-4 border-t border-gray-100">
         <form action="{{ route('companies.destroy', $company) }}" method="POST"

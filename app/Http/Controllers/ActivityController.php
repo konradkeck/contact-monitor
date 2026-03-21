@@ -93,7 +93,7 @@ class ActivityController extends Controller
 
         if ($q = trim($request->get('q', ''))) {
             $query->where(function ($qb) use ($q) {
-                $qb->where('description', 'ilike', '%' . $q . '%')
+                $qb->whereRaw("meta_json->>'description' ilike ?", ['%' . $q . '%'])
                     ->orWhereHas('company', fn ($c) => $c->whereNull('merged_into_id')->where('name', 'ilike', '%' . $q . '%'))
                     ->orWhereHas('person', fn ($p) => $p->whereNull('merged_into_id')->whereRaw("(first_name || ' ' || COALESCE(last_name,'')) ilike ?", ['%' . $q . '%']));
             });

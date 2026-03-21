@@ -126,7 +126,7 @@
     </div>
 @endif
 
-<div class="card overflow-hidden">
+<div class="card-xl-overflow">
     <table class="w-full text-sm">
         <thead class="tbl-header">
             <tr>
@@ -151,7 +151,7 @@
                     <td class="col-mobile-hidden px-4 py-3">
                         <div class="flex items-center gap-1.5">
                             @include('synchronizer._type_icon', ['type' => $conn['type'], 'class' => 'w-4 h-4'])
-                            <span class="badge" style="background:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['bg'] }}; color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['color'] }}; border-color:{{ ($typeColors[$conn['type']] ?? $typeColors['imap'])['border'] }}">
+                            <span class="badge badge-sync-{{ $conn['type'] }}">
                                 {{ ['whmcs'=>'WHMCS','gmail'=>'Gmail','imap'=>'IMAP','metricscube'=>'MetricsCube','discord'=>'Discord','slack'=>'Slack'][$conn['type']] ?? ucfirst($conn['type']) }}
                             </span>
                         </div>
@@ -161,7 +161,7 @@
                             @if((int)($conn['settings']['whmcs_connection_id'] ?? 0))
                                 <span class="text-gray-400">Runs with WHMCS</span>
                             @else
-                                <span style="color:#cf222e">⚠ Missing linked WHMCS</span>
+                                <span class="text-red-600">⚠ Missing linked WHMCS</span>
                             @endif
                         @else
                             {{ $conn['schedule_label'] }}
@@ -185,9 +185,9 @@
                     <td class="px-4 py-3">
                         <div id="status-{{ $conn['id'] }}">
                         @if(($conn['latest_run'] ?? null) && ($conn['latest_run']['status'] ?? null))
-                            <span class="badge" style="background:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['bg'] }}; color:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['color'] }}; border-color:{{ ($statusColors[$conn['latest_run']['status']] ?? $statusColors['pending'])['border'] }}">
+                            <span class="badge badge-status-{{ $conn['latest_run']['status'] ?? 'pending' }}">
                                 @if($conn['latest_run']['status'] === 'running')
-                                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse" style="background:{{ ($statusColors['running'])['color'] }}"></span>
+                                    <span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse bg-current"></span>
                                 @elseif($conn['latest_run']['status'] === 'pending')
                                     <svg class="inline w-3 h-3 mr-0.5 -mt-px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>
                                 @endif
@@ -295,23 +295,15 @@ const KILL_ALL_URL = '{{ route('synchronizer.kill-all') }}';
 const CONNS_URL    = '{{ rtrim(url('/configuration/synchronizer/connections'), '/') }}';
 
 // ── Status badge rendering ────────────────────────────────────────────────────
-const STATUS_STYLES = {
-    completed: { color:'#3fb950', bg:'rgba(63,185,80,.1)',   border:'rgba(63,185,80,.25)' },
-    running:   { color:'#388bfd', bg:'rgba(88,166,255,.1)',  border:'rgba(88,166,255,.25)' },
-    pending:   { color:'#b45309', bg:'rgba(251,191,36,.12)', border:'rgba(251,191,36,.4)' },
-    failed:    { color:'#f85149', bg:'rgba(248,81,73,.1)',   border:'rgba(248,81,73,.25)' },
-};
-
 function renderBadge(status) {
     if (!status) return '<span class="text-gray-300 text-xs">&mdash;</span>';
-    const s = STATUS_STYLES[status] || STATUS_STYLES.completed;
     let icon = '';
     if (status === 'running') {
-        icon = `<span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse" style="background:${s.color}"></span>`;
+        icon = `<span class="inline-block w-1.5 h-1.5 rounded-full mr-0.5 animate-pulse bg-current"></span>`;
     } else if (status === 'pending') {
         icon = `<svg class="inline w-3 h-3 mr-0.5 -mt-px" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 7v5l3 2"/></svg>`;
     }
-    return `<span class="badge" style="background:${s.bg};color:${s.color};border-color:${s.border}">${icon}${status}</span>`;
+    return `<span class="badge badge-status-${status}">${icon}${status}</span>`;
 }
 
 function renderActions(connId, status) {

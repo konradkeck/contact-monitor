@@ -90,7 +90,7 @@
                 @endif
 
                 <a href="{{ $section['href'] }}"
-                   @if($section['disabled']) title="{{ $disabledMsg }}" onclick="return false" @endif
+                   @if($section['disabled']) title="{{ $section['disabledMsg'] ?? $disabledMsg }}" onclick="return false" @endif
                    @if($section['isActive']) aria-current="page" @endif
                    class="flex items-center gap-1.5 px-4 py-2 rounded text-sm font-medium transition
                           {{ $section['isActive'] ? 'bg-white/12 text-white' : 'text-slate-300 hover:text-white hover:bg-white/10' }}
@@ -227,6 +227,24 @@
                         <span class="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
                     @endif
                 </a>
+            @endforeach
+
+            <div class="sidebar-divider"></div>
+
+            {{-- AI Functionality --}}
+            <span class="sidebar-section sidebar-section-ai">AI Functionality</span>
+            @foreach($aiItems as $item)
+                @if($item['is_disabled'] ?? false)
+                    <span class="sidebar-link is-disabled select-none" title="{{ $item['disabledMsg'] ?? '' }}" aria-disabled="true" tabindex="-1" role="link">
+                        <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
+                        {{ $item['label'] }}
+                    </span>
+                @else
+                    <a href="{{ route($item['route']) }}" class="sidebar-link {{ $item['active'] ? 'is-active' : '' }}" {{ $item['active'] ? 'aria-current="page"' : '' }}>
+                        <svg class="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
+                        {{ $item['label'] }}
+                    </a>
+                @endif
             @endforeach
 
             <div class="sidebar-divider"></div>
